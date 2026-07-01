@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-frontend/
+.env
+*.log
+.DS_Store
+server/drizzle/
+server/data/saml/

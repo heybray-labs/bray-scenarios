@@ -1,0 +1,424 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Bray Pink Design System Colors */
+  --background: hsl(340, 20%, 99%); /* Light pink-tinted background */
+  --foreground: hsl(218, 54%, 20%); /* #172B4D - Dark Text */
+  --muted: hsl(340, 14%, 96%); /* Subtle pink-tinted muted */
+  --muted-foreground: hsl(215, 13%, 44%); /* #5E6C84 - Secondary Text */
+  --popover: hsl(0, 0%, 100%); /* #FFFFFF - White */
+  --popover-foreground: hsl(218, 54%, 20%); /* #172B4D */
+  --card: hsl(0, 0%, 100%); /* #FFFFFF - White Cards */
+  --card-foreground: hsl(218, 54%, 20%); /* #172B4D */
+  --border: hsl(340, 12%, 89%); /* Pink-tinted Border */
+  --input: hsl(340, 12%, 89%); /* Pink-tinted Input */
+  --primary: hsl(330, 65%, 55%); /* #D64D7A - Bray Pink */
+  --primary-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
+  --secondary: hsl(340, 14%, 96%); /* Subtle Pink Background */
+  --secondary-foreground: hsl(218, 54%, 20%); /* #172B4D */
+  --accent: hsl(330, 65%, 93%); /* Subtle Pink Background */
+  --accent-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
+  --destructive: hsl(354, 82%, 56%); /* #DE350B - Red */
+  --destructive-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
+  --ring: hsl(330, 65%, 55%); /* #D64D7A - Pink Focus Ring */
+  --radius: 0.1875rem; /* 3px - Border Radius */
+  --success: hsl(151, 55%, 41%); /* #00875A - Green */
+  --warning: hsl(35, 100%, 58%); /* #FF8B00 - Orange */
+  --info: hsl(330, 65%, 55%); /* #D64D7A - Bray Pink */
+  
+  /* Bray Specific Colors */
+  --bray-pink: hsl(330, 65%, 55%); /* #D64D7A */
+  --bray-pink-light: hsl(330, 65%, 96%); /* Light Pink */
+  --bray-grey-subtle: hsl(340, 14%, 96%); /* Subtle Grey with pink tint */
+  --bray-grey-medium: hsl(215, 13%, 44%); /* #5E6C84 */
+  --bray-elevation-shadow: 0 1px 1px rgba(66, 9, 36, 0.25);
+  --bray-elevation-shadow-raised: 0 4px 8px -2px rgba(66, 9, 36, 0.25), 0 0 1px rgba(66, 9, 36, 0.31);
+
+  /* Navigation chrome */
+  --nav-header-bg: #FFE4F8;
+  --nav-sidebar-bg: #E8E0E3;
+}
+
+.dark {
+  /* Bray Dark Theme */
+  --background: hsl(220, 20%, 8%); /* #1D2125 - Dark Background */
+  --foreground: hsl(0, 0%, 98%); /* #FFFFFF - White Text */
+  --muted: hsl(217, 16%, 15%); /* #282E33 - Dark Subtle */
+  --muted-foreground: hsl(210, 9%, 64%); /* #9FADBC - Dark Secondary Text */
+  --popover: hsl(217, 16%, 15%); /* #282E33 */
+  --popover-foreground: hsl(0, 0%, 98%); /* #FFFFFF */
+  --card: hsl(217, 16%, 15%); /* #282E33 - Dark Cards */
+  --card-foreground: hsl(0, 0%, 98%); /* #FFFFFF */
+  --border: hsl(216, 14%, 24%); /* #3C4043 - Dark Border */
+  --input: hsl(216, 14%, 24%); /* #3C4043 */
+  --primary: hsl(330, 65%, 65%); /* Light Pink for dark mode */
+  --primary-foreground: hsl(220, 20%, 8%); /* #1D2125 */
+  --secondary: hsl(217, 16%, 15%); /* #282E33 */
+  --secondary-foreground: hsl(0, 0%, 98%); /* #FFFFFF */
+  --accent: hsl(330, 65%, 25%); /* Subtle Dark Pink for hover */
+  --accent-foreground: hsl(220, 20%, 8%); /* #1D2125 */
+  --destructive: hsl(354, 82%, 67%); /* #F87462 - Red Light */
+  --destructive-foreground: hsl(220, 20%, 8%); /* #1D2125 */
+  --ring: hsl(330, 65%, 65%); /* Light Pink */
+  --success: hsl(151, 55%, 63%); /* #4BCE97 - Green Light */
+  --warning: hsl(35, 100%, 74%); /* #FFAB00 - Orange Light */
+  --info: hsl(330, 65%, 65%); /* Light Pink */
+  
+  /* Dark Theme Bray Specific */
+  --bray-pink: hsl(330, 65%, 65%); /* Light Pink */
+  --bray-pink-light: hsl(330, 65%, 20%); /* Dark Pink */
+  --bray-grey-subtle: hsl(217, 16%, 15%); /* #282E33 */
+  --bray-grey-medium: hsl(210, 9%, 64%); /* #9FADBC */
+  --bray-elevation-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+  --bray-elevation-shadow-raised: 0 12px 24px -6px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    /* Atlassian Font Stack - System fonts for consistent display */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-size: 14px; /* Atlassian body text size */
+    line-height: 1.42857; /* Atlassian line height */
+    font-weight: 400;
+  }
+
+  /* Atlassian Typography Hierarchy */
+  h1 {
+    @apply font-medium;
+    font-size: 29px;
+    line-height: 1.24138;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    @apply font-medium;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    @apply font-medium;
+    font-size: 20px;
+    line-height: 1.2;
+    font-weight: 500;
+    letter-spacing: -0.008em;
+  }
+
+  h4 {
+    @apply font-medium;
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.006em;
+  }
+
+  h5 {
+    @apply font-medium;
+    font-size: 14px;
+    line-height: 1.42857;
+    font-weight: 600;
+    letter-spacing: -0.003em;
+  }
+
+  h6 {
+    @apply font-medium;
+    font-size: 12px;
+    line-height: 1.33333;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  /* Atlassian Text Sizes */
+  .text-small {
+    font-size: 11px;
+    line-height: 1.36364;
+  }
+
+  .text-body {
+    font-size: 14px;
+    line-height: 1.42857;
+  }
+
+  .text-large {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+}
+
+@layer components {
+  /* Atlassian Button System */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground border-0 px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
+    border-radius: var(--radius);
+    box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25);
+  }
+  
+  .btn-primary:hover {
+    @apply bg-blue-700;
+    box-shadow: 0 2px 4px rgba(9, 30, 66, 0.25);
+  }
+  
+  .btn-primary:focus {
+    @apply outline-none ring-2 ring-blue-200;
+    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-foreground border border-border px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
+    border-radius: var(--radius);
+  }
+  
+  .btn-secondary:hover {
+    @apply bg-muted;
+  }
+  
+  .btn-secondary:focus {
+    @apply outline-none ring-2 ring-blue-200;
+    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
+  }
+
+  .btn-success {
+    @apply bg-success text-white border-0 px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
+    border-radius: var(--radius);
+    background-color: hsl(var(--success));
+  }
+
+  /* Atlassian Card System */
+  .card {
+    @apply bg-card text-card-foreground border border-border p-4;
+    border-radius: var(--radius);
+    box-shadow: var(--atlassian-elevation-shadow);
+    transition: box-shadow 0.2s ease;
+  }
+  
+  .card:hover {
+    box-shadow: var(--atlassian-elevation-shadow-raised);
+  }
+
+  /* Atlassian Navigation */
+  .nav-item {
+    @apply flex items-center px-2 py-1.5 font-normal text-sm transition-all duration-150;
+    border-radius: var(--radius);
+    margin: 1px 8px;
+    min-height: 32px;
+  }
+
+  .nav-item.active {
+    @apply text-primary font-medium;
+    background-color: var(--atlassian-blue-light);
+    color: var(--atlassian-blue);
+  }
+
+  .nav-item:not(.active) {
+    @apply text-muted-foreground;
+  }
+  
+  .nav-item:not(.active):hover {
+    @apply bg-muted text-foreground;
+  }
+
+  /* Atlassian Dashboard Cards */
+  .stats-card {
+    @apply bg-card border border-border p-4;
+    border-radius: var(--radius);
+    box-shadow: var(--atlassian-elevation-shadow);
+  }
+
+  /* Atlassian Form Elements */
+  .form-input {
+    @apply w-full px-3 py-2 border border-input text-sm bg-background transition-all duration-200;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.42857;
+  }
+  
+  .form-input:focus {
+    @apply outline-none border-primary;
+    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
+  }
+
+  /* Atlassian Table System */
+  .table-header {
+    @apply bg-muted text-muted-foreground font-medium text-xs uppercase tracking-wide border-b border-border px-3 py-2;
+    font-size: 11px;
+    line-height: 1.36364;
+  }
+
+  .table-row {
+    @apply border-b border-border transition-colors cursor-pointer;
+  }
+  
+  .table-row:hover {
+    background-color: var(--atlassian-grey-subtle);
+  }
+  
+  .table-cell {
+    @apply px-3 py-2 text-sm;
+    line-height: 1.42857;
+  }
+
+  /* Atlassian Status Badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-1 text-xs font-medium;
+    border-radius: var(--radius);
+    line-height: 1;
+  }
+  
+  .badge-success {
+    @apply text-green-800 bg-green-100;
+    background-color: #E3FCEF;
+    color: #006644;
+  }
+  
+  .badge-warning {
+    @apply text-orange-800 bg-orange-100;
+    background-color: #FFFAE6;
+    color: #974F0C;
+  }
+  
+  .badge-error {
+    @apply text-red-800 bg-red-100;
+    background-color: #FFEBE6;
+    color: #AE2E24;
+  }
+  
+  .badge-info {
+    @apply text-blue-800 bg-blue-100;
+    background-color: #DEEBFF;
+    color: #0747A6;
+  }
+
+  /* Atlassian Spacing */
+  .atlassian-spacing-xs { margin: 2px; }
+  .atlassian-spacing-sm { margin: 4px; }
+  .atlassian-spacing-md { margin: 8px; }
+  .atlassian-spacing-lg { margin: 16px; }
+  .atlassian-spacing-xl { margin: 24px; }
+}
+
+@layer utilities {
+  .text-success {
+    color: hsl(160, 84%, 39%);
+  }
+
+  .text-warning {
+    color: hsl(38, 92%, 50%);
+  }
+
+  .text-info {
+    color: hsl(199, 89%, 48%);
+  }
+
+  .bg-success {
+    background-color: hsl(160, 84%, 39%);
+  }
+
+  .bg-warning {
+    background-color: hsl(38, 92%, 50%);
+  }
+
+  .bg-info {
+    background-color: hsl(199, 89%, 48%);
+  }
+
+  .bg-success-10 {
+    background-color: hsl(160, 84%, 39%, 0.1);
+  }
+
+  .bg-warning-10 {
+    background-color: hsl(38, 92%, 50%, 0.1);
+  }
+
+  .bg-info-10 {
+    background-color: hsl(199, 89%, 48%, 0.1);
+  }
+}
+
+/* React Quill Editor Styles */
+.ql-container {
+  @apply border-border font-sans;
+}
+
+.ql-toolbar {
+  @apply border-border bg-muted rounded-t-md;
+}
+
+.ql-editor {
+  @apply min-h-[150px] text-foreground bg-background;
+  font-size: 14px;
+}
+
+.ql-editor.ql-blank::before {
+  @apply text-muted-foreground;
+  font-style: normal;
+}
+
+/* Dark mode adjustments */
+.dark .ql-toolbar {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.dark .ql-stroke {
+  stroke: hsl(var(--foreground));
+}
+
+.dark .ql-fill {
+  fill: hsl(var(--foreground));
+}
+
+.dark .ql-picker-label {
+  @apply text-foreground;
+}
+
+.dark .ql-picker-options {
+  @apply bg-popover border-border;
+}
+
+.dark .ql-picker-item {
+  @apply text-foreground;
+}
+
+.dark .ql-picker-item:hover {
+  @apply text-primary;
+}
+
+/* Toolbar button hover states */
+.ql-toolbar button:hover,
+.ql-toolbar button:focus {
+  @apply text-primary;
+}
+
+.ql-toolbar button.ql-active {
+  @apply text-primary;
+}
+
+.dark .ql-toolbar button:hover .ql-stroke,
+.dark .ql-toolbar button:focus .ql-stroke,
+.dark .ql-toolbar button.ql-active .ql-stroke {
+  stroke: hsl(var(--primary));
+}
+
+.dark .ql-toolbar button:hover .ql-fill,
+.dark .ql-toolbar button:focus .ql-fill,
+.dark .ql-toolbar button.ql-active .ql-fill {
+  fill: hsl(var(--primary));
+}
+
+/* Force left alignment for prose content */
+.prose {
+  @apply text-left !important;
+}
+
+.prose * {
+  @apply text-left !important;
+}

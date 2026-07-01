@@ -1,0 +1,160 @@
+import { Router } from "express";
+import bcrypt from "bcrypt";
+import { z } from "zod";
+import {
+  authenticateToken,
+  requirePasswordChanged,
+  requireRole,
+  type AuthRequest,
+} from "../middleware/auth.ts";
+import { resolveTenant } from "../middleware/tenant.ts";
+import { userController } from "../controllers/user.controller.ts";
+import { adminCreateUserSchema, updateUserRoleSchema } from "../../shared/schemas/users.ts";
+import { isSsoEnabled } from "../config/auth-config.ts";
+import { db } from "../db.ts";
+import { roles } from "../../shared/schemas/roles.ts";
+import { eq } from "drizzle-orm";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("users");
+const router = Router();
+
+router.use(authenticateToken);
+router.use(requirePasswordChanged);
+router.use(resolveTenant);
+router.use(requireRole("admin"));
+
+function tenantId(req: AuthRequest): number {
+  return req.tenantId ?? parseInt(process.env.DEFAULT_TENANT_ID || "1", 10);
+}
+
+router.get("/", async (req: AuthRequest, res) => {
+  try {
+    const users = await userController.listTenantUsers(tenantId(req));
+    res.json({ users });
+  } catch (error) {
+    log.error("Failed to list users", error instanceof Error ? error : undefined, {
+      requestId: req.requestId,
+    });
+    res.status(500).json({ message: "Failed to list users" });
+  }
+});
+
+router.post("/", async (req: AuthRequest, res) => {
+  if (isSsoEnabled()) {
+    return res.status(403).json({ message: "User creation is disabled when SSO is enabled" });
+  }
+
+  try {
+    const { email, firstName, password, role } = adminCreateUserSchema.parse(req.body);
+    const tid = tenantId(req);
+
+    const existing = await userController.getUserByEmail(email, tid);
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const [roleRow] = await db.select().from(roles).where(eq(roles.name, role)).limit(1);
+    if (!roleRow) {
+      return res.status(500).json({ message: `Role not configured: ${role}` });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const isAdmin = role === "admin";
+    const user = await userController.createUser({
+      email,
+      password: hashed,
+      firstName,
+      roleId: roleRow.id,
+      tenantId: tid,
+      mustChangePassword: true,
+      isTenantAdmin: isAdmin,
+      tenantRole: isAdmin ? "admin" : "member",
+    });
+
+    log.info("Admin created user", {
+      userId: user.id,
+      tenantId: tid,
+      role,
+      requestId: req.requestId,
+    });
+
+    const userWithRole = await userController.getUserWithRole(user.id);
+    res.status(201).json({ user: userWithRole });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid input", details: error.errors });
+    }
+    log.error("Failed to create user", error instanceof Error ? error : undefined, {
+      requestId: req.requestId,
+    });
+    res.status(500).json({ message: "Failed to create user" });
+  }
+});
+
+const userIdParamSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+router.patch("/:id/role", async (req: AuthRequest, res) => {
+  try {
+    const { id: targetId } = userIdParamSchema.parse(req.params);
+    const { role } = updateUserRoleSchema.parse(req.body);
+    const tid = tenantId(req);
+    const actorId = req.user!.id;
+
+    if (targetId === actorId) {
+      return res.status(403).json({ message: "Cannot change your own role" });
+    }
+
+    const target = await userController.getUserById(targetId);
+    if (!target || target.tenantId !== tid) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!target.isActive || target.isSuspended) {
+      return res.status(400).json({ message: "Cannot change role for inactive or suspended user" });
+    }
+
+    const targetWithRole = await userController.getUserWithRole(targetId);
+    const currentRole = targetWithRole?.role?.name;
+
+    if (currentRole === "admin" && role === "user") {
+      const adminCount = await userController.countAdmins(tid);
+      if (adminCount <= 1) {
+        return res.status(403).json({ message: "Cannot remove the last admin" });
+      }
+    }
+
+    if (currentRole === role) {
+      const userWithRole = await userController.getUserWithRole(targetId);
+      return res.json({ user: userWithRole });
+    }
+
+    const updated = await userController.updateUserRole(targetId, tid, role);
+    if (!updated) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    log.info("User role updated", {
+      targetId,
+      role,
+      tenantId: tid,
+      actorId,
+      requestId: req.requestId,
+    });
+
+    const userWithRole = await userController.getUserWithRole(targetId);
+    res.json({ user: userWithRole });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid input", details: error.errors });
+    }
+    log.error("Failed to update user role", error instanceof Error ? error : undefined, {
+      requestId: req.requestId,
+    });
+    res.status(500).json({ message: "Failed to update user role" });
+  }
+});
+
+export default router;
