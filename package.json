@@ -15,7 +15,8 @@
     "db:init": "npm run db:init --workspace=server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "quickstart": "./bin/quickstart.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

@@ -10,6 +10,7 @@ import {
 } from "../middleware/auth.ts";
 import {
   getPublicAuthConfig,
+  getAuthProtocol,
   isSsoEnabled,
   getAppUrl,
   getOidcRedirectUri,
@@ -37,7 +38,11 @@ router.get("/setup-status", async (_req, res) => {
       userController.hasAdminUser(),
       userController.hasPasswordUsers(),
     ]);
-    res.json({ needsSetup: !hasAdmin, hasPasswordUsers });
+    const needsSetup =
+      getAuthProtocol() === "local"
+        ? !hasAdmin || !hasPasswordUsers
+        : !hasAdmin;
+    res.json({ needsSetup, hasPasswordUsers });
   } catch {
     res.status(500).json({ message: "Failed to check setup status" });
   }
@@ -54,8 +59,13 @@ router.post("/setup-admin", async (req, res) => {
     const { name, email, password } = setupAdminSchema.parse(req.body);
 
     const hasAdmin = await userController.hasAdminUser();
-    if (hasAdmin) {
+    const hasPasswordUsers = await userController.hasPasswordUsers();
+    if (hasAdmin && !(getAuthProtocol() === "local" && !hasPasswordUsers)) {
       return res.status(403).json({ message: "Admin account already exists" });
+    }
+
+    if (getAuthProtocol() === "local" && !hasPasswordUsers) {
+      await userController.deletePasswordlessUsers();
     }
 
     const existing = await userController.getUserByEmail(email);

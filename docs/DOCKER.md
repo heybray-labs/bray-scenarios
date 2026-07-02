@@ -2,7 +2,37 @@
 
 Production-like Docker Compose stack: **Postgres** + **single app container** serving the built React SPA and API on one port (`3001`).
 
-## Quick start
+## Quick start (no clone)
+
+Requires Docker and Docker Compose. Pulls the published image from GHCR (must be public — see [RELEASING.md](RELEASING.md)).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+```
+
+Installs to `~/.bray-scenarios/` (override with `BRAY_SCENARIOS_HOME`). A `.env` with a generated `JWT_SECRET` is created on first run and not overwritten on subsequent runs.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | `3001` | Host port for the app |
+| `BRAY_IMAGE_TAG` | `latest` | Docker image tag to pull |
+| `BRAY_VERSION` | `main` | Git ref for the compose file |
+| `BRAY_SCENARIOS_HOME` | `~/.bray-scenarios` | Install directory |
+
+```bash
+# Pin a release
+BRAY_IMAGE_TAG=1.0.2 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+
+# Lifecycle
+cd ~/.bray-scenarios
+docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml logs -f app
+docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml down
+docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml down -v   # reset database
+```
+
+Open [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
+
+## Quick start (from clone)
 
 ```bash
 cp .env.docker.example .env

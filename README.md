@@ -14,7 +14,19 @@ Bray Scenarios is an open-source AI roleplay training app for practicing real-wo
 
 ## Installation
 
-### Option 1: Clone from GitHub and run locally
+### Option 1: One command (no clone)
+
+**Prerequisites:** Docker and Docker Compose
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+```
+
+This downloads the pre-built image from `ghcr.io`, creates config in `~/.bray-scenarios/`, and starts the app at [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
+
+Pin a release image: `BRAY_IMAGE_TAG=1.0.2 curl -fsSL ... | bash`. See [docs/DOCKER.md](docs/DOCKER.md) for stop, logs, and reset.
+
+### Option 2: Clone from GitHub and run locally
 
 **Prerequisites:** Node.js 20+, npm 10+, and PostgreSQL
 
@@ -39,7 +51,7 @@ npm run launch:local
 
 On first visit to `/login`, create the administrator account in the setup form. Optionally set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` to seed an admin automatically on init — seeded admins must change their password on first login.
 
-### Option 2: Quick start with Docker
+### Option 3: Quick start with Docker (from clone)
 
 **Prerequisites:** Docker and Docker Compose
 

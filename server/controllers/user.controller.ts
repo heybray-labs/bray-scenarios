@@ -112,6 +112,10 @@ export const userController = {
     return (row?.count ?? 0) > 0;
   },
 
+  async deletePasswordlessUsers(): Promise<void> {
+    await db.delete(users).where(sql`${users.password} IS NULL`);
+  },
+
   async createAdminUser(data: {
     email: string;
     password: string;

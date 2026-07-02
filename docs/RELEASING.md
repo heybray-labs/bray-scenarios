@@ -28,7 +28,23 @@ git push --follow-tags
 
 ## Pulling the image
 
-The GHCR package is **private**, matching the repo. Pulling it requires authentication:
+The GHCR package must be **public** for the one-line quick start (`curl ... | bash`) to work without authentication.
+
+**One-time org admin step:** GitHub → **heybray-labs** → **Packages** → `bray-scenarios` → **Package settings** → set visibility to **Public**.
+
+Verify anonymous pull:
+
+```bash
+docker pull ghcr.io/heybray-labs/bray-scenarios:latest
+```
+
+Pull a specific release:
+
+```bash
+docker pull ghcr.io/heybray-labs/bray-scenarios:1.2.0
+```
+
+If the package is private, authenticate first:
 
 ```bash
 echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
