@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="heybray-labs/bray-scenarios"
 INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
 COMPOSE_FILE="docker-compose.quickstart.yml"
-COMPOSE_PROJECT="bray-scenarios-quickstart"
 LOCAL_COMPOSE="${SCRIPT_DIR}/../docker/${COMPOSE_FILE}"
 LOCAL_ENV_EXAMPLE="${SCRIPT_DIR}/../.env.docker.example"
 ENV_EXAMPLE_NAME=".env.docker.example"
@@ -49,9 +48,17 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [ "$INTERACTIVE" = true ] && [ ! -t 0 ]; then
+if [ "$INTERACTIVE" = true ] && [ ! -r /dev/tty ]; then
   die "interactive mode requires a terminal; omit --interactive for silent install (curl | bash)"
 fi
+
+prompt_read() {
+  IFS= read -r "$@" </dev/tty
+}
+
+prompt_read_secret() {
+  IFS= read -rs "$@" </dev/tty
+}
 
 fetch_latest_release_tag() {
   curl -fsSL -H "Accept: application/vnd.github+json" \
@@ -129,7 +136,7 @@ prompt_default() {
   local default="$2"
   local input
   printf '%s [%s]: ' "$label" "$default" >&2
-  read -r input
+  prompt_read input
   if [ -z "$input" ]; then
     echo "$default"
   else
@@ -141,7 +148,7 @@ prompt_secret() {
   local label="$1"
   local input
   printf '%s: ' "$label" >&2
-  read -rs input
+  prompt_read_secret input
   printf '\n' >&2
   echo "$input"
 }
@@ -169,7 +176,7 @@ prompt_yes_no() {
   fi
   while true; do
     printf '%s [%s]: ' "$question" "$hint" >&2
-    read -r input
+    prompt_read input
     input="$(echo "$input" | tr '[:upper:]' '[:lower:]')"
     if [ -z "$input" ]; then
       input="$default"
@@ -305,7 +312,7 @@ print_saml_checklist() {
   echo "  2. Set APP_URL in ${INSTALL_DIR}/.env to your HTTPS tunnel URL"
   echo "  3. Register ACS URL and Entity ID in Google Admin (see docs)"
   echo "  4. Paste base64-encoded IdP metadata into SAML_IDP_METADATA in .env"
-  echo "  5. Restart: cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} up -d"
+  echo "  5. Restart: cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} up -d"
   echo "  Docs: https://github.com/${REPO}/blob/main/docs/AUTHENTICATION.md"
 }
 
@@ -354,9 +361,9 @@ print_completion() {
   fi
 
   echo ""
-  echo "Logs:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} logs -f app"
-  echo "Stop:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down"
-  echo "Reset:  cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down -v"
+  echo "Logs:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} logs -f app"
+  echo "Stop:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down"
+  echo "Reset:  cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down -v"
 }
 
 mkdir -p "$INSTALL_DIR"
@@ -387,7 +394,7 @@ PORT="$(read_env_value "PORT" .env)"
 export BRAY_IMAGE_TAG PORT
 
 compose() {
-  docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" "$@"
+  docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 echo "Pulling images (tag: ${BRAY_IMAGE_TAG})..."

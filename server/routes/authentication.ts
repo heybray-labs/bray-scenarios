@@ -15,7 +15,7 @@ import {
   getAppUrl,
   getOidcRedirectUri,
 } from "../config/auth-config.ts";
-import { oidcAuthService, OIDC_STATE_COOKIE } from "../services/oidc-auth.service.ts";
+import { oidcAuthService, OIDC_STATE_COOKIE, getOidcStateCookieOptions } from "../services/oidc-auth.service.ts";
 import { samlAuthService, SAML_STATE_COOKIE } from "../services/saml-auth.service.ts";
 import { completeExchange } from "../services/sso-exchange.service.ts";
 import { db } from "../db.ts";
@@ -297,7 +297,7 @@ router.get("/oidc/callback", async (req, res) => {
       description,
       requestId: authReq.requestId,
     });
-    res.clearCookie(OIDC_STATE_COOKIE, { path: "/" });
+    res.clearCookie(OIDC_STATE_COOKIE, getOidcStateCookieOptions());
     const message = description || providerError;
     return res.redirect(`${getAppUrl()}/login?error=${encodeURIComponent(message)}`);
   }
@@ -313,14 +313,14 @@ router.get("/oidc/callback", async (req, res) => {
       callbackUrl,
       req.cookies?.[OIDC_STATE_COOKIE],
     );
-    res.clearCookie(OIDC_STATE_COOKIE, { path: "/" });
+    res.clearCookie(OIDC_STATE_COOKIE, getOidcStateCookieOptions());
     log.debug("OIDC callback redirecting to SPA", { requestId: authReq.requestId });
     res.redirect(redirectUrl);
   } catch (error) {
     log.error("OIDC callback failed", error instanceof Error ? error : undefined, {
       requestId: authReq.requestId,
     });
-    res.clearCookie(OIDC_STATE_COOKIE, { path: "/" });
+    res.clearCookie(OIDC_STATE_COOKIE, getOidcStateCookieOptions());
     const message = error instanceof Error ? error.message : "OIDC sign-in failed";
     res.redirect(`${getAppUrl()}/login?error=${encodeURIComponent(message)}`);
   }

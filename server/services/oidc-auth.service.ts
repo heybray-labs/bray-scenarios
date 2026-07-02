@@ -76,6 +76,17 @@ function verifyOidcState(token: string): OidcStatePayload {
   return jwt.verify(token, JWT_SECRET) as OidcStatePayload;
 }
 
+export function getOidcStateCookieOptions() {
+  const useSecureCookies = getOidcRedirectUri().startsWith("https://");
+  return {
+    httpOnly: true,
+    secure: useSecureCookies,
+    sameSite: useSecureCookies ? ("none" as const) : ("lax" as const),
+    maxAge: 10 * 60 * 1000,
+    path: "/",
+  };
+}
+
 function extractClaims(tokenResponse: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers): OidcClaims {
   const claims = tokenResponse.claims();
   if (!claims?.sub) {
@@ -145,13 +156,7 @@ export const oidcAuthService = {
     const redirectTo = client.buildAuthorizationUrl(config, parameters);
     log.debug("OIDC redirecting to provider", { authorizationEndpoint: redirectTo.origin });
 
-    res.cookie(OIDC_STATE_COOKIE, signedState, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 10 * 60 * 1000,
-      path: "/",
-    });
+    res.cookie(OIDC_STATE_COOKIE, signedState, getOidcStateCookieOptions());
 
     res.redirect(redirectTo.href);
   },

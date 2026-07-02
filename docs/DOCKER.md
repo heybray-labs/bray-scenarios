@@ -45,14 +45,14 @@ BRAY_IMAGE_TAG=1.0.2 curl -fsSL https://raw.githubusercontent.com/heybray-labs/b
 
 # Lifecycle
 cd ~/.bray-scenarios
-docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml logs -f app
-docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml down
-docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml down -v   # reset database
+docker compose -f docker-compose.quickstart.yml logs -f app
+docker compose -f docker-compose.quickstart.yml down
+docker compose -f docker-compose.quickstart.yml down -v   # reset database
 ```
 
 Open [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
 
-To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml up -d`. See [AUTHENTICATION.md](AUTHENTICATION.md).
+To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `docker compose -f docker-compose.quickstart.yml up -d`. See [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Quick start (from clone)
 
