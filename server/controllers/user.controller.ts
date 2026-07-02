@@ -3,7 +3,7 @@ import { users } from "../../shared/schemas/users.ts";
 import { roles } from "../../shared/schemas/roles.ts";
 import { userIdentities } from "../../shared/schemas/user-identities.ts";
 import { eq, and, sql, asc } from "drizzle-orm";
-import type { TenantUserSummary, UserWithRole } from "../../shared/schemas/types.ts";
+import type { UserSummary, UserWithRole } from "../../shared/schemas/types.ts";
 import { getOidcProviderName, getSamlProviderName } from "../config/auth-config.ts";
 
 function resolveSignInMethod(
@@ -31,11 +31,11 @@ function resolveSignInMethod(
 }
 
 export const userController = {
-  async getUserByEmail(email: string, tenantId: number) {
+  async getUserByEmail(email: string) {
     const [user] = await db
       .select()
       .from(users)
-      .where(and(eq(users.email, email.toLowerCase()), eq(users.tenantId, tenantId)))
+      .where(eq(users.email, email.toLowerCase()))
       .limit(1);
     return user ?? null;
   },
@@ -52,7 +52,6 @@ export const userController = {
 
     return {
       id: row.user.id,
-      tenantId: row.user.tenantId,
       email: row.user.email,
       roleId: row.user.roleId,
       isActive: row.user.isActive,
@@ -94,12 +93,21 @@ export const userController = {
     return user ?? null;
   },
 
-  async hasAdminUser(tenantId: number): Promise<boolean> {
+  async hasAdminUser(): Promise<boolean> {
     const [row] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users)
       .innerJoin(roles, eq(users.roleId, roles.id))
-      .where(and(eq(users.tenantId, tenantId), eq(roles.name, "admin")))
+      .where(eq(roles.name, "admin"))
+      .limit(1);
+    return (row?.count ?? 0) > 0;
+  },
+
+  async hasPasswordUsers(): Promise<boolean> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(sql`${users.password} IS NOT NULL`)
       .limit(1);
     return (row?.count ?? 0) > 0;
   },
@@ -108,7 +116,6 @@ export const userController = {
     email: string;
     password: string;
     firstName?: string;
-    tenantId: number;
     roleId: number;
   }) {
     const [user] = await db
@@ -118,11 +125,8 @@ export const userController = {
         password: data.password,
         firstName: data.firstName ?? null,
         roleId: data.roleId,
-        tenantId: data.tenantId,
         isEmailVerified: true,
         approvalStatus: "approved",
-        isTenantAdmin: true,
-        tenantRole: "admin",
       })
       .returning();
     return user;
@@ -133,10 +137,7 @@ export const userController = {
     password: string;
     firstName?: string;
     roleId: number;
-    tenantId: number;
     mustChangePassword?: boolean;
-    isTenantAdmin?: boolean;
-    tenantRole?: string;
   }) {
     const [user] = await db
       .insert(users)
@@ -145,18 +146,15 @@ export const userController = {
         password: data.password,
         firstName: data.firstName ?? null,
         roleId: data.roleId,
-        tenantId: data.tenantId,
         isEmailVerified: true,
         approvalStatus: "approved",
         mustChangePassword: data.mustChangePassword ?? false,
-        isTenantAdmin: data.isTenantAdmin ?? false,
-        tenantRole: data.tenantRole ?? "member",
       })
       .returning();
     return user;
   },
 
-  async listTenantUsers(tenantId: number): Promise<TenantUserSummary[]> {
+  async listUsers(): Promise<UserSummary[]> {
     const rows = await db
       .select({
         id: users.id,
@@ -168,7 +166,6 @@ export const userController = {
       })
       .from(users)
       .innerJoin(roles, eq(users.roleId, roles.id))
-      .where(eq(users.tenantId, tenantId))
       .orderBy(asc(users.email));
 
     const identities = await db
@@ -177,8 +174,7 @@ export const userController = {
         provider: userIdentities.provider,
         providerDisplayName: userIdentities.providerDisplayName,
       })
-      .from(userIdentities)
-      .where(eq(userIdentities.tenantId, tenantId));
+      .from(userIdentities);
 
     const identityByUserId = new Map(
       identities.map((identity) => [identity.userId, identity]),
@@ -199,14 +195,13 @@ export const userController = {
     });
   },
 
-  async countAdmins(tenantId: number): Promise<number> {
+  async countAdmins(): Promise<number> {
     const [row] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users)
       .innerJoin(roles, eq(users.roleId, roles.id))
       .where(
         and(
-          eq(users.tenantId, tenantId),
           eq(roles.name, "admin"),
           eq(users.isActive, true),
           eq(users.isSuspended, false),
@@ -216,22 +211,19 @@ export const userController = {
     return row?.count ?? 0;
   },
 
-  async updateUserRole(userId: number, tenantId: number, roleName: "admin" | "user") {
+  async updateUserRole(userId: number, roleName: "admin" | "user") {
     const [role] = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1);
     if (!role) {
       throw new Error(`Role not configured: ${roleName}`);
     }
 
-    const isAdmin = roleName === "admin";
     const [user] = await db
       .update(users)
       .set({
         roleId: role.id,
-        isTenantAdmin: isAdmin,
-        tenantRole: isAdmin ? "admin" : "member",
         updatedAt: new Date(),
       })
-      .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)))
+      .where(eq(users.id, userId))
       .returning();
 
     return user ?? null;
@@ -241,7 +233,6 @@ export const userController = {
     email: string;
     firstName?: string;
     roleId: number;
-    tenantId: number;
   }) {
     const [user] = await db
       .insert(users)
@@ -250,7 +241,6 @@ export const userController = {
         password: null,
         firstName: data.firstName ?? null,
         roleId: data.roleId,
-        tenantId: data.tenantId,
         isEmailVerified: true,
         approvalStatus: "approved",
       })

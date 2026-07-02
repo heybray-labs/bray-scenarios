@@ -7,7 +7,6 @@ import {
   requireRole,
   type AuthRequest,
 } from "../middleware/auth.ts";
-import { resolveTenant } from "../middleware/tenant.ts";
 import { userController } from "../controllers/user.controller.ts";
 import { adminCreateUserSchema, updateUserRoleSchema } from "../../shared/schemas/users.ts";
 import { isSsoEnabled } from "../config/auth-config.ts";
@@ -21,16 +20,11 @@ const router = Router();
 
 router.use(authenticateToken);
 router.use(requirePasswordChanged);
-router.use(resolveTenant);
 router.use(requireRole("admin"));
-
-function tenantId(req: AuthRequest): number {
-  return req.tenantId ?? parseInt(process.env.DEFAULT_TENANT_ID || "1", 10);
-}
 
 router.get("/", async (req: AuthRequest, res) => {
   try {
-    const users = await userController.listTenantUsers(tenantId(req));
+    const users = await userController.listUsers();
     res.json({ users });
   } catch (error) {
     log.error("Failed to list users", error instanceof Error ? error : undefined, {
@@ -47,9 +41,8 @@ router.post("/", async (req: AuthRequest, res) => {
 
   try {
     const { email, firstName, password, role } = adminCreateUserSchema.parse(req.body);
-    const tid = tenantId(req);
 
-    const existing = await userController.getUserByEmail(email, tid);
+    const existing = await userController.getUserByEmail(email);
     if (existing) {
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -60,21 +53,16 @@ router.post("/", async (req: AuthRequest, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const isAdmin = role === "admin";
     const user = await userController.createUser({
       email,
       password: hashed,
       firstName,
       roleId: roleRow.id,
-      tenantId: tid,
       mustChangePassword: true,
-      isTenantAdmin: isAdmin,
-      tenantRole: isAdmin ? "admin" : "member",
     });
 
     log.info("Admin created user", {
       userId: user.id,
-      tenantId: tid,
       role,
       requestId: req.requestId,
     });
@@ -100,7 +88,6 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
   try {
     const { id: targetId } = userIdParamSchema.parse(req.params);
     const { role } = updateUserRoleSchema.parse(req.body);
-    const tid = tenantId(req);
     const actorId = req.user!.id;
 
     if (targetId === actorId) {
@@ -108,7 +95,7 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
     }
 
     const target = await userController.getUserById(targetId);
-    if (!target || target.tenantId !== tid) {
+    if (!target) {
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -120,7 +107,7 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
     const currentRole = targetWithRole?.role?.name;
 
     if (currentRole === "admin" && role === "user") {
-      const adminCount = await userController.countAdmins(tid);
+      const adminCount = await userController.countAdmins();
       if (adminCount <= 1) {
         return res.status(403).json({ message: "Cannot remove the last admin" });
       }
@@ -131,7 +118,7 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
       return res.json({ user: userWithRole });
     }
 
-    const updated = await userController.updateUserRole(targetId, tid, role);
+    const updated = await userController.updateUserRole(targetId, role);
     if (!updated) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -139,7 +126,6 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
     log.info("User role updated", {
       targetId,
       role,
-      tenantId: tid,
       actorId,
       requestId: req.requestId,
     });

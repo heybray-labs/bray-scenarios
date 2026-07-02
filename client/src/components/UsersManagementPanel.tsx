@@ -32,12 +32,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AuthService } from "@/lib/auth";
-import type { TenantUserSummary } from "@shared/schemas/types";
+import type { UserSummary } from "@shared/schemas/types";
 import { Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { HttpError } from "@/lib/http-error";
 
 type UsersListResponse = {
-  users: TenantUserSummary[];
+  users: UserSummary[];
 };
 
 type PendingRoleChange = {
@@ -112,20 +112,20 @@ export function UsersManagementPanel() {
     },
   });
 
-  const handleRoleChange = (tenantUser: TenantUserSummary, newRole: "admin" | "user") => {
-    if (tenantUser.id === currentUser?.id) return;
-    if (tenantUser.role.name === newRole) return;
+  const handleRoleChange = (user: UserSummary, newRole: "admin" | "user") => {
+    if (user.id === currentUser?.id) return;
+    if (user.role.name === newRole) return;
 
-    if (tenantUser.role.name === "admin" && newRole === "user") {
+    if (user.role.name === "admin" && newRole === "user") {
       setPendingRoleChange({
-        userId: tenantUser.id,
-        email: tenantUser.email,
+        userId: user.id,
+        email: user.email,
         newRole,
       });
       return;
     }
 
-    roleMutation.mutate({ userId: tenantUser.id, role: newRole });
+    roleMutation.mutate({ userId: user.id, role: newRole });
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -176,24 +176,24 @@ export function UsersManagementPanel() {
             <span />
           </div>
           <ul className="divide-y">
-            {users.map((tenantUser) => {
-              const isSelf = tenantUser.id === currentUser?.id;
+            {users.map((user) => {
+              const isSelf = user.id === currentUser?.id;
               return (
-                <li key={tenantUser.id} className={`${USER_TABLE_GRID} py-3 text-sm`}>
+                <li key={user.id} className={`${USER_TABLE_GRID} py-3 text-sm`}>
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate">{tenantUser.email}</span>
+                    <span className="truncate">{user.email}</span>
                     <Badge variant="outline" className="shrink-0 font-normal">
-                      {tenantUser.signInMethod}
+                      {user.signInMethod}
                     </Badge>
                   </div>
                   <span className="min-w-0 truncate text-muted-foreground">
-                    {tenantUser.firstName || "—"}
+                    {user.firstName || "—"}
                   </span>
                   <Badge
-                    variant={tenantUser.role.name === "admin" ? "default" : "secondary"}
+                    variant={user.role.name === "admin" ? "default" : "secondary"}
                     className="w-fit shrink-0"
                   >
-                    {tenantUser.role.name}
+                    {user.role.name}
                   </Badge>
                   <span />
                   <div className="flex justify-center">
@@ -217,8 +217,8 @@ export function UsersManagementPanel() {
                               {AVAILABLE_ROLES.map((role) => (
                                 <DropdownMenuCheckboxItem
                                   key={role}
-                                  checked={tenantUser.role.name === role}
-                                  onSelect={() => handleRoleChange(tenantUser, role)}
+                                  checked={user.role.name === role}
+                                  onSelect={() => handleRoleChange(user, role)}
                                 >
                                   {role}
                                 </DropdownMenuCheckboxItem>

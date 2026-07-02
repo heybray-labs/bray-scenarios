@@ -58,10 +58,37 @@ function PasswordField({
   );
 }
 
+function SsoSignInButton({
+  loginUrl,
+  providerName,
+  providerIcon,
+}: {
+  loginUrl: string;
+  providerName: string;
+  providerIcon: string | null;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full"
+      onClick={() => {
+        window.location.href = loginUrl;
+      }}
+    >
+      <span className="flex items-center justify-center gap-2">
+        {providerIcon && <img src={providerIcon} alt="" className="h-5 w-5" />}
+        Sign in with {providerName}
+      </span>
+    </Button>
+  );
+}
+
 export default function LoginPage() {
   const { login, setupAdmin, changePassword, isLoggingIn, isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
+  const [hasPasswordUsers, setHasPasswordUsers] = useState<boolean | null>(null);
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [authConfigLoaded, setAuthConfigLoaded] = useState(false);
   const [authUnavailable, setAuthUnavailable] = useState(false);
@@ -80,8 +107,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     AuthService.getSetupStatus()
-      .then((status) => setNeedsSetup(status.needsSetup))
-      .catch(() => setNeedsSetup(false));
+      .then((status) => {
+        setNeedsSetup(status.needsSetup);
+        setHasPasswordUsers(status.hasPasswordUsers);
+      })
+      .catch(() => {
+        setNeedsSetup(false);
+        setHasPasswordUsers(true);
+      });
 
     AuthService.getAuthConfig()
       .then((config) => {
@@ -150,9 +183,11 @@ export default function LoginPage() {
     }
   };
 
-  const isLoading = (needsSetup === null || !authConfigLoaded) && !mustChangePassword;
+  const isLoading =
+    (needsSetup === null || hasPasswordUsers === null || !authConfigLoaded) && !mustChangePassword;
   const ssoConfig = authConfig?.sso.enabled ? authConfig.sso : authConfig?.oidc.enabled ? authConfig.oidc : null;
   const ssoProviderIcon = ssoConfig ? getOidcProviderIcon(ssoConfig.providerName) : null;
+  const showPasswordLogin = needsSetup ? !ssoConfig : hasPasswordUsers;
 
   if (authUnavailable && !mustChangePassword) {
     return <AuthUnavailableScreen />;
@@ -212,6 +247,23 @@ export default function LoginPage() {
           ) : isLoading ? (
             <p className="text-muted-foreground">Loading…</p>
           ) : needsSetup ? (
+            ssoConfig ? (
+              <div className="w-full max-w-md space-y-4">
+                <h1 className="text-3xl font-bold text-center">Get started with {APPLICATION_DISPLAY_NAME}</h1>
+                <Alert className="bg-muted/50 border-muted">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-muted-foreground">
+                    Sign in with your organization account to set up the administrator. Local accounts are not used when SSO is enabled.
+                  </AlertDescription>
+                </Alert>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <SsoSignInButton
+                  loginUrl={ssoConfig.loginUrl}
+                  providerName={ssoConfig.providerName}
+                  providerIcon={ssoProviderIcon}
+                />
+              </div>
+            ) : (
             <form onSubmit={handleSetup} className="w-full max-w-md space-y-4">
               <h1 className="text-3xl font-bold text-center">Get started with {APPLICATION_DISPLAY_NAME}</h1>
               <Alert className="bg-muted/50 border-muted">
@@ -256,7 +308,8 @@ export default function LoginPage() {
                 {isLoggingIn ? "Creating account…" : "Create Admin Account"}
               </Button>
             </form>
-          ) : (
+            )
+          ) : showPasswordLogin ? (
             <form onSubmit={handleLogin} className="w-full max-w-md space-y-4">
               <h1 className="text-3xl font-bold">Welcome back</h1>
               <div className="space-y-2">
@@ -281,21 +334,11 @@ export default function LoginPage() {
                       <span className="bg-white px-2 text-muted-foreground">Or</span>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      window.location.href = ssoConfig.loginUrl;
-                    }}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      {ssoProviderIcon && (
-                        <img src={ssoProviderIcon} alt="" className="h-5 w-5" />
-                      )}
-                      Sign in with {ssoConfig.providerName}
-                    </span>
-                  </Button>
+                  <SsoSignInButton
+                    loginUrl={ssoConfig.loginUrl}
+                    providerName={ssoConfig.providerName}
+                    providerIcon={ssoProviderIcon}
+                  />
                 </>
               )}
               {authConfig?.localRegistration !== false && (
@@ -307,6 +350,18 @@ export default function LoginPage() {
                 </p>
               )}
             </form>
+          ) : ssoConfig ? (
+            <div className="w-full max-w-md space-y-4">
+              <h1 className="text-3xl font-bold">Welcome back</h1>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <SsoSignInButton
+                loginUrl={ssoConfig.loginUrl}
+                providerName={ssoConfig.providerName}
+                providerIcon={ssoProviderIcon}
+              />
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No sign-in methods are available.</p>
           )}
         </div>
       </div>

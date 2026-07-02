@@ -29,7 +29,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const SAML_STATE_COOKIE = "saml_state";
 
 interface SamlStatePayload {
-  tenantId: number;
+  nonce: string;
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,16 +50,11 @@ function verifySamlState(token: string | undefined): SamlStatePayload | null {
   }
 }
 
-function getDefaultTenantId(): number {
-  return parseInt(process.env.DEFAULT_TENANT_ID || "1", 10);
-}
-
 function getSamlStateCookieOptions() {
   const useSecureCookies = getSamlAcsUrl().startsWith("https://");
   return {
     httpOnly: true,
     secure: useSecureCookies,
-    // Google POSTs the SAMLResponse cross-site; Lax cookies are not sent on that POST.
     sameSite: useSecureCookies ? ("none" as const) : ("lax" as const),
     maxAge: 10 * 60 * 1000,
     path: "/",
@@ -84,7 +79,6 @@ async function getSamlInstance(): Promise<SAML> {
         callbackUrl: getSamlAcsUrl(),
         publicCert: spCert.cert,
         privateKey: spCert.key,
-        // Google may sign the response envelope, the assertion, or both — accept any.
         wantAuthnResponseSigned: isGoogle ? false : true,
         wantAssertionsSigned: isGoogle ? false : true,
         disableRequestedAuthnContext: isGoogle,
@@ -165,22 +159,22 @@ export const samlAuthService = {
     return saml.generateServiceProviderMetadata(null, spCert.cert);
   },
 
-  async startLogin(res: Response, tenantId: number): Promise<void> {
+  async startLogin(res: Response): Promise<void> {
     const saml = await getSamlInstance();
     const entityId = getSamlSpEntityId();
-    log.info("SAML login started", { tenantId, entityId, acsUrl: getSamlAcsUrl() });
+    log.info("SAML login started", { entityId, acsUrl: getSamlAcsUrl() });
 
-    const signedState = signSamlState({ tenantId });
+    const signedState = signSamlState({ nonce: crypto.randomUUID() });
     let authorizeUrl = await saml.getAuthorizeUrlAsync("", undefined, {});
 
     if (shouldUseGoogleAccountChooser()) {
       authorizeUrl = wrapGoogleSamlAuthorizeUrl(authorizeUrl);
-      log.debug("SAML using Google Account Chooser", { tenantId, entityId });
+      log.debug("SAML using Google Account Chooser", { entityId });
     }
 
     res.cookie(SAML_STATE_COOKIE, signedState, getSamlStateCookieOptions());
 
-    log.debug("SAML redirecting to IdP", { tenantId });
+    log.debug("SAML redirecting to IdP");
     res.redirect(authorizeUrl);
   },
 
@@ -191,11 +185,9 @@ export const samlAuthService = {
     const saml = await getSamlInstance();
     const normalizedBody = normalizeSamlPostBody(body);
     const state = verifySamlState(stateCookie);
-    const tenantId = state?.tenantId ?? getDefaultTenantId();
 
     log.debug("SAML ACS received", {
       hasStateCookie: Boolean(stateCookie),
-      tenantId,
       idpInitiated: !state,
     });
 
@@ -204,7 +196,6 @@ export const samlAuthService = {
       ({ profile } = await saml.validatePostResponseAsync(normalizedBody));
     } catch (error) {
       log.error("SAML assertion validation failed", error instanceof Error ? error : undefined, {
-        tenantId,
         hasStateCookie: Boolean(stateCookie),
       });
       throw error;
@@ -223,23 +214,20 @@ export const samlAuthService = {
         email: claims.email,
         name: claims.name,
       },
-      tenantId,
     );
 
     if (!user.isActive || user.isSuspended) {
       log.warn("SAML sign-in rejected for inactive account", {
         userId: user.id,
-        tenantId,
         isActive: user.isActive,
         isSuspended: user.isSuspended,
       });
       throw new Error("Account is not available for sign-in");
     }
 
-    const exchangeCode = await createExchangeCode(user.id, tenantId);
+    const exchangeCode = await createExchangeCode(user.id);
     log.info("SAML ACS succeeded, exchange code issued", {
       userId: user.id,
-      tenantId,
       providerUserId: claims.providerUserId,
     });
 

@@ -1,5 +1,4 @@
 import { db, pool } from "../db.ts";
-import { tenants } from "../../shared/schemas/tenants.ts";
 import { users } from "../../shared/schemas/users.ts";
 import {
   roleplays,
@@ -7,12 +6,9 @@ import {
   roleplayPersonas,
   roleplayCriteria,
 } from "../../shared/schemas/roleplay-core.ts";
-import { eq } from "drizzle-orm";
 import { createLogger } from "../utils/logger.ts";
 
 const log = createLogger("seed-roleplays");
-
-const TENANT_SUBDOMAIN = process.env.TENANT_SUBDOMAIN || "default";
 
 const SEED_SCENARIOS = [
   {
@@ -278,21 +274,7 @@ const SEED_SCENARIOS = [
 ];
 
 async function seedRoleplays() {
-  const [tenant] = await db
-    .select()
-    .from(tenants)
-    .where(eq(tenants.subdomain, TENANT_SUBDOMAIN))
-    .limit(1);
-
-  if (!tenant) {
-    throw new Error(`Tenant "${TENANT_SUBDOMAIN}" not found. Run npm run db:init first.`);
-  }
-
-  const [admin] = await db
-    .select()
-    .from(users)
-    .where(eq(users.tenantId, tenant.id))
-    .limit(1);
+  const [admin] = await db.select().from(users).limit(1);
 
   const createdBy = admin?.id ?? null;
 
@@ -303,7 +285,6 @@ async function seedRoleplays() {
     const [roleplay] = await db
       .insert(roleplays)
       .values({
-        tenantId: tenant.id,
         title: scenario.title,
         description: `${scenario.category} scenario: practice ${scenario.learnerObjective.toLowerCase()}`,
         introduction: scenario.introduction,
@@ -340,7 +321,6 @@ async function seedRoleplays() {
     for (let i = 0; i < scenario.criteria.length; i++) {
       const c = scenario.criteria[i];
       await db.insert(roleplayCriteria).values({
-        tenantId: tenant.id,
         roleplayId: roleplay.id,
         name: c.name,
         description: c.description,
@@ -354,7 +334,7 @@ async function seedRoleplays() {
     log.info("Seeded roleplay", { id: roleplay.id, title: scenario.title, status });
   }
 
-  log.info(`Seeded ${created} roleplays for tenant ${tenant.subdomain}`);
+  log.info(`Seeded ${created} roleplays`);
 }
 
 seedRoleplays()

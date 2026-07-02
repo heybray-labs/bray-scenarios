@@ -14,13 +14,12 @@ async function pruneExpiredExchangeCodes() {
   await db.delete(authExchangeCodes).where(lt(authExchangeCodes.expiresAt, new Date()));
 }
 
-export async function createExchangeCode(userId: number, tenantId: number): Promise<string> {
+export async function createExchangeCode(userId: number): Promise<string> {
   const code = nanoid(32);
   const expiresAt = new Date(Date.now() + EXCHANGE_CODE_TTL_MS);
   await db.insert(authExchangeCodes).values({
     code,
     userId,
-    tenantId,
     expiresAt,
   });
   return code;
@@ -41,7 +40,7 @@ export async function completeExchange(code: string) {
   }
 
   if (row.expiresAt < new Date()) {
-    log.warn("SSO exchange code expired", { userId: row.userId, tenantId: row.tenantId });
+    log.warn("SSO exchange code expired", { userId: row.userId });
     throw new Error("Invalid or expired sign-in code");
   }
 
@@ -52,16 +51,15 @@ export async function completeExchange(code: string) {
 
   const userWithRole = await userController.getUserWithRole(row.userId);
   if (!userWithRole) {
-    log.error("SSO exchange user not found", { userId: row.userId, tenantId: row.tenantId });
+    log.error("SSO exchange user not found", { userId: row.userId });
     throw new Error("User not found");
   }
 
-  const token = generateToken(row.userId, userWithRole.roleId, row.tenantId);
+  const token = generateToken(row.userId, userWithRole.roleId);
   const refreshToken = generateRefreshToken(row.userId);
 
   log.info("SSO session established", {
     userId: row.userId,
-    tenantId: row.tenantId,
     role: userWithRole.role?.name,
   });
 

@@ -10,7 +10,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 export interface AuthRequest extends Omit<Request, "user"> {
   user?: UserWithRole;
-  tenantId?: number;
   requestId?: string;
 }
 
@@ -51,7 +50,6 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
       }
 
       req.user = user;
-      req.tenantId = decoded.tenantId ?? parseInt(process.env.DEFAULT_TENANT_ID || "1", 10);
       next();
     } catch (error) {
       log.error("Auth error", error instanceof Error ? error : undefined, {
@@ -105,8 +103,8 @@ export function requirePasswordChanged(req: AuthRequest, res: Response, next: Ne
   next();
 }
 
-export function generateToken(userId: number, roleId: number, tenantId?: number | null): string {
-  return jwt.sign({ userId, roleId, tenantId }, JWT_SECRET, { expiresIn: "24h" });
+export function generateToken(userId: number, roleId: number): string {
+  return jwt.sign({ userId, roleId }, JWT_SECRET, { expiresIn: "24h" });
 }
 
 export function generateRefreshToken(userId: number): string {

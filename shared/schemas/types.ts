@@ -1,6 +1,5 @@
 export interface SafeUser {
   id: number;
-  tenantId: number | null;
   email: string;
   roleId: number;
   isActive: boolean;
@@ -59,7 +58,7 @@ export type AuthConfig = {
   localRegistration: boolean;
 };
 
-export type TenantUserSummary = {
+export type UserSummary = {
   id: number;
   email: string;
   firstName: string | null;

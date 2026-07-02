@@ -7,7 +7,6 @@ export const authExchangeCodes = pgTable("auth_exchange_codes", {
   userId: integer("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  tenantId: integer("tenant_id").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

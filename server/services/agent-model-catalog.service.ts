@@ -113,14 +113,6 @@ function lookupCatalogEntry(
   return undefined;
 }
 
-function isChatModelEntry(entry: LiteLlmEntry): boolean {
-  const mode = entry.mode?.toLowerCase();
-  if (mode && mode !== "chat" && mode !== "responses") {
-    return false;
-  }
-  return true;
-}
-
 function matchesProvider(provider: AgentProvider, key: string): boolean {
   const k = key.toLowerCase();
   switch (provider) {
@@ -183,27 +175,6 @@ function entryToOption(
     supportsTools: entry.supports_function_calling,
     source,
   };
-}
-
-function catalogModelsForProvider(
-  catalog: Map<string, LiteLlmEntry>,
-  provider: AgentProvider,
-): AgentModelOption[] {
-  const seen = new Set<string>();
-  const models: AgentModelOption[] = [];
-
-  for (const [key, entry] of catalog) {
-    if (!matchesProvider(provider, key) || !isChatModelEntry(entry)) {
-      continue;
-    }
-    const id = normalizeModelId(provider, key);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    models.push(entryToOption(provider, id, entry, "catalog"));
-  }
-
-  models.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  return models;
 }
 
 async function liveOpenAiModels(apiKey: string): Promise<string[]> {
@@ -270,115 +241,79 @@ async function liveGoogleModels(apiKey: string): Promise<
     }));
 }
 
-async function mergeLiveModels(
+/** List models from each vendor's official API, enriched with optional LiteLLM metadata. */
+async function fetchLiveProviderModels(
   provider: AgentProvider,
+  apiKey: string,
   catalog: Map<string, LiteLlmEntry>,
-  base: AgentModelOption[],
-  tenantId?: number,
 ): Promise<AgentModelOption[]> {
-  let apiKey: string | null = null;
-  if (tenantId) {
-    const { roleplayConfigService } = await import("./roleplay-config.service.ts");
-    apiKey = await roleplayConfigService.getDecryptedApiKeyForProvider(tenantId, provider);
-  }
-  if (!apiKey) {
-    return base;
+  const fetchStart = Date.now();
+  const byId = new Map<string, AgentModelOption>();
+
+  if (provider === "openai") {
+    const ids = await liveOpenAiModels(apiKey);
+    for (const id of ids) {
+      const entry = lookupCatalogEntry(catalog, provider, id);
+      byId.set(
+        id,
+        entry
+          ? entryToOption(provider, id, entry, "live")
+          : { id, displayName: id, provider, source: "live" },
+      );
+    }
   }
 
-  const mergeStart = Date.now();
-  try {
-    const byId = new Map(base.map((m) => [m.id, m]));
+  if (provider === "anthropic") {
+    const live = await liveAnthropicModels(apiKey);
+    for (const m of live) {
+      const entry = lookupCatalogEntry(catalog, provider, m.id);
+      byId.set(
+        m.id,
+        entry
+          ? entryToOption(provider, m.id, entry, "live", m.displayName)
+          : {
+              id: m.id,
+              displayName: m.displayName ?? m.id,
+              provider,
+              source: "live",
+            },
+      );
+    }
+  }
 
-    if (provider === "openai") {
-      const ids = await liveOpenAiModels(apiKey);
-      for (const id of ids) {
-        const entry = lookupCatalogEntry(catalog, provider, id);
-        const existing = byId.get(id);
-        if (existing && entry) {
-          byId.set(
-            id,
-            entryToOption(provider, id, entry, "merged", existing.displayName),
-          );
-        } else if (entry) {
-          byId.set(id, entryToOption(provider, id, entry, "merged"));
-        } else if (!existing) {
-          byId.set(id, {
-            id,
-            displayName: id,
-            provider,
-            source: "live",
-          });
-        }
+  if (provider === "google") {
+    const live = await liveGoogleModels(apiKey);
+    for (const m of live) {
+      const entry = lookupCatalogEntry(catalog, provider, m.id);
+      if (entry) {
+        const opt = entryToOption(provider, m.id, entry, "live", m.displayName);
+        opt.contextWindow = opt.contextWindow ?? m.inputLimit;
+        opt.maxOutputTokens = opt.maxOutputTokens ?? m.outputLimit;
+        byId.set(m.id, opt);
+      } else {
+        byId.set(m.id, {
+          id: m.id,
+          displayName: m.displayName ?? m.id,
+          provider,
+          contextWindow: m.inputLimit,
+          maxOutputTokens: m.outputLimit,
+          source: "live",
+        });
       }
     }
-
-    if (provider === "anthropic") {
-      const live = await liveAnthropicModels(apiKey);
-      for (const m of live) {
-        const entry = lookupCatalogEntry(catalog, provider, m.id);
-        if (entry) {
-          byId.set(
-            m.id,
-            entryToOption(provider, m.id, entry, "merged", m.displayName),
-          );
-        } else {
-          byId.set(m.id, {
-            id: m.id,
-            displayName: m.displayName ?? m.id,
-            provider,
-            source: "live",
-          });
-        }
-      }
-    }
-
-    if (provider === "google") {
-      const live = await liveGoogleModels(apiKey);
-      for (const m of live) {
-        const entry = lookupCatalogEntry(catalog, provider, m.id);
-        if (entry) {
-          const opt = entryToOption(
-            provider,
-            m.id,
-            entry,
-            "merged",
-            m.displayName,
-          );
-          opt.contextWindow = opt.contextWindow ?? m.inputLimit;
-          opt.maxOutputTokens = opt.maxOutputTokens ?? m.outputLimit;
-          byId.set(m.id, opt);
-        } else {
-          byId.set(m.id, {
-            id: m.id,
-            displayName: m.displayName ?? m.id,
-            provider,
-            contextWindow: m.inputLimit,
-            maxOutputTokens: m.outputLimit,
-            source: "live",
-          });
-        }
-      }
-    }
-
-    const result = [...byId.values()].sort((a, b) =>
-      a.displayName.localeCompare(b.displayName),
-    );
-    logExternalCall({
-      service: provider,
-      operation: "list_live_models",
-      durationMs: Date.now() - mergeStart,
-      status: 200,
-      meta: { modelCount: result.length, tenantId },
-    });
-    return result;
-  } catch (error) {
-    log.warn("Live model list failed; using catalog only", {
-      provider,
-      durationMs: Date.now() - mergeStart,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return base;
   }
+
+  const result = [...byId.values()].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName),
+  );
+  logExternalCall({
+    service: provider,
+    operation: "list_live_models",
+    durationMs: Date.now() - fetchStart,
+    status: 200,
+    meta: { modelCount: result.length },
+  });
+  return result;
 }
 
 /** Static fallback when remote catalog is unavailable. */
@@ -422,7 +357,7 @@ const FALLBACK_MODELS: Record<AgentProvider, AgentModelOption[]> = {
 export class AgentModelCatalogService {
   async getModelsForProvider(
     provider: AgentProvider,
-    options?: { refresh?: boolean; tenantId?: number },
+    options?: { refresh?: boolean },
   ): Promise<{
     provider: AgentProvider;
     models: AgentModelOption[];
@@ -433,33 +368,62 @@ export class AgentModelCatalogService {
       catalogCache = null;
     }
 
+    const { roleplayConfigService } = await import("./roleplay-config.service.ts");
+    const apiKey = await roleplayConfigService.getDecryptedApiKeyForProvider(provider);
+
+    if (!apiKey) {
+      return {
+        provider,
+        models: [],
+        liveEnriched: false,
+      };
+    }
+
     const catalog = await loadLiteLlmCatalog();
-    let models = catalogModelsForProvider(catalog, provider);
 
-    if (!models.length) {
-      models = FALLBACK_MODELS[provider];
+    try {
+      const models = await fetchLiveProviderModels(provider, apiKey, catalog);
+      return {
+        provider,
+        models,
+        catalogUpdatedAt:
+          catalogCache ?
+            new Date(catalogCache.fetchedAt).toISOString()
+          : undefined,
+        liveEnriched: true,
+      };
+    } catch (error) {
+      log.warn("Live model list failed; using static fallback", {
+        provider,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        provider,
+        models: FALLBACK_MODELS[provider],
+        catalogUpdatedAt:
+          catalogCache ?
+            new Date(catalogCache.fetchedAt).toISOString()
+          : undefined,
+        liveEnriched: false,
+      };
     }
+  }
 
-    const tenantId = options?.tenantId;
-    let hasApiKey = false;
-    if (tenantId) {
-      const { roleplayConfigService } = await import("./roleplay-config.service.ts");
-      hasApiKey = !!(await roleplayConfigService.getDecryptedApiKeyForProvider(tenantId, provider));
+  /** Verify an API key by calling the provider's models list endpoint. */
+  async testProviderApiKey(provider: AgentProvider, apiKey: string): Promise<void> {
+    switch (provider) {
+      case "openai":
+        await liveOpenAiModels(apiKey);
+        break;
+      case "anthropic":
+        await liveAnthropicModels(apiKey);
+        break;
+      case "google":
+        await liveGoogleModels(apiKey);
+        break;
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
     }
-    const liveEnriched = hasApiKey;
-    if (hasApiKey && tenantId) {
-      models = await mergeLiveModels(provider, catalog, models, tenantId);
-    }
-
-    return {
-      provider,
-      models,
-      catalogUpdatedAt:
-        catalogCache ?
-          new Date(catalogCache.fetchedAt).toISOString()
-        : undefined,
-      liveEnriched,
-    };
   }
 }
 

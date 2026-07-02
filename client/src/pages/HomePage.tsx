@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Drama, Plus, MoreVertical, Pencil, Trash2, PlayCircle, Trophy } from "lucide-react";
+import { Drama, Plus, MoreHorizontal, MoreVertical, Pencil, Trash2, PlayCircle, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import CreateRoleplayDialog from "@/components/roleplays/create-roleplay-dialog";
@@ -53,10 +53,20 @@ export default function HomePage() {
             <p className="text-muted-foreground">Practice conversations with AI personas</p>
           </div>
           {canManage && (
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Roleplay
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Roleplay
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 

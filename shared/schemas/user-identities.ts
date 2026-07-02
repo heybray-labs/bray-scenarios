@@ -1,5 +1,4 @@
 import { pgTable, text, serial, integer, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { tenants } from "./tenants.ts";
 import { users } from "./users.ts";
 
 export const userIdentities = pgTable(
@@ -9,9 +8,6 @@ export const userIdentities = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    tenantId: integer("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
     provider: text("provider").notNull(),
     providerUserId: text("provider_user_id").notNull(),
     providerDisplayName: text("provider_display_name"),
@@ -23,7 +19,6 @@ export const userIdentities = pgTable(
     providerUserIdx: uniqueIndex("user_identities_provider_user_idx").on(
       table.provider,
       table.providerUserId,
-      table.tenantId,
     ),
   }),
 );

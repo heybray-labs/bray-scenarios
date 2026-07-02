@@ -112,8 +112,8 @@ export default function RoleplayIntroPage() {
     settings.personaModel &&
     settings.graderProvider &&
     settings.graderModel;
-  const tenantNotReady = configStatus && !(configStatus.isReady ?? configStatus.configured);
-  const notConfigured = tenantNotReady || !hasRoleplayModels;
+  const configNotReady = configStatus && !(configStatus.isReady ?? configStatus.configured);
+  const notConfigured = configNotReady || !hasRoleplayModels;
   const canStart = isPublished && !isOutOfAttempts && !notConfigured;
 
   return (
@@ -216,7 +216,7 @@ export default function RoleplayIntroPage() {
                 {notConfigured && (
                   <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {tenantNotReady
+                    {configNotReady
                       ? "AI not configured. Ask an admin to set up API keys and model allowlists."
                       : "This roleplay is missing AI models. An admin must edit it and select persona and grader models."}
                   </div>

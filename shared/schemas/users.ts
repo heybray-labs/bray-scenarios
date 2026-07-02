@@ -1,14 +1,9 @@
 import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Import only direct dependencies to avoid circular imports
-import { tenants } from "./tenants.ts";
-
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
   firstName: text("first_name"),
   password: text("password"),
@@ -34,14 +29,11 @@ export const users = pgTable("users", {
   emailOtpCode: text("email_otp_code"), // Temporary email OTP code
   emailOtpExpiry: timestamp("email_otp_expiry"), // When email OTP expires
   twoFactorBackupUsed: integer("two_factor_backup_used").notNull().default(0), // Count of backup codes used
-  // Tenant role fields (replaces tenant_users junction table)
-  isTenantAdmin: boolean("is_tenant_admin").notNull().default(false),
-  tenantRole: text("tenant_role").default("member"), // 'owner', 'admin', 'member', etc.
   mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
-  emailTenantIdx: uniqueIndex("users_email_tenant_idx").on(table.email, table.tenantId),
+  emailIdx: uniqueIndex("users_email_idx").on(table.email),
 }));
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -74,9 +66,6 @@ export const changePasswordSchema = z
     message: "New password must be different from current password",
     path: ["newPassword"],
   });
-
-// User relations - will be defined in centralized relations file  
-// to avoid circular import dependencies
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),

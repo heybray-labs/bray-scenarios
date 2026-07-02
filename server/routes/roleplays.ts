@@ -10,7 +10,6 @@ import {
 } from "../roleplay/roleplay-events.ts";
 import { platformLogger } from "../utils/logger.ts";
 import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "../middleware/auth.ts";
-import { resolveTenant } from "../middleware/tenant.ts";
 
 const bulkRoleplayPayloadSchema = z.object({
   roleplay: z.object({}).passthrough(),
@@ -23,12 +22,10 @@ const router = Router();
 
 router.use(authenticateToken);
 router.use(requirePasswordChanged);
-router.use(resolveTenant);
 
-router.get("/config-status", async (req: AuthRequest, res: Response) => {
+router.get("/config-status", async (_req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId!;
-    const isReady = await roleplayConfigService.isTenantReady(tenantId);
+    const isReady = await roleplayConfigService.isConfigReady();
     res.json({ isReady });
   } catch (error) {
     platformLogger.error("config-status error", error instanceof Error ? error : undefined);
@@ -38,9 +35,7 @@ router.get("/config-status", async (req: AuthRequest, res: Response) => {
 
 router.get("/available-models", async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId!;
-    const purpose = (req.query.purpose as "persona" | "grader") || "persona";
-    const models = await roleplayConfigService.getAllowlist(tenantId, purpose);
+    const models = await roleplayConfigService.getUnifiedAllowlist();
     res.json({ models });
   } catch (error) {
     platformLogger.error("available-models error", error instanceof Error ? error : undefined);
@@ -50,11 +45,10 @@ router.get("/available-models", async (req: AuthRequest, res: Response) => {
 
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
-    const tenantId = req.tenantId!;
     const userId = req.user!.id;
     const [roleplays, bestAttempts] = await Promise.all([
-      roleplaySystemController.getRoleplays(tenantId),
-      roleplaySystemController.getUserBestAttemptsByRoleplay(tenantId, userId),
+      roleplaySystemController.getRoleplays(),
+      roleplaySystemController.getUserBestAttemptsByRoleplay(userId),
     ]);
     res.json(
       roleplays.map((roleplay) => ({
@@ -76,7 +70,6 @@ router.post("/", requirePermission("roleplay:manage"), async (req: AuthRequest, 
     }
     const roleplay = await roleplaySystemController.bulkSaveRoleplay(
       null,
-      req.tenantId!,
       req.user!.id,
       parsed.data,
     );
@@ -90,7 +83,7 @@ router.post("/", requirePermission("roleplay:manage"), async (req: AuthRequest, 
 router.get("/:id", async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const roleplay = await roleplaySystemController.getRoleplayById(roleplayId, req.tenantId!);
+    const roleplay = await roleplaySystemController.getRoleplayById(roleplayId);
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {
@@ -108,7 +101,6 @@ router.put("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest
     }
     const roleplay = await roleplaySystemController.bulkSaveRoleplay(
       roleplayId,
-      req.tenantId!,
       req.user!.id,
       parsed.data,
     );
@@ -122,7 +114,7 @@ router.put("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest
 router.delete("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const success = await roleplaySystemController.deleteRoleplay(roleplayId, req.tenantId!);
+    const success = await roleplaySystemController.deleteRoleplay(roleplayId);
     if (!success) return res.status(404).json({ error: "Roleplay not found" });
     res.json({ message: "Deleted" });
   } catch (error) {
@@ -134,7 +126,7 @@ router.delete("/:id", requirePermission("roleplay:manage"), async (req: AuthRequ
 router.post("/:id/publish", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const roleplay = await roleplaySystemController.publishRoleplay(roleplayId, req.tenantId!);
+    const roleplay = await roleplaySystemController.publishRoleplay(roleplayId);
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {
@@ -146,7 +138,7 @@ router.post("/:id/publish", requirePermission("roleplay:manage"), async (req: Au
 router.post("/:id/unpublish", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const roleplay = await roleplaySystemController.unpublishRoleplay(roleplayId, req.tenantId!);
+    const roleplay = await roleplaySystemController.unpublishRoleplay(roleplayId);
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {
@@ -158,7 +150,7 @@ router.post("/:id/unpublish", requirePermission("roleplay:manage"), async (req: 
 router.get("/:id/stats", async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const stats = await roleplaySystemController.getRoleplayStats(roleplayId, req.tenantId!);
+    const stats = await roleplaySystemController.getRoleplayStats(roleplayId);
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: "Failed to get stats" });
@@ -178,7 +170,7 @@ router.get("/:id/my-attempts", async (req: AuthRequest, res: Response) => {
 router.post("/:id/attempts", async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const result = await roleplaySystemController.startAttempt(roleplayId, req.user!.id, req.tenantId!);
+    const result = await roleplaySystemController.startAttempt(roleplayId, req.user!.id);
     res.json(result);
   } catch (error) {
     if (error instanceof RoleplayNotConfiguredError) {
@@ -220,7 +212,7 @@ router.post("/:id/attempts/:attemptId/turn", async (req: AuthRequest, res: Respo
       return res.status(400).json({ error: "Attempt is not active" });
     }
 
-    const configured = await roleplayConfigService.isConfigured(req.tenantId!);
+    const configured = await roleplayConfigService.isConfigured();
     if (!configured) {
       return res.status(409).json({ error: "Roleplay AI is not configured." });
     }
@@ -229,7 +221,6 @@ router.post("/:id/attempts/:attemptId/turn", async (req: AuthRequest, res: Respo
     void roleplaySystemController.runPersonaTurn({
       attemptId,
       roleplayId,
-      tenantId: req.tenantId!,
       userId: req.user!.id,
       learnerText: message,
       runId,

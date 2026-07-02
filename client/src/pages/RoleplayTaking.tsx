@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { FaUser } from "react-icons/fa";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Send, Flag, Lightbulb, Drama } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { MainLayout } from "@/components/MainLayout";
@@ -22,6 +25,7 @@ export default function RoleplayTaking() {
   const params = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { streamRun, stop } = useRoleplayStream();
 
   const roleplayId = params.id ? parseInt(params.id) : null;
@@ -46,6 +50,14 @@ export default function RoleplayTaking() {
   const learnerTurns = messages.filter((m) => m.role === "learner").length;
   const maxTurns: number | null = settings.maxTurns ?? null;
   const reachedMaxTurns = maxTurns != null && learnerTurns >= maxTurns;
+
+  const userInitials =
+    [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
+      .filter(Boolean)
+      .join("")
+      .toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    "?";
 
   // Initialize: resume in-progress attempt or start a new one
   useEffect(() => {
@@ -235,7 +247,17 @@ export default function RoleplayTaking() {
             if (m.role !== "persona" && m.role !== "learner") return null;
             const isLearner = m.role === "learner";
             return (
-              <div key={m.id} className={cn("flex", isLearner ? "justify-end" : "justify-start")}>
+              <div
+                key={m.id}
+                className={cn("flex items-end gap-2", isLearner ? "justify-end" : "justify-start")}
+              >
+                {!isLearner && (
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-muted text-muted-foreground">
+                      <FaUser className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
                 <div
                   className={cn(
                     "max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap",
@@ -248,6 +270,13 @@ export default function RoleplayTaking() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : "")}
                 </div>
+                {isLearner && (
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             );
           })}

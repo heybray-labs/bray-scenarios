@@ -1,12 +1,10 @@
 import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { tenants } from "./tenants.ts";
 import { users } from "./users.ts";
 
 export const roleplays = pgTable("roleplays", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   introduction: text("introduction"),
@@ -65,7 +63,6 @@ export const roleplayPersonas = pgTable("roleplay_personas", {
 
 export const roleplayCriteria = pgTable("roleplay_criteria", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").references(() => tenants.id, { onDelete: "cascade" }),
   roleplayId: integer("roleplay_id").references(() => roleplays.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
@@ -77,7 +74,6 @@ export const roleplayCriteria = pgTable("roleplay_criteria", {
 
 export const roleplayAttempts = pgTable("roleplay_attempts", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   roleplayId: integer("roleplay_id").notNull().references(() => roleplays.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   attemptNumber: integer("attempt_number").notNull().default(1),

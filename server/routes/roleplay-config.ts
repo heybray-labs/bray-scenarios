@@ -6,7 +6,6 @@ import {
   requirePermission,
   type AuthRequest,
 } from "../middleware/auth.ts";
-import { resolveTenant } from "../middleware/tenant.ts";
 import {
   roleplayConfigService,
   type RoleplayProvider,
@@ -46,19 +45,33 @@ const testSchema = z.object({
 
 router.use(authenticateToken);
 router.use(requirePasswordChanged);
-router.use(resolveTenant);
 router.use(requirePermission("roleplay:manage"));
 
-function tenantId(req: AuthRequest): number {
-  return req.tenantId ?? parseInt(process.env.DEFAULT_TENANT_ID || "1", 10);
-}
+const updateConfigSchema = z.object({
+  keys: keysSchema.optional(),
+  removeProviders: z.array(z.enum(["openai", "anthropic", "google"])).optional(),
+  models: z.array(modelRefSchema),
+});
 
-router.get("/", async (req: AuthRequest, res) => {
+router.get("/", async (_req: AuthRequest, res) => {
   try {
-    const config = await roleplayConfigService.getFullConfig(tenantId(req));
+    const config = await roleplayConfigService.getFullConfig();
     res.json(config);
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.put("/", async (req: AuthRequest, res) => {
+  try {
+    const parsed = updateConfigSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
+    }
+    const config = await roleplayConfigService.updateFullConfig(parsed.data);
+    res.json(config);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Internal server error" });
   }
 });
 
@@ -68,7 +81,7 @@ router.put("/keys", async (req: AuthRequest, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
     }
-    const keys = await roleplayConfigService.upsertProviderKeys(tenantId(req), parsed.data);
+    const keys = await roleplayConfigService.upsertProviderKeys(parsed.data);
     res.json({ keys });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Internal server error" });
@@ -81,7 +94,7 @@ router.put("/allowlists", async (req: AuthRequest, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
     }
-    const allowlists = await roleplayConfigService.setAllowlists(tenantId(req), parsed.data);
+    const allowlists = await roleplayConfigService.setAllowlists(parsed.data);
     res.json(allowlists);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Internal server error" });
@@ -95,18 +108,43 @@ router.get("/model-catalog", async (req, res) => {
       return res.status(400).json({ error: "Query param provider is required (openai | anthropic | google)" });
     }
     const refresh = req.query.refresh === "true";
-    const result = await agentModelCatalogService.getModelsForProvider(provider, {
-      refresh,
-      tenantId: tenantId(req as AuthRequest),
-    });
+    const result = await agentModelCatalogService.getModelsForProvider(provider, { refresh });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to load model catalog" });
   }
 });
 
+const testKeySchema = z.object({
+  provider: z.enum(["openai", "anthropic", "google"]),
+  apiKey: z.string().min(1).optional(),
+});
+
+router.post("/test-key", async (req: AuthRequest, res) => {
+  try {
+    const parsed = testKeySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: "provider is required" });
+    }
+    const { provider } = parsed.data;
+    let apiKey = parsed.data.apiKey?.trim();
+    if (!apiKey) {
+      apiKey = (await roleplayConfigService.getDecryptedApiKeyForProvider(provider)) ?? undefined;
+    }
+    if (!apiKey) {
+      return res.json({ success: false, error: "Enter an API key to test." });
+    }
+    await agentModelCatalogService.testProviderApiKey(provider, apiKey);
+    res.json({ success: true, provider });
+  } catch (error) {
+    platformLogger.warn("Roleplay API key test failed");
+    const message =
+      error instanceof Error ? error.message : "API key test failed";
+    res.json({ success: false, error: message });
+  }
+});
+
 router.post("/test", async (req: AuthRequest, res) => {
-  const tid = tenantId(req);
   let ref: { provider: RoleplayProvider; model: string } | null = null;
   try {
     const parsed = testSchema.safeParse(req.body ?? {});
@@ -122,9 +160,9 @@ router.post("/test", async (req: AuthRequest, res) => {
       model: parsed.data.model,
     };
 
-    await roleplayConfigService.assertModelAllowedForTenant(tid, purpose, ref);
+    await roleplayConfigService.assertModelAllowedForPurpose(purpose, ref);
     const temperature = purpose === "grader" ? 0.2 : 0;
-    const model = await createRoleplayChatModel(tid, {
+    const model = await createRoleplayChatModel({
       provider: ref.provider,
       model: ref.model,
       temperature,
@@ -141,7 +179,7 @@ router.post("/test", async (req: AuthRequest, res) => {
       });
     }
     const friendly = describeRoleplayModelError(error, ref?.provider, ref?.model);
-    platformLogger.warn("Roleplay config test failed", { tenantId: tid });
+    platformLogger.warn("Roleplay config test failed");
     res.json({ success: false, error: friendly });
   }
 });

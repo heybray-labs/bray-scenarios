@@ -1,14 +1,14 @@
 import { db } from "../db.ts";
 import {
-  roleplayTenantConfig,
-  roleplayTenantProviderKeys,
-  roleplayTenantPersonaModels,
-  roleplayTenantGraderModels,
-} from "../../shared/schemas/agent/roleplay-tenant-config.ts";
+  roleplayAppConfig,
+  roleplayProviderKeys,
+  roleplayAllowedPersonaModels,
+  roleplayAllowedGraderModels,
+} from "../../shared/schemas/agent/roleplay-app-config.ts";
 import { roleplaySettings } from "../../shared/schemas/roleplay-core.ts";
 import { encryptSecret, decryptSecret } from "../utils/secret-encryption.ts";
 import { platformLogger } from "../utils/logger.ts";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export type RoleplayProvider = "openai" | "anthropic" | "google";
 export type RoleplayModelPurpose = "persona" | "grader";
@@ -25,10 +25,15 @@ export interface RoleplayProviderKeyStatus {
 
 export interface RoleplayFullConfigPublic {
   keys: RoleplayProviderKeyStatus[];
-  personaAllowlist: RoleplayModelRef[];
-  graderAllowlist: RoleplayModelRef[];
+  allowedModels: RoleplayModelRef[];
   isReady: boolean;
   updatedAt?: Date;
+}
+
+export interface RoleplayConfigUpdateInput {
+  keys?: Partial<Record<RoleplayProvider, string>>;
+  removeProviders?: RoleplayProvider[];
+  models: RoleplayModelRef[];
 }
 
 const PROVIDERS: RoleplayProvider[] = ["openai", "anthropic", "google"];
@@ -51,28 +56,18 @@ function modelKey(ref: RoleplayModelRef): string {
 }
 
 /**
- * Per-tenant roleplay LLM configuration. Managed by global admins only.
+ * Roleplay LLM configuration. Managed by admins only.
  */
 export class RoleplayConfigService {
-  private async ensureTenantRow(tenantId: number) {
-    const existing = await db
-      .select()
-      .from(roleplayTenantConfig)
-      .where(eq(roleplayTenantConfig.tenantId, tenantId))
-      .limit(1);
+  private async ensureConfigRow() {
+    const existing = await db.select().from(roleplayAppConfig).limit(1);
     if (existing.length) return existing[0];
-    const [created] = await db
-      .insert(roleplayTenantConfig)
-      .values({ tenantId })
-      .returning();
+    const [created] = await db.insert(roleplayAppConfig).values({}).returning();
     return created;
   }
 
-  async getProviderKeys(tenantId: number): Promise<RoleplayProviderKeyStatus[]> {
-    const rows = await db
-      .select()
-      .from(roleplayTenantProviderKeys)
-      .where(eq(roleplayTenantProviderKeys.tenantId, tenantId));
+  async getProviderKeys(): Promise<RoleplayProviderKeyStatus[]> {
+    const rows = await db.select().from(roleplayProviderKeys);
     const byProvider = new Map(rows.map((r) => [r.provider, r]));
     return PROVIDERS.map((provider) => ({
       provider,
@@ -81,26 +76,15 @@ export class RoleplayConfigService {
   }
 
   async getDecryptedApiKeyForProvider(
-    tenantId: number,
     provider: RoleplayProvider,
   ): Promise<string | null> {
     const rows = await db
       .select()
-      .from(roleplayTenantProviderKeys)
-      .where(
-        and(
-          eq(roleplayTenantProviderKeys.tenantId, tenantId),
-          eq(roleplayTenantProviderKeys.provider, provider),
-        ),
-      )
+      .from(roleplayProviderKeys)
+      .where(eq(roleplayProviderKeys.provider, provider))
       .limit(1);
     if (!rows.length || !rows[0].encryptedApiKey) {
-      // Legacy fallback: single key on tenant config row
-      const legacy = await db
-        .select()
-        .from(roleplayTenantConfig)
-        .where(eq(roleplayTenantConfig.tenantId, tenantId))
-        .limit(1);
+      const legacy = await db.select().from(roleplayAppConfig).limit(1);
       if (
         legacy.length &&
         legacy[0].provider === provider &&
@@ -120,54 +104,59 @@ export class RoleplayConfigService {
       platformLogger.error(
         "Failed to decrypt roleplay API key",
         error instanceof Error ? error : new Error(String(error)),
-        { tenantId, provider },
+        { provider },
       );
       return null;
     }
   }
 
   /** @deprecated use getDecryptedApiKeyForProvider with explicit provider */
-  async getDecryptedApiKey(tenantId: number): Promise<string | null> {
+  async getDecryptedApiKey(): Promise<string | null> {
     for (const provider of PROVIDERS) {
-      const key = await this.getDecryptedApiKeyForProvider(tenantId, provider);
+      const key = await this.getDecryptedApiKeyForProvider(provider);
       if (key) return key;
     }
     return null;
   }
 
-  async getAllowlist(
-    tenantId: number,
-    purpose: RoleplayModelPurpose,
-  ): Promise<RoleplayModelRef[]> {
+  async getAllowlist(purpose: RoleplayModelPurpose): Promise<RoleplayModelRef[]> {
     if (purpose === "persona") {
-      const rows = await db
-        .select()
-        .from(roleplayTenantPersonaModels)
-        .where(eq(roleplayTenantPersonaModels.tenantId, tenantId));
+      const rows = await db.select().from(roleplayAllowedPersonaModels);
       return rows.map((r) => ({
         provider: r.provider as RoleplayProvider,
         model: r.model,
       }));
     }
-    const rows = await db
-      .select()
-      .from(roleplayTenantGraderModels)
-      .where(eq(roleplayTenantGraderModels.tenantId, tenantId));
+    const rows = await db.select().from(roleplayAllowedGraderModels);
     return rows.map((r) => ({
       provider: r.provider as RoleplayProvider,
       model: r.model,
     }));
   }
 
-  async getDefaults(tenantId: number): Promise<{
+  /** Union of persona and grader allowlists, deduped by provider:model. */
+  async getUnifiedAllowlist(): Promise<RoleplayModelRef[]> {
+    const [persona, grader] = await Promise.all([
+      this.getAllowlist("persona"),
+      this.getAllowlist("grader"),
+    ]);
+    const seen = new Set<string>();
+    const result: RoleplayModelRef[] = [];
+    for (const m of [...persona, ...grader]) {
+      const key = modelKey(m);
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(m);
+      }
+    }
+    return result;
+  }
+
+  async getDefaults(): Promise<{
     persona: RoleplayModelRef | null;
     grader: RoleplayModelRef | null;
   }> {
-    const rows = await db
-      .select()
-      .from(roleplayTenantConfig)
-      .where(eq(roleplayTenantConfig.tenantId, tenantId))
-      .limit(1);
+    const rows = await db.select().from(roleplayAppConfig).limit(1);
     if (!rows.length) {
       return { persona: null, grader: null };
     }
@@ -193,51 +182,43 @@ export class RoleplayConfigService {
     return { persona, grader };
   }
 
-  async getFullConfig(tenantId: number): Promise<RoleplayFullConfigPublic> {
-    await this.ensureTenantRow(tenantId);
-    const [keys, personaAllowlist, graderAllowlist, row] = await Promise.all([
-      this.getProviderKeys(tenantId),
-      this.getAllowlist(tenantId, "persona"),
-      this.getAllowlist(tenantId, "grader"),
-      db
-        .select()
-        .from(roleplayTenantConfig)
-        .where(eq(roleplayTenantConfig.tenantId, tenantId))
-        .limit(1),
+  async getFullConfig(): Promise<RoleplayFullConfigPublic> {
+    await this.ensureConfigRow();
+    const [keys, allowedModels, row] = await Promise.all([
+      this.getProviderKeys(),
+      this.getUnifiedAllowlist(),
+      db.select().from(roleplayAppConfig).limit(1),
     ]);
-    const isReady = await this.isTenantReady(tenantId);
+    const isReady = await this.isConfigReady();
     return {
       keys,
-      personaAllowlist,
-      graderAllowlist,
+      allowedModels,
       isReady,
       updatedAt: row[0]?.updatedAt,
     };
   }
 
-  async isTenantReady(tenantId: number): Promise<boolean> {
-    const personaList = await this.getAllowlist(tenantId, "persona");
-    const graderList = await this.getAllowlist(tenantId, "grader");
-    if (!personaList.length || !graderList.length) return false;
+  async isConfigReady(): Promise<boolean> {
+    const allowedModels = await this.getUnifiedAllowlist();
+    if (!allowedModels.length) return false;
 
     const providersNeeded = new Set<RoleplayProvider>();
-    for (const m of [...personaList, ...graderList]) {
+    for (const m of allowedModels) {
       providersNeeded.add(m.provider);
     }
     for (const provider of providersNeeded) {
-      const key = await this.getDecryptedApiKeyForProvider(tenantId, provider);
+      const key = await this.getDecryptedApiKeyForProvider(provider);
       if (!key) return false;
     }
     return true;
   }
 
-  /** @deprecated use isTenantReady */
-  async isConfigured(tenantId: number): Promise<boolean> {
-    return this.isTenantReady(tenantId);
+  /** @deprecated use isConfigReady */
+  async isConfigured(): Promise<boolean> {
+    return this.isConfigReady();
   }
 
   assertModelAllowed(
-    _tenantId: number,
     purpose: RoleplayModelPurpose,
     ref: RoleplayModelRef,
     allowlist?: RoleplayModelRef[],
@@ -255,14 +236,13 @@ export class RoleplayConfigService {
     }
   }
 
-  async assertModelAllowedForTenant(
-    tenantId: number,
+  async assertModelAllowedForPurpose(
     purpose: RoleplayModelPurpose,
     ref: RoleplayModelRef,
   ): Promise<void> {
-    const allowlist = await this.getAllowlist(tenantId, purpose);
-    this.assertModelAllowed(tenantId, purpose, ref, allowlist);
-    const key = await this.getDecryptedApiKeyForProvider(tenantId, ref.provider);
+    const allowlist = await this.getUnifiedAllowlist();
+    this.assertModelAllowed(purpose, ref, allowlist);
+    const key = await this.getDecryptedApiKeyForProvider(ref.provider);
     if (!key) {
       throw new Error(`No API key configured for provider ${ref.provider}`);
     }
@@ -270,7 +250,6 @@ export class RoleplayConfigService {
 
   async resolveModelsForRoleplay(
     roleplayId: number,
-    tenantId: number,
   ): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
     const [settings] = await db
       .select()
@@ -298,8 +277,8 @@ export class RoleplayConfigService {
       model: settings.graderModel,
     };
 
-    await this.assertModelAllowedForTenant(tenantId, "persona", persona);
-    await this.assertModelAllowedForTenant(tenantId, "grader", grader);
+    await this.assertModelAllowedForPurpose("persona", persona);
+    await this.assertModelAllowedForPurpose("grader", grader);
 
     return { persona, grader };
   }
@@ -331,120 +310,142 @@ export class RoleplayConfigService {
   }
 
   async upsertProviderKeys(
-    tenantId: number,
     keys: Partial<Record<RoleplayProvider, string>>,
   ): Promise<RoleplayProviderKeyStatus[]> {
-    await this.ensureTenantRow(tenantId);
+    await this.ensureConfigRow();
     for (const provider of PROVIDERS) {
       const raw = keys[provider];
       if (!raw?.trim()) continue;
       const encrypted = encryptSecret(raw.trim());
       const existing = await db
         .select()
-        .from(roleplayTenantProviderKeys)
-        .where(
-          and(
-            eq(roleplayTenantProviderKeys.tenantId, tenantId),
-            eq(roleplayTenantProviderKeys.provider, provider),
-          ),
-        )
+        .from(roleplayProviderKeys)
+        .where(eq(roleplayProviderKeys.provider, provider))
         .limit(1);
       if (existing.length) {
         await db
-          .update(roleplayTenantProviderKeys)
+          .update(roleplayProviderKeys)
           .set({ encryptedApiKey: encrypted, updatedAt: new Date() })
-          .where(eq(roleplayTenantProviderKeys.id, existing[0].id));
+          .where(eq(roleplayProviderKeys.id, existing[0].id));
       } else {
-        await db.insert(roleplayTenantProviderKeys).values({
-          tenantId,
+        await db.insert(roleplayProviderKeys).values({
           provider,
           encryptedApiKey: encrypted,
         });
       }
     }
-    await db
-      .update(roleplayTenantConfig)
-      .set({ updatedAt: new Date() })
-      .where(eq(roleplayTenantConfig.tenantId, tenantId));
-    return this.getProviderKeys(tenantId);
+    const configRows = await db.select().from(roleplayAppConfig).limit(1);
+    if (configRows.length) {
+      await db
+        .update(roleplayAppConfig)
+        .set({ updatedAt: new Date() })
+        .where(eq(roleplayAppConfig.id, configRows[0].id));
+    }
+    return this.getProviderKeys();
   }
 
-  async setAllowlists(
-    tenantId: number,
-    input: { persona: RoleplayModelRef[]; grader: RoleplayModelRef[] },
-  ): Promise<{ persona: RoleplayModelRef[]; grader: RoleplayModelRef[] }> {
-    await this.ensureTenantRow(tenantId);
-    const persona = input.persona.map(normalizeModelRef);
-    const grader = input.grader.map(normalizeModelRef);
-
-    await db
-      .delete(roleplayTenantPersonaModels)
-      .where(eq(roleplayTenantPersonaModels.tenantId, tenantId));
-    await db
-      .delete(roleplayTenantGraderModels)
-      .where(eq(roleplayTenantGraderModels.tenantId, tenantId));
-
-    if (persona.length) {
-      await db.insert(roleplayTenantPersonaModels).values(
-        persona.map((m) => ({
-          tenantId,
-          provider: m.provider,
-          model: m.model,
-        })),
-      );
-    }
-    if (grader.length) {
-      await db.insert(roleplayTenantGraderModels).values(
-        grader.map((m) => ({
-          tenantId,
-          provider: m.provider,
-          model: m.model,
-        })),
-      );
-    }
-
-    await db
-      .update(roleplayTenantConfig)
-      .set({ updatedAt: new Date() })
-      .where(eq(roleplayTenantConfig.tenantId, tenantId));
-
-    return { persona, grader };
+  async setAllowlists(input: {
+    persona: RoleplayModelRef[];
+    grader: RoleplayModelRef[];
+  }): Promise<{ persona: RoleplayModelRef[]; grader: RoleplayModelRef[] }> {
+    const models = input.persona.map(normalizeModelRef);
+    await this.setUnifiedAllowlist(models);
+    return { persona: models, grader: models };
   }
 
-  async setDefaults(
-    tenantId: number,
-    input: { persona: RoleplayModelRef; grader: RoleplayModelRef },
-  ): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
-    await this.ensureTenantRow(tenantId);
+  async setUnifiedAllowlist(models: RoleplayModelRef[]): Promise<RoleplayModelRef[]> {
+    await this.ensureConfigRow();
+    const normalized = models.map(normalizeModelRef);
+
+    await db.delete(roleplayAllowedPersonaModels);
+    await db.delete(roleplayAllowedGraderModels);
+
+    if (normalized.length) {
+      const rows = normalized.map((m) => ({
+        provider: m.provider,
+        model: m.model,
+      }));
+      await db.insert(roleplayAllowedPersonaModels).values(rows);
+      await db.insert(roleplayAllowedGraderModels).values(rows);
+    }
+
+    const configRows = await db.select().from(roleplayAppConfig).limit(1);
+    if (configRows.length) {
+      await db
+        .update(roleplayAppConfig)
+        .set({ updatedAt: new Date() })
+        .where(eq(roleplayAppConfig.id, configRows[0].id));
+    }
+
+    return normalized;
+  }
+
+  async removeProviderKeys(providers: RoleplayProvider[]): Promise<void> {
+    for (const provider of providers) {
+      await db
+        .delete(roleplayProviderKeys)
+        .where(eq(roleplayProviderKeys.provider, provider));
+    }
+    const configRows = await db.select().from(roleplayAppConfig).limit(1);
+    if (configRows.length) {
+      await db
+        .update(roleplayAppConfig)
+        .set({ updatedAt: new Date() })
+        .where(eq(roleplayAppConfig.id, configRows[0].id));
+    }
+  }
+
+  async updateFullConfig(input: RoleplayConfigUpdateInput): Promise<RoleplayFullConfigPublic> {
+    await this.ensureConfigRow();
+
+    if (input.removeProviders?.length) {
+      await this.removeProviderKeys(input.removeProviders);
+    }
+
+    if (input.keys) {
+      await this.upsertProviderKeys(input.keys);
+    }
+
+    const models = input.models.map(normalizeModelRef);
+    const removeSet = new Set(input.removeProviders ?? []);
+    const filtered = models.filter((m) => !removeSet.has(m.provider));
+    await this.setUnifiedAllowlist(filtered);
+
+    return this.getFullConfig();
+  }
+
+  async setDefaults(input: {
+    persona: RoleplayModelRef;
+    grader: RoleplayModelRef;
+  }): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
+    await this.ensureConfigRow();
     const persona = normalizeModelRef(input.persona);
     const grader = normalizeModelRef(input.grader);
-    const personaList = await this.getAllowlist(tenantId, "persona");
-    const graderList = await this.getAllowlist(tenantId, "grader");
-    this.assertModelAllowed(tenantId, "persona", persona, personaList);
-    this.assertModelAllowed(tenantId, "grader", grader, graderList);
+    const allowedModels = await this.getUnifiedAllowlist();
+    this.assertModelAllowed("persona", persona, allowedModels);
+    this.assertModelAllowed("grader", grader, allowedModels);
 
-    await db
-      .update(roleplayTenantConfig)
-      .set({
-        defaultPersonaProvider: persona.provider,
-        defaultPersonaModel: persona.model,
-        defaultGraderProvider: grader.provider,
-        defaultGraderModel: grader.model,
-        // Keep legacy columns in sync for backward compat
-        provider: persona.provider,
-        model: persona.model,
-        updatedAt: new Date(),
-      })
-      .where(eq(roleplayTenantConfig.tenantId, tenantId));
+    const configRows = await db.select().from(roleplayAppConfig).limit(1);
+    if (configRows.length) {
+      await db
+        .update(roleplayAppConfig)
+        .set({
+          defaultPersonaProvider: persona.provider,
+          defaultPersonaModel: persona.model,
+          defaultGraderProvider: grader.provider,
+          defaultGraderModel: grader.model,
+          provider: persona.provider,
+          model: persona.model,
+          updatedAt: new Date(),
+        })
+        .where(eq(roleplayAppConfig.id, configRows[0].id));
+    }
 
     return { persona, grader };
   }
 
   /** Validate per-roleplay model selection in settings payload. */
-  async validateRoleplayModelSettings(
-    tenantId: number,
-    settings: Record<string, unknown>,
-  ): Promise<void> {
+  async validateRoleplayModelSettings(settings: Record<string, unknown>): Promise<void> {
     const personaProvider = settings.personaProvider as string | undefined | null;
     const personaModel = settings.personaModel as string | undefined | null;
     const graderProvider = settings.graderProvider as string | undefined | null;
@@ -457,11 +458,11 @@ export class RoleplayConfigService {
       throw new Error("graderProvider and graderModel are required for each roleplay");
     }
 
-    await this.assertModelAllowedForTenant(tenantId, "persona", {
+    await this.assertModelAllowedForPurpose("persona", {
       provider: personaProvider as RoleplayProvider,
       model: personaModel,
     });
-    await this.assertModelAllowedForTenant(tenantId, "grader", {
+    await this.assertModelAllowedForPurpose("grader", {
       provider: graderProvider as RoleplayProvider,
       model: graderModel,
     });
@@ -470,7 +471,7 @@ export class RoleplayConfigService {
 
 /** Re-export for convenience in model-factory */
 export class RoleplayNotConfiguredError extends Error {
-  constructor(message = "Roleplay AI is not configured for this tenant.") {
+  constructor(message = "Roleplay AI is not configured.") {
     super(message);
     this.name = "RoleplayNotConfiguredError";
   }

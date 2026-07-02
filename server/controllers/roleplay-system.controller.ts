@@ -65,19 +65,18 @@ function chunkText(content: unknown): string {
 export class RoleplaySystemController {
   // ===================== CRUD =====================
 
-  async getRoleplays(tenantId: number): Promise<Roleplay[]> {
+  async getRoleplays(): Promise<Roleplay[]> {
     return db
       .select()
       .from(roleplays)
-      .where(eq(roleplays.tenantId, tenantId))
       .orderBy(desc(roleplays.createdAt));
   }
 
-  async getRoleplayById(roleplayId: number, tenantId: number) {
+  async getRoleplayById(roleplayId: number) {
     const [roleplay] = await db
       .select()
       .from(roleplays)
-      .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+      .where(eq(roleplays.id, roleplayId))
       .limit(1);
     if (!roleplay) return null;
 
@@ -101,22 +100,17 @@ export class RoleplaySystemController {
 
   async bulkSaveRoleplay(
     roleplayId: number | null,
-    tenantId: number,
     userId: number,
     payload: BulkRoleplayPayload,
   ): Promise<Roleplay> {
     if (payload.settings) {
-      await roleplayConfigService.validateRoleplayModelSettings(
-        tenantId,
-        payload.settings,
-      );
+      await roleplayConfigService.validateRoleplayModelSettings(payload.settings);
     }
 
     return db.transaction(async (tx) => {
       // Strip server-owned fields from client payload
       const {
         id: _id,
-        tenantId: _tenantId,
         createdBy: _createdBy,
         createdAt: _createdAt,
         updatedAt: _updatedAt,
@@ -133,7 +127,7 @@ export class RoleplaySystemController {
         const [updated] = await tx
           .update(roleplays)
           .set({ ...(safeRoleplay as any), updatedAt: new Date() })
-          .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+          .where(eq(roleplays.id, roleplayId))
           .returning();
         saved = updated;
       } else {
@@ -141,7 +135,6 @@ export class RoleplaySystemController {
           .insert(roleplays)
           .values({
             ...(safeRoleplay as any),
-            tenantId,
             createdBy: userId,
             status: (safeRoleplay as any).status ?? "draft",
           })
@@ -200,7 +193,6 @@ export class RoleplaySystemController {
         for (const c of payload.criteria) {
           const data: any = {
             roleplayId: rid,
-            tenantId,
             name: (c as any).name ?? "",
             description: (c as any).description ?? null,
             weight: String((c as any).weight ?? "1.0"),
@@ -228,42 +220,37 @@ export class RoleplaySystemController {
     });
   }
 
-  async deleteRoleplay(roleplayId: number, tenantId: number): Promise<boolean> {
+  async deleteRoleplay(roleplayId: number): Promise<boolean> {
     const result = await db
       .delete(roleplays)
-      .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+      .where(eq(roleplays.id, roleplayId))
       .returning();
     return result.length > 0;
   }
 
-  async publishRoleplay(roleplayId: number, tenantId: number) {
+  async publishRoleplay(roleplayId: number) {
     const [updated] = await db
       .update(roleplays)
       .set({ status: "published", published: true, updatedAt: new Date() })
-      .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+      .where(eq(roleplays.id, roleplayId))
       .returning();
     return updated ?? null;
   }
 
-  async unpublishRoleplay(roleplayId: number, tenantId: number) {
+  async unpublishRoleplay(roleplayId: number) {
     const [updated] = await db
       .update(roleplays)
       .set({ status: "draft", published: false, updatedAt: new Date() })
-      .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+      .where(eq(roleplays.id, roleplayId))
       .returning();
     return updated ?? null;
   }
 
-  async getRoleplayStats(roleplayId: number, tenantId: number) {
+  async getRoleplayStats(roleplayId: number) {
     const attempts = await db
       .select()
       .from(roleplayAttempts)
-      .where(
-        and(
-          eq(roleplayAttempts.roleplayId, roleplayId),
-          eq(roleplayAttempts.tenantId, tenantId),
-        ),
-      );
+      .where(eq(roleplayAttempts.roleplayId, roleplayId));
     const completed = attempts.filter((a) => a.status === "completed");
     const scores = completed
       .map((a) => (a.score != null ? parseFloat(String(a.score)) : null))
@@ -283,11 +270,11 @@ export class RoleplaySystemController {
 
   // ===================== Conversation =====================
 
-  private async loadConversationContext(roleplayId: number, tenantId: number) {
+  private async loadConversationContext(roleplayId: number) {
     const [roleplay] = await db
       .select()
       .from(roleplays)
-      .where(and(eq(roleplays.id, roleplayId), eq(roleplays.tenantId, tenantId)))
+      .where(eq(roleplays.id, roleplayId))
       .limit(1);
     if (!roleplay) throw new Error("Roleplay not found");
     const [settings] = await db
@@ -335,7 +322,7 @@ export class RoleplaySystemController {
       .orderBy(desc(roleplayAttempts.startedAt));
   }
 
-  async getUserBestAttemptsByRoleplay(tenantId: number, userId: number) {
+  async getUserBestAttemptsByRoleplay(userId: number) {
     const attempts = await db
       .select({
         id: roleplayAttempts.id,
@@ -349,7 +336,6 @@ export class RoleplaySystemController {
       .from(roleplayAttempts)
       .where(
         and(
-          eq(roleplayAttempts.tenantId, tenantId),
           eq(roleplayAttempts.userId, userId),
           eq(roleplayAttempts.status, "completed"),
         ),
@@ -372,27 +358,22 @@ export class RoleplaySystemController {
   /** Resolve persona/grader models from attempt snapshot or live roleplay config. */
   private async resolveAttemptModels(
     attempt: typeof roleplayAttempts.$inferSelect,
-    tenantId: number,
     roleplayId: number,
   ): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
     const snapshot = await roleplayConfigService.resolveModelsFromAttemptSnapshot(
       attempt,
     );
     if (snapshot) return snapshot;
-    return roleplayConfigService.resolveModelsForRoleplay(roleplayId, tenantId);
+    return roleplayConfigService.resolveModelsForRoleplay(roleplayId);
   }
 
   /** Start a new attempt: enforces maxAttempts, generates the persona's opening message. */
-  async startAttempt(roleplayId: number, userId: number, tenantId: number) {
+  async startAttempt(roleplayId: number, userId: number) {
     const { roleplay, settings, persona } = await this.loadConversationContext(
       roleplayId,
-      tenantId,
     );
 
-    const models = await roleplayConfigService.resolveModelsForRoleplay(
-      roleplayId,
-      tenantId,
-    );
+    const models = await roleplayConfigService.resolveModelsForRoleplay(roleplayId);
 
     const prior = await db
       .select()
@@ -429,7 +410,6 @@ export class RoleplaySystemController {
     const [attempt] = await db
       .insert(roleplayAttempts)
       .values({
-        tenantId,
         roleplayId,
         userId,
         attemptNumber: attempts.length + 1,
@@ -443,7 +423,7 @@ export class RoleplaySystemController {
       .returning();
 
     try {
-      const model = await createRoleplayChatModel(tenantId, {
+      const model = await createRoleplayChatModel({
         provider: models.persona.provider,
         model: models.persona.model,
         temperature: 0.8,
@@ -468,7 +448,6 @@ export class RoleplaySystemController {
         attemptId: attempt.id,
         attemptNumber: attempt.attemptNumber,
         userId,
-        tenantId,
         personaProvider: models.persona.provider,
         personaModel: models.persona.model,
         graderProvider: models.grader.provider,
@@ -479,7 +458,7 @@ export class RoleplaySystemController {
       log.error(
         "Roleplay attempt start failed",
         error instanceof Error ? error : new Error(String(error)),
-        { roleplayId, userId, tenantId },
+        { roleplayId, userId },
       );
       await db.delete(roleplayAttempts).where(eq(roleplayAttempts.id, attempt.id));
       throw error;
@@ -509,17 +488,15 @@ export class RoleplaySystemController {
   async runPersonaTurn(opts: {
     attemptId: number;
     roleplayId: number;
-    tenantId: number;
     userId: number;
     learnerText: string;
     runId: number;
   }): Promise<void> {
-    const { attemptId, roleplayId, tenantId, learnerText, runId } = opts;
+    const { attemptId, roleplayId, learnerText, runId } = opts;
     const turnStart = Date.now();
     try {
       const { roleplay, settings, persona } = await this.loadConversationContext(
         roleplayId,
-        tenantId,
       );
 
       // Persist learner message
@@ -530,7 +507,7 @@ export class RoleplaySystemController {
         .limit(1);
       if (!attempt) throw new Error("Attempt not found");
 
-      const models = await this.resolveAttemptModels(attempt, tenantId, roleplayId);
+      const models = await this.resolveAttemptModels(attempt, roleplayId);
       const newTurnNumber = (attempt?.turnCount ?? 0) + 1;
       await db.insert(roleplayMessages).values({
         attemptId,
@@ -545,7 +522,7 @@ export class RoleplaySystemController {
 
       // Build context from full history
       const history = await this.getAttemptMessages(attemptId);
-      const model = await createRoleplayChatModel(tenantId, {
+      const model = await createRoleplayChatModel({
         provider: models.persona.provider,
         model: models.persona.model,
         temperature: 0.8,
@@ -671,7 +648,6 @@ export class RoleplaySystemController {
       return this.getResults(attemptId, userId);
     }
 
-    const tenantId = attempt.tenantId;
     const roleplayId = attempt.roleplayId;
 
     const [roleplay] = await db
@@ -715,8 +691,8 @@ export class RoleplaySystemController {
 
     if (criteria.length > 0) {
       try {
-        const models = await this.resolveAttemptModels(attempt, tenantId, roleplayId);
-        const model = await createRoleplayChatModel(tenantId, {
+        const models = await this.resolveAttemptModels(attempt, roleplayId);
+        const model = await createRoleplayChatModel({
           provider: models.grader.provider,
           model: models.grader.model,
           temperature: 0.2,
@@ -793,7 +769,6 @@ export class RoleplaySystemController {
       attemptId,
       roleplayId,
       userId,
-      tenantId,
       overallScore,
       isPassed,
       gradingStatus,

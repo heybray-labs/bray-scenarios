@@ -59,7 +59,7 @@ export class AuthService {
     return data as AuthResponse;
   }
 
-  static async getSetupStatus(): Promise<{ needsSetup: boolean }> {
+  static async getSetupStatus(): Promise<{ needsSetup: boolean; hasPasswordUsers: boolean }> {
     return apiRequest("GET", "/api/auth/setup-status");
   }
 

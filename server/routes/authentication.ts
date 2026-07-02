@@ -8,7 +8,6 @@ import {
   generateRefreshToken,
   type AuthRequest,
 } from "../middleware/auth.ts";
-import { resolveTenantForLogin } from "../middleware/tenant.ts";
 import {
   getPublicAuthConfig,
   isSsoEnabled,
@@ -32,27 +31,34 @@ router.get("/config", (_req, res) => {
   res.json(getPublicAuthConfig());
 });
 
-router.get("/setup-status", resolveTenantForLogin, async (req, res) => {
+router.get("/setup-status", async (_req, res) => {
   try {
-    const tenantId = (req as AuthRequest).tenantId!;
-    const hasAdmin = await userController.hasAdminUser(tenantId);
-    res.json({ needsSetup: !hasAdmin });
+    const [hasAdmin, hasPasswordUsers] = await Promise.all([
+      userController.hasAdminUser(),
+      userController.hasPasswordUsers(),
+    ]);
+    res.json({ needsSetup: !hasAdmin, hasPasswordUsers });
   } catch {
     res.status(500).json({ message: "Failed to check setup status" });
   }
 });
 
-router.post("/setup-admin", resolveTenantForLogin, async (req, res) => {
+router.post("/setup-admin", async (req, res) => {
   try {
-    const { name, email, password } = setupAdminSchema.parse(req.body);
-    const tenantId = (req as AuthRequest).tenantId!;
+    if (isSsoEnabled()) {
+      return res.status(403).json({
+        message: "Admin setup is disabled when SSO is enabled. Sign in with your identity provider.",
+      });
+    }
 
-    const hasAdmin = await userController.hasAdminUser(tenantId);
+    const { name, email, password } = setupAdminSchema.parse(req.body);
+
+    const hasAdmin = await userController.hasAdminUser();
     if (hasAdmin) {
       return res.status(403).json({ message: "Admin account already exists" });
     }
 
-    const existing = await userController.getUserByEmail(email, tenantId);
+    const existing = await userController.getUserByEmail(email);
     if (existing) {
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -67,17 +73,15 @@ router.post("/setup-admin", resolveTenantForLogin, async (req, res) => {
       email,
       password: hashed,
       firstName: name,
-      tenantId,
       roleId: adminRole.id,
     });
 
     const userWithRole = await userController.getUserWithRole(user.id);
-    const token = generateToken(user.id, user.roleId, tenantId);
+    const token = generateToken(user.id, user.roleId);
     const refreshToken = generateRefreshToken(user.id);
 
     log.info("Setup admin created", {
       userId: user.id,
-      tenantId,
       requestId: (req as AuthRequest).requestId,
     });
 
@@ -101,26 +105,23 @@ const registerSchema = z.object({
   firstName: z.string().optional(),
 });
 
-router.post("/login", resolveTenantForLogin, async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
-    const tenantId = (req as AuthRequest).tenantId!;
 
-    const user = await userController.getUserByEmail(email, tenantId);
+    const user = await userController.getUserByEmail(email);
     if (!user) {
       log.warn("Login failed", {
         reason: "unknown_user",
-        tenantId,
         requestId: (req as AuthRequest).requestId,
       });
-      log.debug("Login failed detail", { email, tenantId });
+      log.debug("Login failed detail", { email });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     if (!user.password) {
       log.warn("Login failed", {
         reason: "sso_only_account",
-        tenantId,
         userId: user.id,
         requestId: (req as AuthRequest).requestId,
       });
@@ -131,7 +132,6 @@ router.post("/login", resolveTenantForLogin, async (req, res) => {
     if (!valid) {
       log.warn("Login failed", {
         reason: "invalid_password",
-        tenantId,
         userId: user.id,
         requestId: (req as AuthRequest).requestId,
       });
@@ -143,15 +143,14 @@ router.post("/login", resolveTenantForLogin, async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    const token = generateToken(user.id, user.roleId, tenantId);
+    const token = generateToken(user.id, user.roleId);
     const refreshToken = generateRefreshToken(user.id);
 
     log.info("Login success", {
       userId: user.id,
-      tenantId,
       requestId: (req as AuthRequest).requestId,
     });
-    log.debug("Login success detail", { email, tenantId });
+    log.debug("Login success detail", { email });
 
     res.json({
       token,
@@ -167,7 +166,7 @@ router.post("/login", resolveTenantForLogin, async (req, res) => {
   }
 });
 
-router.post("/register", resolveTenantForLogin, async (req, res) => {
+router.post("/register", async (req, res) => {
   if (isSsoEnabled()) {
     log.info("Registration blocked — SSO enabled", {
       requestId: (req as AuthRequest).requestId,
@@ -177,9 +176,8 @@ router.post("/register", resolveTenantForLogin, async (req, res) => {
 
   try {
     const { email, password, firstName } = registerSchema.parse(req.body);
-    const tenantId = (req as AuthRequest).tenantId!;
 
-    const existing = await userController.getUserByEmail(email, tenantId);
+    const existing = await userController.getUserByEmail(email);
     if (existing) {
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -195,16 +193,14 @@ router.post("/register", resolveTenantForLogin, async (req, res) => {
       password: hashed,
       firstName,
       roleId: userRole.id,
-      tenantId,
     });
 
     const userWithRole = await userController.getUserWithRole(user.id);
-    const token = generateToken(user.id, user.roleId, tenantId);
+    const token = generateToken(user.id, user.roleId);
     const refreshToken = generateRefreshToken(user.id);
 
     log.info("User registered", {
       userId: user.id,
-      tenantId,
       requestId: (req as AuthRequest).requestId,
     });
 
@@ -265,16 +261,14 @@ router.post("/change-password", authenticateToken, async (req: AuthRequest, res)
   }
 });
 
-router.get("/oidc/login", resolveTenantForLogin, async (req, res) => {
+router.get("/oidc/login", async (req, res) => {
   const authReq = req as AuthRequest;
   try {
-    const tenantId = authReq.tenantId!;
-    log.info("OIDC login requested", { tenantId, requestId: authReq.requestId });
-    await oidcAuthService.startLogin(res, tenantId);
+    log.info("OIDC login requested", { requestId: authReq.requestId });
+    await oidcAuthService.startLogin(res);
   } catch (error) {
     log.error("OIDC login start failed", error instanceof Error ? error : undefined, {
       requestId: authReq.requestId,
-      tenantId: authReq.tenantId,
     });
     const message = error instanceof Error ? error.message : "OIDC login failed";
     res.redirect(`${getAppUrl()}/login?error=${encodeURIComponent(message)}`);
@@ -333,7 +327,6 @@ async function handleSsoComplete(req: express.Request, res: express.Response, la
     const result = await completeExchange(code);
     log.info(`${label} sign-in completed`, {
       userId: result.user.id,
-      tenantId: result.user.tenantId,
       requestId: authReq.requestId,
     });
     res.json(result);
@@ -354,16 +347,14 @@ router.post("/sso/complete", (req, res) => handleSsoComplete(req, res, "SSO"));
 
 router.post("/oidc/complete", (req, res) => handleSsoComplete(req, res, "OIDC"));
 
-router.get("/saml/login", resolveTenantForLogin, async (req, res) => {
+router.get("/saml/login", async (req, res) => {
   const authReq = req as AuthRequest;
   try {
-    const tenantId = authReq.tenantId!;
-    log.info("SAML login requested", { tenantId, requestId: authReq.requestId });
-    await samlAuthService.startLogin(res, tenantId);
+    log.info("SAML login requested", { requestId: authReq.requestId });
+    await samlAuthService.startLogin(res);
   } catch (error) {
     log.error("SAML login start failed", error instanceof Error ? error : undefined, {
       requestId: authReq.requestId,
-      tenantId: authReq.tenantId,
     });
     const message = error instanceof Error ? error.message : "SAML login failed";
     res.redirect(`${getAppUrl()}/login?error=${encodeURIComponent(message)}`);

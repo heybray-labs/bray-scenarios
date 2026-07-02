@@ -65,14 +65,6 @@ Requires `AUTH_PROTOCOL=saml`.
 | `SAML_ACS_URL` | No | **Your app's** Assertion Consumer URL (default: `{APP_URL}/api/auth/saml/acs`). Must match Google Admin exactly. |
 | `SAML_SP_CERT_DIR` | No | Directory for auto-generated SP signing certificate (default: `data/saml` under the server folder). |
 
-### Tenant (single-tenant app)
-
-| Variable | Description |
-|----------|-------------|
-| `DEFAULT_TENANT_ID` | Tenant ID for auth (default `1`). |
-| `TENANT_SUBDOMAIN` | Subdomain for the default tenant (default `default`). |
-
----
 
 ## Local authentication setup
 

@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from "./routes/authentication.ts";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
@@ -28,6 +31,15 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roleplays", roleplayRoutes);
 app.use("/api/roleplay-config", roleplayConfigRoutes);
 app.use("/api/users", userRoutes);
+
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client/dist");
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 async function start() {
   try {

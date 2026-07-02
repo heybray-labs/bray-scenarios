@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Drama, Loader2, RefreshCw, X, Circle, CheckCircle } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2, Plus, RefreshCw, TestTube2, Trash2, X } from "lucide-react";
 import {
   type AgentProvider,
   type AgentModelOption,
@@ -26,8 +38,8 @@ import {
   PROVIDER_LABELS,
   modelKey,
   formatModelLabel,
-  getSetupChecklist,
-  allowlistsEqual,
+  modelsEqual,
+  hasKeyFor,
 } from "./roleplay-config/setup-status";
 
 type ModelCatalogResponse = {
@@ -35,111 +47,41 @@ type ModelCatalogResponse = {
   models: AgentModelOption[];
 };
 
-function SetupOverview({
-  config,
-  isReady,
-}: {
-  config: RoleplayFullConfig;
-  isReady: boolean;
-}) {
-  const checklist = getSetupChecklist(config);
+type ProviderKeyDraft = {
+  value: string;
+  hadSavedKey: boolean;
+};
 
-  return (
-    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          Keys unlock providers → allowlists define what authors can pick → each roleplay
-          requires its own persona and grader models.
-        </p>
-        {isReady ? (
-          <Badge variant="default">Ready</Badge>
-        ) : (
-          <Badge variant="secondary">Not configured</Badge>
-        )}
-      </div>
-      <ul className="grid gap-2 sm:grid-cols-3">
-        {checklist.map((item) => (
-          <li key={item.id} className="flex items-start gap-2 text-sm">
-            {item.complete ? (
-              <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-            ) : (
-              <Circle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            )}
-            <div>
-              <span className={item.complete ? "text-foreground" : "text-muted-foreground"}>
-                {item.label}
-              </span>
-              {!item.complete && item.detail && (
-                <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function SectionHeader({
-  step,
-  title,
-  description,
-  unsaved,
-  action,
-}: {
-  step: number;
-  title: string;
-  description?: string;
-  unsaved?: boolean;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h3 className="font-medium text-sm flex items-center gap-2">
-          <span className="text-muted-foreground">{step}.</span>
-          {title}
-          {unsaved && (
-            <Badge variant="outline" className="text-[10px] font-normal">
-              Unsaved changes
-            </Badge>
-          )}
-        </h3>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  );
-}
-
-function AllowlistCard({
-  purpose,
-  title,
-  description,
-  hint,
-  list,
+function ModelPicker({
+  allowedModels,
+  visibleProviders,
   keys,
   base,
   onAdd,
   onRemove,
 }: {
-  purpose: "persona" | "grader";
-  title: string;
-  description: string;
-  hint?: string;
-  list: ModelRef[];
+  allowedModels: ModelRef[];
+  visibleProviders: AgentProvider[];
   keys: RoleplayFullConfig["keys"];
   base: string;
   onAdd: (ref: ModelRef) => void;
   onRemove: (key: string) => void;
 }) {
-  const [activeProvider, setActiveProvider] = useState<AgentProvider>("openai");
+  const configuredProviders = visibleProviders;
+  const firstProvider = configuredProviders[0] ?? PROVIDERS[0];
+  const [activeProvider, setActiveProvider] = useState<AgentProvider>(firstProvider);
   const [refreshToken, setRefreshToken] = useState(0);
 
+  useEffect(() => {
+    if (!configuredProviders.includes(activeProvider) && configuredProviders.length) {
+      setActiveProvider(configuredProviders[0]);
+    }
+  }, [activeProvider, configuredProviders]);
+
+  const hasKeyForProvider = hasKeyFor(keys, activeProvider);
+
   const { data: catalog, isLoading: catalogLoading, refetch } = useQuery<ModelCatalogResponse>({
-    queryKey: [`${base}/model-catalog`, purpose, activeProvider, refreshToken],
+    queryKey: [`${base}/model-catalog`, activeProvider, refreshToken],
     queryFn: async () => {
       const refresh = refreshToken > 0 ? "&refresh=true" : "";
       return apiRequest(
@@ -147,29 +89,29 @@ function AllowlistCard({
         `${base}/model-catalog?provider=${activeProvider}${refresh}`,
       ) as Promise<ModelCatalogResponse>;
     },
+    enabled: hasKeyForProvider,
     staleTime: 60 * 60 * 1000,
   });
 
-  const hasKeyForProvider = keys.find((k) => k.provider === activeProvider)?.hasKey ?? false;
   const availableModels = (catalog?.models ?? []).filter(
-    (m) => !list.some((x) => x.provider === activeProvider && x.model === m.id),
+    (m) => !allowedModels.some((x) => x.provider === activeProvider && x.model === m.id),
   );
 
-  return (
-    <div className="rounded-lg border p-4 space-y-3 flex-1 min-w-0">
-      <div>
-        <h4 className="font-medium text-sm">{title}</h4>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        {list.length === 0 && hint && (
-          <p className="text-xs text-muted-foreground mt-2 italic">{hint}</p>
-        )}
-      </div>
+  if (configuredProviders.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Add a provider above to load models from its API.
+      </p>
+    );
+  }
 
+  return (
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-2 min-h-[2rem]">
-        {list.length === 0 ? (
-          <span className="text-xs text-muted-foreground">No models selected</span>
+        {allowedModels.length === 0 ? (
+          <span className="text-sm text-muted-foreground">No models selected</span>
         ) : (
-          list.map((m) => (
+          allowedModels.map((m) => (
             <Badge key={modelKey(m)} variant="secondary" className="gap-1 pr-1">
               {formatModelLabel(m)}
               <button
@@ -191,7 +133,7 @@ function AllowlistCard({
       >
         <div className="flex items-center justify-between gap-2">
           <TabsList className="h-auto gap-2 border-0">
-            {PROVIDERS.map((p) => (
+            {configuredProviders.map((p) => (
               <TabsTrigger key={p} value={p} className="text-xs px-2 py-1">
                 {PROVIDER_LABELS[p]}
               </TabsTrigger>
@@ -202,7 +144,7 @@ function AllowlistCard({
             variant="ghost"
             size="sm"
             className="h-7 px-2 shrink-0"
-            disabled={catalogLoading}
+            disabled={!hasKeyForProvider || catalogLoading}
             onClick={() => {
               setRefreshToken((n) => n + 1);
               void refetch();
@@ -213,28 +155,31 @@ function AllowlistCard({
           </Button>
         </div>
 
-        {PROVIDERS.map((p) => (
+        {configuredProviders.map((p) => (
           <TabsContent key={p} value={p} className="mt-3 space-y-2">
-            {!hasKeyForProvider && p === activeProvider && (
+            {!hasKeyFor(keys, p) && p === activeProvider && (
               <p className="text-xs text-muted-foreground">
-                Save an API key for {PROVIDER_LABELS[p]} in section 1, then refresh the catalog.
+                Save an API key for {PROVIDER_LABELS[p]} to load models from the provider API.
               </p>
             )}
             <div className="space-y-1">
-              <Label className="text-xs">Add from catalog</Label>
+              <Label className="text-xs">Add model</Label>
               <Select
-                onValueChange={(modelId) =>
-                  onAdd({ provider: activeProvider, model: modelId })
+                disabled={
+                  !hasKeyFor(keys, p) || catalogLoading || availableModels.length === 0
                 }
+                onValueChange={(modelId) => onAdd({ provider: activeProvider, model: modelId })}
               >
                 <SelectTrigger>
                   <SelectValue
                     placeholder={
-                      catalogLoading
-                        ? "Loading…"
-                        : availableModels.length === 0
-                          ? "No models available"
-                          : "Pick a model"
+                      !hasKeyFor(keys, p)
+                        ? "Save API key to load models"
+                        : catalogLoading
+                          ? "Loading…"
+                          : availableModels.length === 0
+                            ? "No models available"
+                            : "Pick a model"
                     }
                   />
                 </SelectTrigger>
@@ -254,15 +199,22 @@ function AllowlistCard({
   );
 }
 
-export function RoleplayConfigPanel() {
+export function RoleplayConfigPanel({
+  onDirtyChange,
+}: {
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const { toast } = useToast();
   const base = `/api/roleplay-config`;
 
-  const [openaiKey, setOpenaiKey] = useState("");
-  const [anthropicKey, setAnthropicKey] = useState("");
-  const [googleKey, setGoogleKey] = useState("");
-  const [personaAllowlist, setPersonaAllowlist] = useState<ModelRef[]>([]);
-  const [graderAllowlist, setGraderAllowlist] = useState<ModelRef[]>([]);
+  const [providerDrafts, setProviderDrafts] = useState<
+    Partial<Record<AgentProvider, ProviderKeyDraft>>
+  >({});
+  const [visibleProviders, setVisibleProviders] = useState<AgentProvider[]>([]);
+  const [removeProviders, setRemoveProviders] = useState<AgentProvider[]>([]);
+  const [allowedModels, setAllowedModels] = useState<ModelRef[]>([]);
+  const [pendingRemoveProvider, setPendingRemoveProvider] = useState<AgentProvider | null>(null);
+  const [testingProvider, setTestingProvider] = useState<AgentProvider | null>(null);
 
   const { data, isLoading, refetch } = useQuery<RoleplayFullConfig>({
     queryKey: [base],
@@ -271,190 +223,309 @@ export function RoleplayConfigPanel() {
 
   useEffect(() => {
     if (!data) return;
-    setPersonaAllowlist(data.personaAllowlist ?? []);
-    setGraderAllowlist(data.graderAllowlist ?? []);
+    setAllowedModels(data.allowedModels ?? []);
+    setRemoveProviders([]);
+    const configured = data.keys.filter((k) => k.hasKey).map((k) => k.provider);
+    setVisibleProviders(configured);
+    setProviderDrafts(
+      Object.fromEntries(
+        configured.map((p) => [p, { value: "", hadSavedKey: true }]),
+      ) as Partial<Record<AgentProvider, ProviderKeyDraft>>,
+    );
   }, [data]);
 
-  const keysDirty = !!(openaiKey || anthropicKey || googleKey);
-  const allowlistsDirty = useMemo(() => {
+  const isDirty = useMemo(() => {
     if (!data) return false;
-    return (
-      !allowlistsEqual(personaAllowlist, data.personaAllowlist ?? []) ||
-      !allowlistsEqual(graderAllowlist, data.graderAllowlist ?? [])
-    );
-  }, [data, personaAllowlist, graderAllowlist]);
+    if (!modelsEqual(allowedModels, data.allowedModels ?? [])) return true;
+    if (removeProviders.length > 0) return true;
 
-  const checklistConfig = useMemo((): RoleplayFullConfig | null => {
-    if (!data) return null;
-    return {
-      keys: data.keys,
-      personaAllowlist,
-      graderAllowlist,
-      isReady: data.isReady,
-    };
-  }, [data, personaAllowlist, graderAllowlist]);
+    for (const p of visibleProviders) {
+      if (providerDrafts[p]?.value.trim()) return true;
+    }
 
-  const keysMutation = useMutation({
+    const savedProviders = data.keys
+      .filter((k) => k.hasKey)
+      .map((k) => k.provider)
+      .sort()
+      .join(",");
+    const currentVisible = [...visibleProviders].sort().join(",");
+    if (savedProviders !== currentVisible) return true;
+
+    return false;
+  }, [data, allowedModels, removeProviders, visibleProviders, providerDrafts]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const body: Record<string, string> = {};
-      if (openaiKey.trim()) body.openai = openaiKey.trim();
-      if (anthropicKey.trim()) body.anthropic = anthropicKey.trim();
-      if (googleKey.trim()) body.google = googleKey.trim();
-      return apiRequest("PUT", `${base}/keys`, body);
+      const keys: Partial<Record<AgentProvider, string>> = {};
+      for (const p of visibleProviders) {
+        const draft = providerDrafts[p]?.value.trim();
+        if (draft) keys[p] = draft;
+      }
+      const modelsAfterRemoval = allowedModels.filter(
+        (m) => !removeProviders.includes(m.provider),
+      );
+      return apiRequest("PUT", base, {
+        keys: Object.keys(keys).length ? keys : undefined,
+        removeProviders: removeProviders.length ? removeProviders : undefined,
+        models: modelsAfterRemoval,
+      });
     },
     onSuccess: () => {
-      toast({ title: "API keys saved" });
-      setOpenaiKey("");
-      setAnthropicKey("");
-      setGoogleKey("");
+      toast({ title: "AI settings saved" });
+      void queryClient.invalidateQueries({ queryKey: [`${base}/model-catalog`] });
       refetch();
     },
     onError: (err: Error) =>
-      toast({ title: "Failed to save keys", description: err.message, variant: "destructive" }),
+      toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
   });
 
-  const allowlistsMutation = useMutation({
-    mutationFn: async () =>
-      apiRequest("PUT", `${base}/allowlists`, {
-        persona: personaAllowlist,
-        grader: graderAllowlist,
-      }),
-    onSuccess: () => {
-      toast({ title: "Model allowlists saved" });
-      refetch();
-    },
-    onError: (err: Error) =>
-      toast({ title: "Failed to save allowlists", description: err.message, variant: "destructive" }),
-  });
+  const addableProviders = PROVIDERS.filter((p) => !visibleProviders.includes(p));
 
-  const addToAllowlist = (purpose: "persona" | "grader", ref: ModelRef) => {
-    const list = purpose === "persona" ? personaAllowlist : graderAllowlist;
-    const setter = purpose === "persona" ? setPersonaAllowlist : setGraderAllowlist;
-    if (list.some((m) => modelKey(m) === modelKey(ref))) return;
-    setter([...list, ref]);
+  const addProvider = (provider: AgentProvider) => {
+    setVisibleProviders((prev) => [...prev, provider]);
+    setProviderDrafts((prev) => ({
+      ...prev,
+      [provider]: { value: "", hadSavedKey: false },
+    }));
+    setRemoveProviders((prev) => prev.filter((p) => p !== provider));
   };
 
-  const removeFromAllowlist = (purpose: "persona" | "grader", key: string) => {
-    const setter = purpose === "persona" ? setPersonaAllowlist : setGraderAllowlist;
-    setter((prev) => prev.filter((m) => modelKey(m) !== key));
+  const confirmRemoveProvider = (provider: AgentProvider) => {
+    const modelsForProvider = allowedModels.filter((m) => m.provider === provider);
+    if (modelsForProvider.length > 0) {
+      setPendingRemoveProvider(provider);
+      return;
+    }
+    removeProvider(provider);
   };
+
+  const testProviderKey = async (provider: AgentProvider) => {
+    const draft = providerDrafts[provider]?.value.trim();
+    const saved =
+      data && hasKeyFor(data.keys, provider) && !removeProviders.includes(provider);
+    if (!draft && !saved) {
+      toast({
+        title: "No API key to test",
+        description: "Enter an API key first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingProvider(provider);
+    try {
+      const body: { provider: AgentProvider; apiKey?: string } = { provider };
+      if (draft) body.apiKey = draft;
+      const result = (await apiRequest("POST", `${base}/test-key`, body)) as {
+        success: boolean;
+        error?: string;
+      };
+      if (result.success) {
+        toast({ title: `${PROVIDER_LABELS[provider]} key verified` });
+      } else {
+        toast({
+          title: "Key test failed",
+          description: result.error ?? "Could not verify API key",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Key test failed",
+        description: err instanceof Error ? err.message : "Could not verify API key",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingProvider(null);
+    }
+  };
+
+  const removeProvider = (provider: AgentProvider) => {
+    setVisibleProviders((prev) => prev.filter((p) => p !== provider));
+    setProviderDrafts((prev) => {
+      const next = { ...prev };
+      delete next[provider];
+      return next;
+    });
+    if (data && hasKeyFor(data.keys, provider)) {
+      setRemoveProviders((prev) => [...new Set([...prev, provider])]);
+    }
+    setAllowedModels((prev) => prev.filter((m) => m.provider !== provider));
+    setPendingRemoveProvider(null);
+  };
+
+  const savedKeys = useMemo((): RoleplayFullConfig["keys"] => {
+    if (!data) return [];
+    return PROVIDERS.map((provider) => ({
+      provider,
+      hasKey:
+        hasKeyFor(data.keys, provider) && !removeProviders.includes(provider),
+    }));
+  }, [data, removeProviders]);
 
   return (
-    <TooltipProvider>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Drama className="h-5 w-5" />
-            Roleplay AI
-          </CardTitle>
-          <CardDescription>
-            Set up provider API keys and model allowlists. Authors choose persona and grader
-            models when creating each roleplay.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          ) : (
-            <>
-              {checklistConfig && (
-                <SetupOverview config={checklistConfig} isReady={data?.isReady ?? false} />
-              )}
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1 space-y-8 pb-20">
+        {isLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <section className="space-y-4">
+              <div>
+                <h3 className="font-medium">Connect providers</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add the LLM vendors you use.
+                </p>
+              </div>
 
-              <section className="space-y-4 rounded-lg border p-4">
-                <SectionHeader
-                  step={1}
-                  title="Provider API keys"
-                  description="Required for every provider used in your model allowlists."
-                  unsaved={keysDirty}
-                />
+              {visibleProviders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No providers added yet.</p>
+              ) : (
                 <div className="space-y-3">
-                  {PROVIDERS.map((p) => {
-                    const hasKey = data?.keys.find((k) => k.provider === p)?.hasKey;
-                    const value =
-                      p === "openai" ? openaiKey : p === "anthropic" ? anthropicKey : googleKey;
-                    const setValue =
-                      p === "openai"
-                        ? setOpenaiKey
-                        : p === "anthropic"
-                          ? setAnthropicKey
-                          : setGoogleKey;
+                  {visibleProviders.map((p) => {
+                    const draft = providerDrafts[p];
+                    const saved =
+                      data && hasKeyFor(data.keys, p) && !removeProviders.includes(p);
+                    const showConfigured = saved && !draft?.value.trim();
                     return (
-                      <div key={p} className="space-y-1">
-                        <Label className="text-xs flex items-center gap-2">
+                      <div key={p} className="flex items-center gap-2">
+                        <span className="w-36 shrink-0 truncate text-sm font-medium">
                           {PROVIDER_LABELS[p]}
-                          <Badge
-                            variant={hasKey ? "outline" : "secondary"}
-                            className="text-[10px]"
-                          >
-                            {hasKey ? "Configured" : "Not set"}
-                          </Badge>
-                        </Label>
+                        </span>
                         <Input
                           type="password"
-                          value={value}
-                          onChange={(e) => setValue(e.target.value)}
-                          placeholder={hasKey ? "Leave blank to keep current" : "Enter API key"}
+                          className="flex-1"
+                          value={draft?.value ?? ""}
+                          onChange={(e) =>
+                            setProviderDrafts((prev) => ({
+                              ...prev,
+                              [p]: {
+                                value: e.target.value,
+                                hadSavedKey: prev[p]?.hadSavedKey ?? saved ?? false,
+                              },
+                            }))
+                          }
+                          placeholder={showConfigured ? "••••••••••••" : "Enter API key"}
                         />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          disabled={testingProvider === p || (!saved && !draft?.value.trim())}
+                          onClick={() => void testProviderKey(p)}
+                          aria-label={`Test ${PROVIDER_LABELS[p]} API key`}
+                        >
+                          {testingProvider === p ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <TestTube2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={() => confirmRemoveProvider(p)}
+                          aria-label={`Remove ${PROVIDER_LABELS[p]}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     );
                   })}
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() => keysMutation.mutate()}
-                  disabled={keysMutation.isPending || !keysDirty}
-                >
-                  {keysMutation.isPending ? "Saving…" : "Save API keys"}
-                </Button>
-              </section>
+              )}
 
-              <section className="space-y-4 rounded-lg border p-4">
-                <SectionHeader
-                  step={2}
-                  title="Model allowlists"
-                  description="Choose which models roleplay authors can select per scenario."
-                  unsaved={allowlistsDirty}
-                  action={
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => allowlistsMutation.mutate()}
-                      disabled={allowlistsMutation.isPending || !allowlistsDirty}
-                    >
-                      {allowlistsMutation.isPending ? "Saving…" : "Save allowlists"}
+              {addableProviders.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add provider
                     </Button>
-                  }
-                />
-                <div className="flex flex-col lg:flex-row gap-4">
-                  <AllowlistCard
-                    purpose="persona"
-                    title="Persona (conversation)"
-                    description="Chat models for in-character dialogue."
-                    hint="Tip: start with a fast chat model such as GPT-4o mini or Claude Sonnet."
-                    list={personaAllowlist}
-                    keys={data?.keys ?? []}
-                    base={base}
-                    onAdd={(ref) => addToAllowlist("persona", ref)}
-                    onRemove={(key) => removeFromAllowlist("persona", key)}
-                  />
-                  <AllowlistCard
-                    purpose="grader"
-                    title="Grader (rubric scoring)"
-                    description="Reasoning models for scoring attempts with fixed temperature."
-                    hint="Tip: reasoning models (o-series, GPT-5) work well for rubric grading."
-                    list={graderAllowlist}
-                    keys={data?.keys ?? []}
-                    base={base}
-                    onAdd={(ref) => addToAllowlist("grader", ref)}
-                    onRemove={(key) => removeFromAllowlist("grader", key)}
-                  />
-                </div>
-              </section>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </TooltipProvider>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {addableProviders.map((p) => (
+                      <DropdownMenuItem key={p} onClick={() => addProvider(p)}>
+                        {PROVIDER_LABELS[p]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h3 className="font-medium">Allowed models</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Models authors can choose when building a roleplay (for both conversation
+                  and grading).
+                </p>
+              </div>
+
+              <ModelPicker
+                allowedModels={allowedModels}
+                visibleProviders={visibleProviders}
+                keys={savedKeys}
+                base={base}
+                onAdd={(ref) => {
+                  if (allowedModels.some((m) => modelKey(m) === modelKey(ref))) return;
+                  setAllowedModels((prev) => [...prev, ref]);
+                }}
+                onRemove={(key) =>
+                  setAllowedModels((prev) => prev.filter((m) => modelKey(m) !== key))
+                }
+              />
+            </section>
+          </>
+        )}
+      </div>
+
+      {!isLoading && (
+        <div className="sticky bottom-0 -mx-1 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !isDirty}
+            >
+              {saveMutation.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Dialog
+        open={pendingRemoveProvider !== null}
+        onOpenChange={(open) => !open && setPendingRemoveProvider(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove provider?</DialogTitle>
+            <DialogDescription>
+              {pendingRemoveProvider &&
+                `Removing ${PROVIDER_LABELS[pendingRemoveProvider]} will also remove its allowed models. Save changes to apply.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingRemoveProvider(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => pendingRemoveProvider && removeProvider(pendingRemoveProvider)}
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

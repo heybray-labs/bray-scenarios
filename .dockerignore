@@ -1,0 +1,15 @@
+node_modules
+client/dist
+client/node_modules
+server/node_modules
+.env
+.env.*
+!.env.docker.example
+.git
+.gitignore
+*.md
+!docs/DOCKER.md
+.cursor
+terminals
+agent-transcripts
+npm-debug.log*

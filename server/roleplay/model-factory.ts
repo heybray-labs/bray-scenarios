@@ -45,28 +45,24 @@ export interface CreateRoleplayChatModelOptions {
 }
 
 /**
- * Build a chat model for a tenant's roleplay feature using explicit provider+model.
+ * Build a chat model for roleplay using explicit provider+model.
  */
 export async function createRoleplayChatModel(
-  tenantId: number,
   options: CreateRoleplayChatModelOptions,
 ): Promise<BaseChatModel> {
   const { provider, model } = options;
-  const apiKey = await roleplayConfigService.getDecryptedApiKeyForProvider(
-    tenantId,
-    provider,
-  );
+  const apiKey = await roleplayConfigService.getDecryptedApiKeyForProvider(provider);
 
   if (!apiKey) {
     throw new RoleplayNotConfiguredError(
-      `No API key configured for ${provider}. Configure it in Global Admin → Tenant → Roleplay AI.`,
+      `No API key configured for ${provider}. Configure it in Settings → AI.`,
     );
   }
 
   const temperature = resolveTemperature(provider, model, options.temperature);
   const maxTokens = options.maxTokens;
 
-  log.debug("Creating roleplay chat model", { tenantId, provider, model });
+  log.debug("Creating roleplay chat model", { provider, model });
 
   switch (provider) {
     case "openai": {
@@ -81,15 +77,14 @@ export async function createRoleplayChatModel(
       return new ChatOpenAI(openAiOptions);
     }
     case "anthropic": {
-      // LangChain defaults topP/topK to -1 ("disabled"), but newer Anthropic models reject -1 in the API.
       const anthropic = new ChatAnthropic({
         model,
         apiKey,
         temperature,
         maxTokens,
       });
-      anthropic.topP = undefined;
-      anthropic.topK = undefined;
+      (anthropic as { topP?: number; topK?: number }).topP = undefined;
+      (anthropic as { topP?: number; topK?: number }).topK = undefined;
       return anthropic;
     }
     case "google":

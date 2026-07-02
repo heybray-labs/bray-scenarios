@@ -27,7 +27,6 @@ interface OidcStatePayload {
   codeVerifier: string;
   state: string;
   nonce: string;
-  tenantId: number;
 }
 
 interface OidcClaims {
@@ -118,9 +117,9 @@ function extractClaims(tokenResponse: client.TokenEndpointResponse & client.Toke
 }
 
 export const oidcAuthService = {
-  async startLogin(res: Response, tenantId: number): Promise<void> {
+  async startLogin(res: Response): Promise<void> {
     const redirectUri = getOidcRedirectUri();
-    log.info("OIDC login started", { tenantId, redirectUri });
+    log.info("OIDC login started", { redirectUri });
 
     const config = await getOidcConfig();
     const codeVerifier = client.randomPKCECodeVerifier();
@@ -132,7 +131,6 @@ export const oidcAuthService = {
       codeVerifier,
       state,
       nonce,
-      tenantId,
     });
 
     const parameters: Record<string, string> = {
@@ -145,7 +143,7 @@ export const oidcAuthService = {
     };
 
     const redirectTo = client.buildAuthorizationUrl(config, parameters);
-    log.debug("OIDC redirecting to provider", { tenantId, authorizationEndpoint: redirectTo.origin });
+    log.debug("OIDC redirecting to provider", { authorizationEndpoint: redirectTo.origin });
 
     res.cookie(OIDC_STATE_COOKIE, signedState, {
       httpOnly: true,
@@ -170,13 +168,12 @@ export const oidcAuthService = {
       throw new Error("OIDC session expired. Please try signing in again.");
     }
 
-    let tenantId: number;
     let codeVerifier: string;
     let state: string;
     let nonce: string;
 
     try {
-      ({ codeVerifier, state, nonce, tenantId } = verifyOidcState(stateCookie));
+      ({ codeVerifier, state, nonce } = verifyOidcState(stateCookie));
     } catch (error) {
       log.warn(
         "OIDC state cookie invalid or expired",
@@ -198,12 +195,11 @@ export const oidcAuthService = {
       log.error(
         "OIDC token exchange failed",
         error instanceof Error ? error : undefined,
-        { tenantId },
       );
       throw error;
     }
 
-    log.debug("OIDC token exchange succeeded", { tenantId });
+    log.debug("OIDC token exchange succeeded");
 
     const claims = extractClaims(tokenResponse);
     const user = await resolveUserFromSsoClaims(
@@ -214,23 +210,20 @@ export const oidcAuthService = {
         email: claims.email,
         name: claims.name,
       },
-      tenantId,
     );
 
     if (!user.isActive || user.isSuspended) {
       log.warn("OIDC sign-in rejected for inactive account", {
         userId: user.id,
-        tenantId,
         isActive: user.isActive,
         isSuspended: user.isSuspended,
       });
       throw new Error("Account is not available for sign-in");
     }
 
-    const exchangeCode = await createExchangeCode(user.id, tenantId);
+    const exchangeCode = await createExchangeCode(user.id);
     log.info("OIDC callback succeeded, exchange code issued", {
       userId: user.id,
-      tenantId,
       providerUserId: claims.sub,
     });
 

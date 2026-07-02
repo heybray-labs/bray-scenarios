@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import { tenants } from "../shared/schemas/tenants.ts";
 import { users } from "../shared/schemas/users.ts";
 import { roles } from "../shared/schemas/roles.ts";
 import {
@@ -13,14 +12,13 @@ import {
   roleplayCriterionScores,
 } from "../shared/schemas/roleplay-core.ts";
 import {
-  roleplayTenantConfig,
-  roleplayTenantProviderKeys,
-  roleplayTenantPersonaModels,
-  roleplayTenantGraderModels,
-} from "../shared/schemas/agent/roleplay-tenant-config.ts";
+  roleplayAppConfig,
+  roleplayProviderKeys,
+  roleplayAllowedPersonaModels,
+  roleplayAllowedGraderModels,
+} from "../shared/schemas/agent/roleplay-app-config.ts";
 
 const schema = {
-  tenants,
   users,
   roles,
   roleplays,
@@ -30,10 +28,10 @@ const schema = {
   roleplayAttempts,
   roleplayMessages,
   roleplayCriterionScores,
-  roleplayTenantConfig,
-  roleplayTenantProviderKeys,
-  roleplayTenantPersonaModels,
-  roleplayTenantGraderModels,
+  roleplayAppConfig,
+  roleplayProviderKeys,
+  roleplayAllowedPersonaModels,
+  roleplayAllowedGraderModels,
 };
 
 if (!process.env.DATABASE_URL) {

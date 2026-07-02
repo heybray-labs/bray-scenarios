@@ -30,7 +30,6 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
     };
 
     if (authReq.user?.id) meta.userId = authReq.user.id;
-    if (authReq.tenantId) meta.tenantId = authReq.tenantId;
 
     const message = `${req.method} ${req.path} ${res.statusCode}`;
 

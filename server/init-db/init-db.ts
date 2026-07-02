@@ -1,5 +1,4 @@
-import { db, pool } from "../db.ts";
-import { tenants } from "../../shared/schemas/tenants.ts";
+import { db } from "../db.ts";
 import { roles } from "../../shared/schemas/roles.ts";
 import { users } from "../../shared/schemas/users.ts";
 import { eq } from "drizzle-orm";
@@ -10,7 +9,6 @@ const log = createLogger("init-db");
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-const TENANT_SUBDOMAIN = process.env.TENANT_SUBDOMAIN || "default";
 
 const seedAdminFromEnv = Boolean(ADMIN_EMAIL && ADMIN_PASSWORD);
 
@@ -39,30 +37,10 @@ export async function initializeDatabase() {
 
 async function seedDatabase() {
   const summary = {
-    tenantCreated: false,
     rolesCreated: 0,
     adminSeeded: false,
     adminSkipped: false,
-    tenantId: 0,
-    subdomain: TENANT_SUBDOMAIN,
   };
-
-  let [tenant] = await db.select().from(tenants).where(eq(tenants.subdomain, TENANT_SUBDOMAIN)).limit(1);
-  if (!tenant) {
-    [tenant] = await db
-      .insert(tenants)
-      .values({
-        name: "Default Organization",
-        subdomain: TENANT_SUBDOMAIN,
-        status: "active",
-      })
-      .returning();
-    summary.tenantCreated = true;
-    log.info("Created default tenant", { id: tenant.id, subdomain: TENANT_SUBDOMAIN });
-  } else {
-    log.debug("Tenant already exists", { id: tenant.id, subdomain: TENANT_SUBDOMAIN, skipped: true });
-  }
-  summary.tenantId = tenant.id;
 
   const roleDefs = [
     {
@@ -104,7 +82,6 @@ async function seedDatabase() {
         name: def.name,
         description: def.description,
         permissions: def.permissions,
-        tenantId: tenant.id,
         isGlobal: false,
       });
       summary.rolesCreated++;
@@ -142,11 +119,8 @@ async function seedDatabase() {
       password: hashed,
       firstName: "Admin",
       roleId: adminRole.id,
-      tenantId: tenant.id,
       isEmailVerified: true,
       approvalStatus: "approved",
-      isTenantAdmin: true,
-      tenantRole: "admin",
       mustChangePassword: true,
     });
     summary.adminSeeded = true;
@@ -162,7 +136,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   initializeDatabase()
     .then(() => {
       log.info("Database init complete");
-      return pool.end();
+      return import("../db.ts").then(({ pool }) => pool.end());
     })
     .catch((err) => {
       log.error("Database init failed", err instanceof Error ? err : undefined);

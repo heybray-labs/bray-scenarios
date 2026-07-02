@@ -15,7 +15,7 @@ export interface SsoIdentityClaims {
   name?: string;
 }
 
-export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenantId: number) {
+export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims) {
   const [existingIdentity] = await db
     .select()
     .from(userIdentities)
@@ -23,7 +23,6 @@ export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenant
       and(
         eq(userIdentities.provider, claims.provider),
         eq(userIdentities.providerUserId, claims.providerUserId),
-        eq(userIdentities.tenantId, tenantId),
       ),
     )
     .limit(1);
@@ -41,18 +40,16 @@ export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenant
     }
     log.info("SSO user resolved via existing identity", {
       userId: user.id,
-      tenantId,
       provider: claims.provider,
       providerUserId: claims.providerUserId,
     });
     return user;
   }
 
-  const existingUser = await userController.getUserByEmail(claims.email, tenantId);
+  const existingUser = await userController.getUserByEmail(claims.email);
   if (existingUser) {
     await db.insert(userIdentities).values({
       userId: existingUser.id,
-      tenantId,
       provider: claims.provider,
       providerUserId: claims.providerUserId,
       providerDisplayName: claims.providerDisplayName,
@@ -60,7 +57,6 @@ export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenant
     });
     log.info("SSO user merged by email", {
       userId: existingUser.id,
-      tenantId,
       email: claims.email,
       provider: claims.provider,
       providerUserId: claims.providerUserId,
@@ -68,21 +64,21 @@ export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenant
     return existingUser;
   }
 
-  const [userRole] = await db.select().from(roles).where(eq(roles.name, "user")).limit(1);
-  if (!userRole) {
-    throw new Error("Default user role not configured");
+  const hasAdmin = await userController.hasAdminUser();
+  const roleName = hasAdmin ? "user" : "admin";
+  const [role] = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1);
+  if (!role) {
+    throw new Error(`Default ${roleName} role not configured`);
   }
 
   const user = await userController.createSsoUser({
     email: claims.email,
     firstName: claims.name,
-    roleId: userRole.id,
-    tenantId,
+    roleId: role.id,
   });
 
   await db.insert(userIdentities).values({
     userId: user.id,
-    tenantId,
     provider: claims.provider,
     providerUserId: claims.providerUserId,
     providerDisplayName: claims.providerDisplayName,
@@ -91,10 +87,10 @@ export async function resolveUserFromSsoClaims(claims: SsoIdentityClaims, tenant
 
   log.info("SSO user provisioned (JIT)", {
     userId: user.id,
-    tenantId,
     email: claims.email,
     provider: claims.provider,
     providerUserId: claims.providerUserId,
+    role: roleName,
   });
 
   return user;
