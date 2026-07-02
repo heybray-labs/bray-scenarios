@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "quickstart": "./bin/quickstart.sh"
+    "quickstart": "./bin/quickstart.sh",
+    "quickstart:interactive": "./bin/quickstart.sh --interactive"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

@@ -3,19 +3,88 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="heybray-labs/bray-scenarios"
-BRAY_VERSION="${BRAY_VERSION:-main}"
-BRAY_IMAGE_TAG="${BRAY_IMAGE_TAG:-latest}"
 INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
-PORT="${PORT:-3001}"
 COMPOSE_FILE="docker-compose.quickstart.yml"
 COMPOSE_PROJECT="bray-scenarios-quickstart"
 LOCAL_COMPOSE="${SCRIPT_DIR}/../docker/${COMPOSE_FILE}"
-RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRAY_VERSION}"
+LOCAL_ENV_EXAMPLE="${SCRIPT_DIR}/../.env.docker.example"
+ENV_EXAMPLE_NAME=".env.docker.example"
+
+INTERACTIVE=false
+RECONFIGURE=false
+WIZARD_AUTH_PROTOCOL="local"
+WIZARD_OIDC_REDIRECT_URI=""
+SHOW_SAML_CHECKLIST=false
 
 die() {
   echo "error: $*" >&2
   exit 1
 }
+
+usage() {
+  cat <<EOF
+Usage: quickstart.sh [OPTIONS]
+
+Install and start Bray Scenarios via Docker Compose.
+
+Options:
+  --interactive   Run a guided setup wizard (requires a terminal)
+  --reconfigure   Re-run the wizard and overwrite .env (use with --interactive)
+  -h, --help      Show this help
+
+Examples:
+  curl -fsSL .../quickstart.sh | bash
+  curl -fsSL .../quickstart.sh | bash -s -- --interactive
+  ./bin/quickstart.sh --interactive --reconfigure
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --interactive) INTERACTIVE=true ;;
+    --reconfigure) RECONFIGURE=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) die "unknown argument: $1 (try --help)" ;;
+  esac
+  shift
+done
+
+if [ "$INTERACTIVE" = true ] && [ ! -t 0 ]; then
+  die "interactive mode requires a terminal; omit --interactive for silent install (curl | bash)"
+fi
+
+fetch_latest_release_tag() {
+  curl -fsSL -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+    | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    | head -1
+}
+
+resolve_versions() {
+  if [ -z "${BRAY_VERSION+x}" ] && [ -z "${BRAY_IMAGE_TAG+x}" ]; then
+    local tag
+    tag="$(fetch_latest_release_tag || true)"
+    if [ -n "$tag" ]; then
+      BRAY_VERSION="$tag"
+      BRAY_IMAGE_TAG="${tag#v}"
+      echo "Using latest release: ${tag}"
+      return
+    fi
+    echo "warning: could not fetch latest release; falling back to main/latest" >&2
+    BRAY_VERSION="main"
+    BRAY_IMAGE_TAG="latest"
+    return
+  fi
+
+  if [ -z "${BRAY_VERSION+x}" ]; then
+    BRAY_VERSION="v${BRAY_IMAGE_TAG#v}"
+  elif [ -z "${BRAY_IMAGE_TAG+x}" ]; then
+    BRAY_IMAGE_TAG="${BRAY_VERSION#v}"
+  fi
+}
+
+resolve_versions
+RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRAY_VERSION}"
 
 command -v docker >/dev/null 2>&1 || die "Docker is required. Install Docker Desktop or Docker Engine: https://docs.docker.com/get-docker/"
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required (docker compose)."
@@ -26,6 +95,268 @@ generate_secret() {
   else
     od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
   fi
+}
+
+inplace_sed() {
+  local file="$1"
+  shift
+  if sed --version 2>/dev/null | grep -q GNU; then
+    sed -i "$@" "$file"
+  else
+    sed -i '' "$@" "$file"
+  fi
+}
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  if grep -q "^${key}=" "$file"; then
+    inplace_sed "$file" "s|^${key}=.*|${key}=${value}|"
+  else
+    echo "${key}=${value}" >>"$file"
+  fi
+}
+
+uncomment_env_prefix() {
+  local prefix="$1"
+  local file="$2"
+  inplace_sed "$file" "s/^#${prefix}/${prefix}/"
+}
+
+prompt_default() {
+  local label="$1"
+  local default="$2"
+  local input
+  printf '%s [%s]: ' "$label" "$default" >&2
+  read -r input
+  if [ -z "$input" ]; then
+    echo "$default"
+  else
+    echo "$input"
+  fi
+}
+
+prompt_secret() {
+  local label="$1"
+  local input
+  printf '%s: ' "$label" >&2
+  read -rs input
+  printf '\n' >&2
+  echo "$input"
+}
+
+prompt_required() {
+  local label="$1"
+  local value=""
+  while [ -z "$value" ]; do
+    value="$(prompt_default "$label" "")"
+    if [ -z "$value" ]; then
+      echo "This field is required." >&2
+    fi
+  done
+  echo "$value"
+}
+
+prompt_yes_no() {
+  local question="$1"
+  local default="${2:-y}"
+  local prompt hint input
+  if [ "$default" = "y" ]; then
+    hint="Y/n"
+  else
+    hint="y/N"
+  fi
+  while true; do
+    printf '%s [%s]: ' "$question" "$hint" >&2
+    read -r input
+    input="$(echo "$input" | tr '[:upper:]' '[:lower:]')"
+    if [ -z "$input" ]; then
+      input="$default"
+    fi
+    case "$input" in
+      y|yes) return 0 ;;
+      n|no) return 1 ;;
+      *) echo "Please answer y or n." >&2 ;;
+    esac
+  done
+}
+
+prompt_auth_mode() {
+  echo "" >&2
+  echo "Authentication mode:" >&2
+  echo "  1) Local email/password" >&2
+  echo "  2) OIDC (Okta / Microsoft Entra ID)" >&2
+  echo "  3) SAML (Google Workspace — partial setup)" >&2
+  local choice
+  while true; do
+    choice="$(prompt_default "Choose 1-3" "1")"
+    case "$choice" in
+      1) echo "local"; return ;;
+      2) echo "oidc"; return ;;
+      3) echo "saml"; return ;;
+      *) echo "Invalid choice. Enter 1, 2, or 3." >&2 ;;
+    esac
+  done
+}
+
+copy_env_from_example() {
+  if [ -f "$LOCAL_ENV_EXAMPLE" ]; then
+    cp "$LOCAL_ENV_EXAMPLE" .env
+    echo "Copied .env from local .env.docker.example."
+  else
+    echo "Downloading .env.docker.example..."
+    curl -fsSL "${RAW_BASE}/${ENV_EXAMPLE_NAME}" -o .env
+  fi
+}
+
+read_env_value() {
+  local key="$1"
+  local file="$2"
+  grep "^${key}=" "$file" 2>/dev/null | cut -d= -f2- || true
+}
+
+setup_env_noninteractive() {
+  copy_env_from_example
+  local port="${PORT:-3001}"
+  JWT_SECRET="$(generate_secret)"
+  set_env_value "JWT_SECRET" "$JWT_SECRET" .env
+  set_env_value "PORT" "$port" .env
+  set_env_value "APP_URL" "http://localhost:${port}" .env
+  echo "Created ${INSTALL_DIR}/.env with a generated JWT_SECRET."
+}
+
+run_interactive_wizard() {
+  echo "" >&2
+  echo "=== Bray Scenarios setup wizard ===" >&2
+  echo "" >&2
+
+  copy_env_from_example
+
+  local port app_url log_level auth_mode
+  port="$(prompt_default "Port" "3001")"
+  app_url="$(prompt_default "APP_URL (public URL users open in the browser)" "http://localhost:${port}")"
+  log_level="$(prompt_default "LOG_LEVEL (TRACE/DEBUG/INFO/WARN/ERROR)" "INFO")"
+  case "$log_level" in
+    TRACE|DEBUG|INFO|WARN|ERROR) ;;
+    *) die "invalid LOG_LEVEL: ${log_level}" ;;
+  esac
+
+  auth_mode="$(prompt_auth_mode)"
+  WIZARD_AUTH_PROTOCOL="$auth_mode"
+
+  JWT_SECRET="$(generate_secret)"
+  set_env_value "JWT_SECRET" "$JWT_SECRET" .env
+  set_env_value "PORT" "$port" .env
+  set_env_value "APP_URL" "$app_url" .env
+  set_env_value "LOG_LEVEL" "$log_level" .env
+  set_env_value "AUTH_PROTOCOL" "$auth_mode" .env
+
+  case "$auth_mode" in
+    local)
+      if prompt_yes_no "Seed an administrator account now?" "n"; then
+        uncomment_env_prefix "ADMIN_EMAIL" .env
+        uncomment_env_prefix "ADMIN_PASSWORD" .env
+        local admin_email admin_password
+        admin_email="$(prompt_required "Admin email")"
+        while true; do
+          admin_password="$(prompt_secret "Admin password (min 6 characters)")"
+          if [ "${#admin_password}" -ge 6 ]; then
+            break
+          fi
+          echo "Password must be at least 6 characters." >&2
+        done
+        set_env_value "ADMIN_EMAIL" "$admin_email" .env
+        set_env_value "ADMIN_PASSWORD" "$admin_password" .env
+      fi
+      ;;
+    oidc)
+      uncomment_env_prefix "OIDC_" .env
+      local client_id client_secret issuer_url provider_name
+      client_id="$(prompt_required "OIDC_CLIENT_ID")"
+      client_secret="$(prompt_required "OIDC_CLIENT_SECRET")"
+      issuer_url="$(prompt_required "OIDC_ISSUER_URL")"
+      provider_name="$(prompt_default "OIDC_PROVIDER_NAME (e.g. Microsoft, Okta)" "SSO")"
+      WIZARD_OIDC_REDIRECT_URI="${app_url}/api/auth/oidc/callback"
+      set_env_value "OIDC_CLIENT_ID" "$client_id" .env
+      set_env_value "OIDC_CLIENT_SECRET" "$client_secret" .env
+      set_env_value "OIDC_ISSUER_URL" "$issuer_url" .env
+      set_env_value "OIDC_PROVIDER_NAME" "$provider_name" .env
+      set_env_value "OIDC_REDIRECT_URI" "$WIZARD_OIDC_REDIRECT_URI" .env
+      echo "" >&2
+      echo "Register this redirect URI with your identity provider:" >&2
+      echo "  ${WIZARD_OIDC_REDIRECT_URI}" >&2
+      ;;
+    saml)
+      SHOW_SAML_CHECKLIST=true
+      echo "" >&2
+      echo "SAML requires HTTPS for Google Workspace. Use a tunnel (e.g. ngrok) if testing locally." >&2
+      echo "IdP metadata and Google Admin setup are completed after the stack starts." >&2
+      ;;
+  esac
+
+  echo "" >&2
+  echo "Created ${INSTALL_DIR}/.env via interactive wizard."
+}
+
+print_saml_checklist() {
+  echo "SAML setup checklist:"
+  echo "  1. Run a tunnel to port ${PORT} (e.g. ngrok http ${PORT})"
+  echo "  2. Set APP_URL in ${INSTALL_DIR}/.env to your HTTPS tunnel URL"
+  echo "  3. Register ACS URL and Entity ID in Google Admin (see docs)"
+  echo "  4. Paste base64-encoded IdP metadata into SAML_IDP_METADATA in .env"
+  echo "  5. Restart: cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} up -d"
+  echo "  Docs: https://github.com/${REPO}/blob/main/docs/AUTHENTICATION.md"
+}
+
+print_completion() {
+  local auth_protocol="${WIZARD_AUTH_PROTOCOL}"
+  if [ -f .env ]; then
+    auth_protocol="$(read_env_value "AUTH_PROTOCOL" .env)"
+    [ -z "$auth_protocol" ] && auth_protocol="local"
+    PORT="$(read_env_value "PORT" .env)"
+    [ -z "$PORT" ] && PORT="3001"
+    if [ -z "$WIZARD_OIDC_REDIRECT_URI" ]; then
+      WIZARD_OIDC_REDIRECT_URI="$(read_env_value "OIDC_REDIRECT_URI" .env)"
+    fi
+  fi
+
+  echo ""
+  echo "Bray Scenarios is starting."
+  echo "  URL:        http://localhost:${PORT}"
+  echo "  Install:    ${INSTALL_DIR}"
+  echo "  Config:     ${INSTALL_DIR}/.env"
+  echo "  Health:     curl http://localhost:${PORT}/api/health"
+  echo ""
+  echo "Configure LLM keys at /settings/ai after logging in."
+  echo ""
+
+  case "$auth_protocol" in
+    local)
+      echo "On first visit to /login, create the administrator account."
+      ;;
+    oidc)
+      echo "Sign in via your identity provider at /login."
+      if [ -n "$WIZARD_OIDC_REDIRECT_URI" ]; then
+        echo "OIDC redirect URI: ${WIZARD_OIDC_REDIRECT_URI}"
+      fi
+      ;;
+    saml)
+      print_saml_checklist
+      ;;
+    *)
+      echo "Edit ${INSTALL_DIR}/.env for auth settings, then restart."
+      ;;
+  esac
+
+  if [ "$SHOW_SAML_CHECKLIST" = true ] && [ "$auth_protocol" != "saml" ]; then
+    print_saml_checklist
+  fi
+
+  echo ""
+  echo "Logs:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} logs -f app"
+  echo "Stop:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down"
+  echo "Reset:  cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down -v"
 }
 
 mkdir -p "$INSTALL_DIR"
@@ -41,22 +372,18 @@ if [ ! -f "$COMPOSE_FILE" ]; then
   fi
 fi
 
-if [ ! -f .env ]; then
-  JWT_SECRET="$(generate_secret)"
-  cat > .env <<EOF
-PORT=${PORT}
-DATABASE_URL=postgresql://postgres:postgres@db:5432/roleplay_app
-AUTH_PROTOCOL=local
-JWT_SECRET=${JWT_SECRET}
-APP_URL=http://localhost:${PORT}
-SAML_SP_CERT_DIR=/app/data/saml
-LOG_LEVEL=INFO
-EOF
-  echo "Created ${INSTALL_DIR}/.env with a generated JWT_SECRET."
+if [ -f .env ] && [ "$RECONFIGURE" = false ]; then
+  echo "Using existing ${INSTALL_DIR}/.env"
+elif [ "$INTERACTIVE" = true ]; then
+  run_interactive_wizard
+elif [ ! -f .env ]; then
+  setup_env_noninteractive
 else
   echo "Using existing ${INSTALL_DIR}/.env"
 fi
 
+PORT="$(read_env_value "PORT" .env)"
+[ -z "$PORT" ] && PORT="3001"
 export BRAY_IMAGE_TAG PORT
 
 compose() {
@@ -71,15 +398,4 @@ fi
 echo "Starting Bray Scenarios..."
 compose up -d
 
-echo ""
-echo "Bray Scenarios is starting."
-echo "  URL:        http://localhost:${PORT}"
-echo "  Install:    ${INSTALL_DIR}"
-echo "  Health:     curl http://localhost:${PORT}/api/health"
-echo ""
-echo "On first visit to /login, create the administrator account."
-echo "Configure LLM keys at /settings/ai after logging in."
-echo ""
-echo "Logs:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} logs -f app"
-echo "Stop:   cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down"
-echo "Reset:  cd ${INSTALL_DIR} && docker compose -p ${COMPOSE_PROJECT} -f ${COMPOSE_FILE} down -v"
+print_completion

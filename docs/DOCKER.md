@@ -10,17 +10,37 @@ Requires Docker and Docker Compose. Pulls the published image from GHCR (must be
 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 ```
 
-Installs to `~/.bray-scenarios/` (override with `BRAY_SCENARIOS_HOME`). A `.env` with a generated `JWT_SECRET` is created on first run and not overwritten on subsequent runs.
+### Interactive wizard
+
+Requires a terminal (TTY). Prompts for port, `APP_URL`, auth mode (local / OIDC / SAML), and related settings. LLM keys are configured later in the admin UI at `/settings/ai`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash -s -- --interactive
+```
+
+From a clone: `npm run quickstart:interactive`
+
+Re-run the wizard on an existing install (overwrites `.env`):
+
+```bash
+./bin/quickstart.sh --interactive --reconfigure
+```
+
+**SAML note:** the wizard sets `AUTH_PROTOCOL=saml` and `APP_URL`, then prints a checklist for tunnel setup, Google Admin configuration, and `SAML_IDP_METADATA`. Full steps are in [AUTHENTICATION.md](AUTHENTICATION.md).
+
+Installs to `~/.bray-scenarios/` (override with `BRAY_SCENARIOS_HOME`). On first silent run, copies `.env.docker.example` to `.env`, injects a generated `JWT_SECRET`, and does not overwrite `.env` on subsequent runs unless `--reconfigure` is used.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3001` | Host port for the app |
-| `BRAY_IMAGE_TAG` | `latest` | Docker image tag to pull |
-| `BRAY_VERSION` | `main` | Git ref for the compose file |
+| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.2`) | Docker image tag to pull |
+| `BRAY_VERSION` | latest GitHub release tag (e.g. `v1.0.2`) | Git ref for the compose file |
 | `BRAY_SCENARIOS_HOME` | `~/.bray-scenarios` | Install directory |
 
+By default the script resolves the latest GitHub release tag for both the compose file and Docker image.
+
 ```bash
-# Pin a release
+# Pin a specific version
 BRAY_IMAGE_TAG=1.0.2 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 
 # Lifecycle
@@ -31,6 +51,8 @@ docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml dow
 ```
 
 Open [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
+
+To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `docker compose -p bray-scenarios-quickstart -f docker-compose.quickstart.yml up -d`. See [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Quick start (from clone)
 
