@@ -1,5 +1,4 @@
 import * as client from "openid-client";
-import jwt from "jsonwebtoken";
 import {
   assertOidcConfigured,
   getAppUrl,
@@ -20,13 +19,63 @@ import type { Response } from "express";
 
 const log = createLogger("oidc");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const OIDC_STATE_COOKIE = "oidc_state";
+
+const STATE_TTL_MS = 10 * 60 * 1000;
+const STATE_CLEANUP_INTERVAL_MS = 60 * 1000;
 
 interface OidcStatePayload {
   codeVerifier: string;
   state: string;
   nonce: string;
+}
+
+interface OidcStateEntry extends OidcStatePayload {
+  expiresAt: number;
+}
+
+/** Server-side store: cookie holds only an opaque stateId. */
+const oidcStateStore = new Map<string, OidcStateEntry>();
+let oidcStateCleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureOidcStateCleanup(): void {
+  if (oidcStateCleanupTimer) return;
+  oidcStateCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [stateId, entry] of oidcStateStore) {
+      if (entry.expiresAt <= now) {
+        oidcStateStore.delete(stateId);
+      }
+    }
+  }, STATE_CLEANUP_INTERVAL_MS);
+  oidcStateCleanupTimer.unref?.();
+}
+
+function createOidcState(payload: OidcStatePayload): string {
+  ensureOidcStateCleanup();
+  const stateId = crypto.randomUUID();
+  oidcStateStore.set(stateId, {
+    ...payload,
+    expiresAt: Date.now() + STATE_TTL_MS,
+  });
+  return stateId;
+}
+
+/** Load and consume state (single-use). Throws if missing or expired. */
+function consumeOidcState(stateId: string): OidcStatePayload {
+  const entry = oidcStateStore.get(stateId);
+  if (!entry) {
+    throw new Error("Invalid or expired OIDC state");
+  }
+  oidcStateStore.delete(stateId);
+  if (entry.expiresAt <= Date.now()) {
+    throw new Error("Invalid or expired OIDC state");
+  }
+  return {
+    codeVerifier: entry.codeVerifier,
+    state: entry.state,
+    nonce: entry.nonce,
+  };
 }
 
 interface OidcClaims {
@@ -66,14 +115,6 @@ async function getOidcConfig(): Promise<client.Configuration> {
       });
   }
   return oidcConfigPromise;
-}
-
-function signOidcState(payload: OidcStatePayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
-}
-
-function verifyOidcState(token: string): OidcStatePayload {
-  return jwt.verify(token, JWT_SECRET) as OidcStatePayload;
 }
 
 export function getOidcStateCookieOptions() {
@@ -138,7 +179,7 @@ export const oidcAuthService = {
     const state = client.randomState();
     const nonce = client.randomNonce();
 
-    const signedState = signOidcState({
+    const stateId = createOidcState({
       codeVerifier,
       state,
       nonce,
@@ -156,7 +197,7 @@ export const oidcAuthService = {
     const redirectTo = client.buildAuthorizationUrl(config, parameters);
     log.debug("OIDC redirecting to provider", { authorizationEndpoint: redirectTo.origin });
 
-    res.cookie(OIDC_STATE_COOKIE, signedState, getOidcStateCookieOptions());
+    res.cookie(OIDC_STATE_COOKIE, stateId, getOidcStateCookieOptions());
 
     res.redirect(redirectTo.href);
   },
@@ -178,7 +219,7 @@ export const oidcAuthService = {
     let nonce: string;
 
     try {
-      ({ codeVerifier, state, nonce } = verifyOidcState(stateCookie));
+      ({ codeVerifier, state, nonce } = consumeOidcState(stateCookie));
     } catch (error) {
       log.warn(
         "OIDC state cookie invalid or expired",

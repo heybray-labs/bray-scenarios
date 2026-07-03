@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import { SAML, ValidateInResponseTo, type Profile } from "@node-saml/node-saml";
 import {
   assertSamlConfigured,
@@ -25,30 +24,60 @@ import type { Response } from "express";
 
 const log = createLogger("saml");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const SAML_STATE_COOKIE = "saml_state";
+
+const STATE_TTL_MS = 10 * 60 * 1000;
+const STATE_CLEANUP_INTERVAL_MS = 60 * 1000;
 
 interface SamlStatePayload {
   nonce: string;
+}
+
+interface SamlStateEntry extends SamlStatePayload {
+  expiresAt: number;
+}
+
+/** Server-side store: cookie holds only an opaque stateId. */
+const samlStateStore = new Map<string, SamlStateEntry>();
+let samlStateCleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureSamlStateCleanup(): void {
+  if (samlStateCleanupTimer) return;
+  samlStateCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [stateId, entry] of samlStateStore) {
+      if (entry.expiresAt <= now) {
+        samlStateStore.delete(stateId);
+      }
+    }
+  }, STATE_CLEANUP_INTERVAL_MS);
+  samlStateCleanupTimer.unref?.();
+}
+
+function createSamlState(payload: SamlStatePayload): string {
+  ensureSamlStateCleanup();
+  const stateId = crypto.randomUUID();
+  samlStateStore.set(stateId, {
+    ...payload,
+    expiresAt: Date.now() + STATE_TTL_MS,
+  });
+  return stateId;
+}
+
+/** Load and consume state (single-use). Returns null if missing or expired. */
+function consumeSamlState(stateId: string | undefined): SamlStatePayload | null {
+  if (!stateId) return null;
+  const entry = samlStateStore.get(stateId);
+  if (!entry) return null;
+  samlStateStore.delete(stateId);
+  if (entry.expiresAt <= Date.now()) return null;
+  return { nonce: entry.nonce };
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let samlInstancePromise: Promise<SAML> | null = null;
 let spCertFingerprint: string | null = null;
-
-function signSamlState(payload: SamlStatePayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
-}
-
-function verifySamlState(token: string | undefined): SamlStatePayload | null {
-  if (!token) return null;
-  try {
-    return jwt.verify(token, JWT_SECRET) as SamlStatePayload;
-  } catch {
-    return null;
-  }
-}
 
 function getSamlStateCookieOptions() {
   const useSecureCookies = getSamlAcsUrl().startsWith("https://");
@@ -164,7 +193,7 @@ export const samlAuthService = {
     const entityId = getSamlSpEntityId();
     log.info("SAML login started", { entityId, acsUrl: getSamlAcsUrl() });
 
-    const signedState = signSamlState({ nonce: crypto.randomUUID() });
+    const stateId = createSamlState({ nonce: crypto.randomUUID() });
     let authorizeUrl = await saml.getAuthorizeUrlAsync("", undefined, {});
 
     if (shouldUseGoogleAccountChooser()) {
@@ -172,7 +201,7 @@ export const samlAuthService = {
       log.debug("SAML using Google Account Chooser", { entityId });
     }
 
-    res.cookie(SAML_STATE_COOKIE, signedState, getSamlStateCookieOptions());
+    res.cookie(SAML_STATE_COOKIE, stateId, getSamlStateCookieOptions());
 
     log.debug("SAML redirecting to IdP");
     res.redirect(authorizeUrl);
@@ -184,7 +213,7 @@ export const samlAuthService = {
   ): Promise<string> {
     const saml = await getSamlInstance();
     const normalizedBody = normalizeSamlPostBody(body);
-    const state = verifySamlState(stateCookie);
+    const state = consumeSamlState(stateCookie);
 
     log.debug("SAML ACS received", {
       hasStateCookie: Boolean(stateCookie),
