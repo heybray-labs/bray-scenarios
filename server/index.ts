@@ -11,6 +11,7 @@ import userRoutes from "./routes/users.ts";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "./utils/logger.ts";
 import { requestLogging } from "./middleware/request-logging.ts";
+import { globalRateLimiter } from "./middleware/rate-limit.ts";
 import { getAuthConfigurationError } from "./config/auth-config.ts";
 import { oidcAuthService } from "./services/oidc-auth.service.ts";
 import { samlAuthService } from "./services/saml-auth.service.ts";
@@ -18,9 +19,15 @@ import { samlAuthService } from "./services/saml-auth.service.ts";
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
+// Required for correct client IP (and per-IP rate limits) behind a reverse proxy.
+if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
+app.use(globalRateLimiter);
 app.use(requestLogging);
 
 app.get("/api/health", (_req, res) => {

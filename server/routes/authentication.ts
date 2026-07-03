@@ -8,6 +8,7 @@ import {
   generateRefreshToken,
   type AuthRequest,
 } from "../middleware/auth.ts";
+import { authRateLimiter } from "../middleware/rate-limit.ts";
 import {
   getPublicAuthConfig,
   getAuthProtocol,
@@ -48,7 +49,7 @@ router.get("/setup-status", async (_req, res) => {
   }
 });
 
-router.post("/setup-admin", async (req, res) => {
+router.post("/setup-admin", authRateLimiter, async (req, res) => {
   try {
     if (isSsoEnabled()) {
       return res.status(403).json({
@@ -115,7 +116,7 @@ const registerSchema = z.object({
   firstName: z.string().optional(),
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authRateLimiter, async (req, res) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
@@ -176,7 +177,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", authRateLimiter, async (req, res) => {
   if (isSsoEnabled()) {
     log.info("Registration blocked — SSO enabled", {
       requestId: (req as AuthRequest).requestId,
@@ -232,7 +233,7 @@ router.get("/me", authenticateToken, async (req: AuthRequest, res) => {
   res.json({ user: req.user });
 });
 
-router.post("/change-password", authenticateToken, async (req: AuthRequest, res) => {
+router.post("/change-password", authenticateToken, authRateLimiter, async (req: AuthRequest, res) => {
   try {
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
     const userId = req.user!.id;
@@ -271,7 +272,7 @@ router.post("/change-password", authenticateToken, async (req: AuthRequest, res)
   }
 });
 
-router.get("/oidc/login", async (req, res) => {
+router.get("/oidc/login", authRateLimiter, async (req, res) => {
   const authReq = req as AuthRequest;
   try {
     log.info("OIDC login requested", { requestId: authReq.requestId });
@@ -285,7 +286,7 @@ router.get("/oidc/login", async (req, res) => {
   }
 });
 
-router.get("/oidc/callback", async (req, res) => {
+router.get("/oidc/callback", authRateLimiter, async (req, res) => {
   const authReq = req as AuthRequest;
 
   const providerError = typeof req.query.error === "string" ? req.query.error : undefined;
@@ -353,11 +354,11 @@ async function handleSsoComplete(req: express.Request, res: express.Response, la
   }
 }
 
-router.post("/sso/complete", (req, res) => handleSsoComplete(req, res, "SSO"));
+router.post("/sso/complete", authRateLimiter, (req, res) => handleSsoComplete(req, res, "SSO"));
 
-router.post("/oidc/complete", (req, res) => handleSsoComplete(req, res, "OIDC"));
+router.post("/oidc/complete", authRateLimiter, (req, res) => handleSsoComplete(req, res, "OIDC"));
 
-router.get("/saml/login", async (req, res) => {
+router.get("/saml/login", authRateLimiter, async (req, res) => {
   const authReq = req as AuthRequest;
   try {
     log.info("SAML login requested", { requestId: authReq.requestId });
@@ -373,6 +374,7 @@ router.get("/saml/login", async (req, res) => {
 
 router.post(
   "/saml/acs",
+  authRateLimiter,
   express.urlencoded({ extended: false }),
   async (req, res) => {
     const authReq = req as AuthRequest;
