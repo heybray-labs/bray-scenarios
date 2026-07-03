@@ -15,6 +15,24 @@ WIZARD_AUTH_PROTOCOL="local"
 WIZARD_OIDC_REDIRECT_URI=""
 SHOW_SAML_CHECKLIST=false
 
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[0;37m'
+LIGHT_GRAY='\033[0;37m'
+DARK_GRAY='\033[1;30m'
+LIGHT_RED='\033[1;31m'
+LIGHT_GREEN='\033[1;32m'
+LIGHT_YELLOW='\033[1;33m'
+LIGHT_BLUE='\033[1;34m'
+LIGHT_MAGENTA='\033[1;35m'
+LIGHT_CYAN='\033[1;36m'
+LIGHT_WHITE='\033[1;37m'
+
 die() {
   echo "error: $*" >&2
   exit 1
@@ -191,13 +209,13 @@ prompt_yes_no() {
 
 prompt_auth_mode() {
   echo "" >&2
-  echo "Authentication mode:" >&2
+  echo "🔒 Authentication mode:" >&2
   echo "  1) Local email/password" >&2
   echo "  2) OIDC (Okta / Microsoft Entra ID)" >&2
   echo "  3) SAML (Google Workspace — partial setup)" >&2
   local choice
   while true; do
-    choice="$(prompt_default "Choose 1-3" "1")"
+    choice="$(prompt_default "  Choose 1-3" "1")"
     case "$choice" in
       1) echo "local"; return ;;
       2) echo "oidc"; return ;;
@@ -210,9 +228,12 @@ prompt_auth_mode() {
 copy_env_from_example() {
   if [ -f "$LOCAL_ENV_EXAMPLE" ]; then
     cp "$LOCAL_ENV_EXAMPLE" .env
-    echo "Copied .env from local .env.docker.example."
+    echo "🔄 Copied default .env from local .env.docker.example."
+    echo ""
   else
-    echo "Downloading .env.docker.example..."
+    echo "🔄 Downloading .env.docker.example..."
+    echo "" >&2
+
     curl -fsSL "${RAW_BASE}/${ENV_EXAMPLE_NAME}" -o .env
   fi
 }
@@ -235,15 +256,16 @@ setup_env_noninteractive() {
 
 run_interactive_wizard() {
   echo "" >&2
-  echo "=== Bray Scenarios setup wizard ===" >&2
+  echo -e "⭐️ Starting Bray Scenarios Setup Wizard..." >&2
   echo "" >&2
 
   copy_env_from_example
 
   local port app_url log_level auth_mode
-  port="$(prompt_default "Port" "3001")"
-  app_url="$(prompt_default "APP_URL (public URL users open in the browser)" "http://localhost:${port}")"
-  log_level="$(prompt_default "LOG_LEVEL (TRACE/DEBUG/INFO/WARN/ERROR)" "INFO")"
+  echo "Enter the following details to configure your Bray Scenarios instance. Press Enter to use the default value."
+  port="$(prompt_default "Server Port" "3001")"
+  app_url="$(prompt_default "Application URL (public URL users open in the browser)" "http://localhost:${port}")"
+  log_level="$(prompt_default "Logging Level (TRACE/DEBUG/INFO/WARN/ERROR)" "INFO")"
   case "$log_level" in
     TRACE|DEBUG|INFO|WARN|ERROR) ;;
     *) die "invalid LOG_LEVEL: ${log_level}" ;;
@@ -261,7 +283,7 @@ run_interactive_wizard() {
 
   case "$auth_mode" in
     local)
-      if prompt_yes_no "Seed an administrator account now?" "n"; then
+      if prompt_yes_no "Create an administrator account now?" "n"; then
         uncomment_env_prefix "ADMIN_EMAIL" .env
         uncomment_env_prefix "ADMIN_PASSWORD" .env
         local admin_email admin_password
@@ -291,8 +313,6 @@ run_interactive_wizard() {
       set_env_value "OIDC_PROVIDER_NAME" "$provider_name" .env
       set_env_value "OIDC_REDIRECT_URI" "$WIZARD_OIDC_REDIRECT_URI" .env
       echo "" >&2
-      echo "Register this redirect URI with your identity provider:" >&2
-      echo "  ${WIZARD_OIDC_REDIRECT_URI}" >&2
       ;;
     saml)
       SHOW_SAML_CHECKLIST=true
@@ -303,7 +323,8 @@ run_interactive_wizard() {
   esac
 
   echo "" >&2
-  echo "Created ${INSTALL_DIR}/.env via interactive wizard."
+  echo "✅ Created ${INSTALL_DIR}/.env via interactive wizard."
+  echo "" >&2
 }
 
 print_saml_checklist() {
@@ -329,13 +350,18 @@ print_completion() {
   fi
 
   echo ""
-  echo "Bray Scenarios is starting."
-  echo "  URL:        http://localhost:${PORT}"
-  echo "  Install:    ${INSTALL_DIR}"
-  echo "  Config:     ${INSTALL_DIR}/.env"
-  echo "  Health:     curl http://localhost:${PORT}/api/health"
+  echo "--------------------------------------------------------------------------------------------"
+  echo "🚀 Bray Scenarios has started."
+  echo "   URL:     http://localhost:${PORT}"
+  echo "   Install: ${INSTALL_DIR}"
+  echo "   Config:  ${INSTALL_DIR}/.env (edit to change settings)"
+  echo "   Health:  curl http://localhost:${PORT}/api/health"
   echo ""
-  echo "Configure LLM keys at /settings/ai after logging in."
+  echo "🐳 Docker commands:"
+  echo "   Logs:    cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} logs -f app"
+  echo "   Stop:    cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down"
+  echo "   Reset:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down -v"
+  echo "   Start:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} up -d"
   echo ""
 
   case "$auth_protocol" in
@@ -343,9 +369,8 @@ print_completion() {
       echo "On first visit to /login, create the administrator account."
       ;;
     oidc)
-      echo "Sign in via your identity provider at /login."
       if [ -n "$WIZARD_OIDC_REDIRECT_URI" ]; then
-        echo "OIDC redirect URI: ${WIZARD_OIDC_REDIRECT_URI}"
+        echo "‼️ You must register this OIDC redirect URI with your identity provider: ${WIZARD_OIDC_REDIRECT_URI} ‼️"
       fi
       ;;
     saml)
@@ -360,10 +385,8 @@ print_completion() {
     print_saml_checklist
   fi
 
-  echo ""
-  echo "Logs:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} logs -f app"
-  echo "Stop:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down"
-  echo "Reset:  cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down -v"
+  echo "--------------------------------------------------------------------------------------------"
+
 }
 
 mkdir -p "$INSTALL_DIR"
@@ -372,9 +395,9 @@ cd "$INSTALL_DIR"
 if [ ! -f "$COMPOSE_FILE" ]; then
   if [ -f "$LOCAL_COMPOSE" ]; then
     cp "$LOCAL_COMPOSE" "$COMPOSE_FILE"
-    echo "Copied compose file from local repo."
+    echo "🔄 Copied compose file from local repo."
   else
-    echo "Downloading compose file..."
+    echo "🔄 Downloading compose file..."
     curl -fsSL "${RAW_BASE}/docker/${COMPOSE_FILE}" -o "$COMPOSE_FILE"
   fi
 fi
@@ -391,18 +414,20 @@ fi
 
 PORT="$(read_env_value "PORT" .env)"
 [ -z "$PORT" ] && PORT="3001"
+BRAY_IMAGE_TAG="${BRAY_IMAGE_TAG:-latest}"
 export BRAY_IMAGE_TAG PORT
 
 compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
 }
 
-echo "Pulling images (tag: ${BRAY_IMAGE_TAG})..."
+echo "🔄 Pulling images (tag: ${BRAY_IMAGE_TAG:-latest})..."
 if ! compose pull; then
-  die "Failed to pull images. If you see 401/403, the GHCR package may still be private — see docs/RELEASING.md"
+  die "Failed to pull images. If you see 401 or 403, the GHCR package may still be private - see docs/RELEASING.md"
 fi
 
-echo "Starting Bray Scenarios..."
+echo ""
+echo -e "▶️ Starting Bray Scenarios..."
 compose up -d
 
 print_completion
