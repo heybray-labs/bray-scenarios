@@ -30,7 +30,6 @@ export async function apiRequest(
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "include",
   });
 
   if (res.status === 401 && !url.includes("/auth/login")) {
@@ -61,7 +60,7 @@ export const getQueryFn =
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(url, { headers, credentials: "include" });
+    const res = await fetch(url, { headers });
     if (on401 === "returnNull" && res.status === 401) return null;
     await throwIfResNotOk(res);
     const raw = await res.text();

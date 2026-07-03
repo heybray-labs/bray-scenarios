@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -24,8 +23,10 @@ if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
   app.set("trust proxy", 1);
 }
 
-app.use(cors({ origin: true, credentials: true }));
-app.use(cookieParser());
+// Auth is Bearer JWT (Authorization header), not cookie sessions. Cookies are
+// only used for OIDC/SAML state binding and are read on those routes only —
+// no global cookie-parser, so CSRF middleware is not required for API routes.
+app.use(cors({ origin: true }));
 app.use(express.json());
 app.use(globalRateLimiter);
 app.use(requestLogging);

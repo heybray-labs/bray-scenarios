@@ -11,6 +11,11 @@ export default defineConfig({
       "@assets": path.resolve(import.meta.dirname, "src", "assets"),
     },
   },
+  // esbuild 0.28+ treats Safari <14.1 as lacking destructuring support.
+  // Vite 6's default target includes safari14, which fails the build.
+  build: {
+    target: "es2022",
+  },
   server: {
     port: 5173,
     allowedHosts: ["reliable-slouchy-scariness.ngrok-free.dev"],

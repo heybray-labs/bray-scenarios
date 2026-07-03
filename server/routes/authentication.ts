@@ -24,6 +24,7 @@ import { roles } from "../../shared/schemas/roles.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createLogger } from "../utils/logger.ts";
+import { getRequestCookie } from "../utils/cookies.ts";
 
 const log = createLogger("auth");
 
@@ -312,7 +313,7 @@ router.get("/oidc/callback", authRateLimiter, async (req, res) => {
     }
     const redirectUrl = await oidcAuthService.handleCallback(
       callbackUrl,
-      req.cookies?.[OIDC_STATE_COOKIE],
+      getRequestCookie(req, OIDC_STATE_COOKIE),
     );
     res.clearCookie(OIDC_STATE_COOKIE, getOidcStateCookieOptions());
     log.debug("OIDC callback redirecting to SPA", { requestId: authReq.requestId });
@@ -386,7 +387,7 @@ router.post(
         }
       }
 
-      const redirectUrl = await samlAuthService.handleAcs(body, req.cookies?.[SAML_STATE_COOKIE]);
+      const redirectUrl = await samlAuthService.handleAcs(body, getRequestCookie(req, SAML_STATE_COOKIE));
       res.clearCookie(SAML_STATE_COOKIE, { path: "/" });
       log.debug("SAML ACS redirecting to SPA", { requestId: authReq.requestId });
       res.redirect(redirectUrl);
