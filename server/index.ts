@@ -26,7 +26,24 @@ if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
 // Auth is Bearer JWT (Authorization header), not cookie sessions. Cookies are
 // only used for OIDC/SAML state binding and are read on those routes only —
 // no global cookie-parser, so CSRF middleware is not required for API routes.
-app.use(cors({ origin: true }));
+const allowedOrigins = new Set(
+  [process.env.APP_URL, process.env.CORS_ORIGINS]
+    .flatMap((value) => (value ?? "").split(","))
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Non-browser clients and same-origin requests omit Origin.
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
+  }),
+);
 app.use(express.json());
 app.use(globalRateLimiter);
 app.use(requestLogging);
