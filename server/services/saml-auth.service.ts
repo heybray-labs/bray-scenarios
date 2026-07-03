@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { SAML, ValidateInResponseTo, type Profile } from "@node-saml/node-saml";
 import {
   assertSamlConfigured,
@@ -25,30 +25,54 @@ import type { Response } from "express";
 
 const log = createLogger("saml");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const SAML_STATE_COOKIE = "saml_state";
+const SAML_STATE_TTL_MS = 10 * 60 * 1000;
 
 interface SamlStatePayload {
   nonce: string;
 }
+
+interface StoredSamlState {
+  payload: SamlStatePayload;
+  expiresAt: number;
+}
+
+const samlStateStore = new Map<string, StoredSamlState>();
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let samlInstancePromise: Promise<SAML> | null = null;
 let spCertFingerprint: string | null = null;
 
-function signSamlState(payload: SamlStatePayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
+function createSamlState(payload: SamlStatePayload): string {
+  const stateId = crypto.randomUUID();
+  samlStateStore.set(stateId, {
+    payload,
+    expiresAt: Date.now() + SAML_STATE_TTL_MS,
+  });
+  return stateId;
 }
 
-function verifySamlState(token: string | undefined): SamlStatePayload | null {
-  if (!token) return null;
-  try {
-    return jwt.verify(token, JWT_SECRET) as SamlStatePayload;
-  } catch {
+function verifySamlState(stateId: string | undefined): SamlStatePayload | null {
+  if (!stateId) return null;
+  const stored = samlStateStore.get(stateId);
+  if (!stored) return null;
+  if (stored.expiresAt <= Date.now()) {
+    samlStateStore.delete(stateId);
     return null;
   }
+  samlStateStore.delete(stateId);
+  return stored.payload;
 }
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [stateId, stored] of samlStateStore.entries()) {
+    if (stored.expiresAt <= now) {
+      samlStateStore.delete(stateId);
+    }
+  }
+}, 60 * 1000).unref();
 
 function getSamlStateCookieOptions() {
   const useSecureCookies = getSamlAcsUrl().startsWith("https://");
@@ -164,7 +188,7 @@ export const samlAuthService = {
     const entityId = getSamlSpEntityId();
     log.info("SAML login started", { entityId, acsUrl: getSamlAcsUrl() });
 
-    const signedState = signSamlState({ nonce: crypto.randomUUID() });
+    const signedState = createSamlState({ nonce: crypto.randomUUID() });
     let authorizeUrl = await saml.getAuthorizeUrlAsync("", undefined, {});
 
     if (shouldUseGoogleAccountChooser()) {
