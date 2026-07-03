@@ -11,6 +11,7 @@ import { Eye, EyeOff, Info } from "lucide-react";
 import logo from "@assets/logo.png";
 import { getOidcProviderIcon } from "@/lib/oidc-provider-icon";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AuthHeroPanel } from "@/components/AuthHeroPanel";
 import { AuthUnavailableScreen } from "@/components/errors";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 
@@ -365,7 +366,7 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-      <div className="hidden lg:block lg:w-1/2 bg-gradient-to-br from-pink-400 via-pink-500 to-pink-600" />
+      <AuthHeroPanel />
     </div>
   );
 }
