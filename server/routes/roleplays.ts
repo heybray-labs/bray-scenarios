@@ -20,6 +20,14 @@ const bulkRoleplayPayloadSchema = z.object({
   settings: z.object({}).passthrough().optional(),
   persona: z.object({}).passthrough().optional(),
   criteria: z.array(z.object({}).passthrough()).optional(),
+  classifications: z
+    .object({
+      category: z.string().nullable().optional(),
+      audienceLevel: z.string().nullable().optional(),
+      duration: z.string().nullable().optional(),
+      tags: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 function canManageRoleplays(user: AuthRequest["user"]): boolean {
@@ -49,6 +57,16 @@ async function getRoleplayForUser(
 
 const router = Router();
 
+function parseQueryStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(String).map((t) => t.trim()).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 router.use(authenticateToken);
 router.use(requirePasswordChanged);
 
@@ -75,18 +93,39 @@ router.get("/available-models", async (req: AuthRequest, res: Response) => {
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const [roleplays, bestAttempts] = await Promise.all([
+    const page = req.query.page ? parseInt(String(req.query.page), 10) : undefined;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const categories = parseQueryStringList(req.query.category);
+    const audienceLevels = parseQueryStringList(req.query.audience_level);
+    const durations = parseQueryStringList(req.query.duration);
+    const difficulties = parseQueryStringList(req.query.difficulty);
+    const tags = parseQueryStringList(req.query.tag);
+
+    const [listResult, bestAttempts] = await Promise.all([
       roleplaySystemController.getRoleplays({
         publishedOnly: !canManageRoleplays(req.user),
+        page,
+        limit,
+        search,
+        categories,
+        audienceLevels,
+        durations,
+        tags,
+        difficulties,
       }),
       roleplaySystemController.getUserBestAttemptsByRoleplay(userId),
     ]);
-    res.json(
-      roleplays.map((roleplay) => ({
+
+    res.json({
+      items: listResult.items.map((roleplay) => ({
         ...roleplay,
-        myBestAttempt: bestAttempts.get(roleplay.id) ?? null,
+        myBestAttempt: bestAttempts.get((roleplay as { id: number }).id) ?? null,
       })),
-    );
+      total: listResult.total,
+      page: listResult.page,
+      limit: listResult.limit,
+    });
   } catch (error) {
     platformLogger.error("list roleplays error", error instanceof Error ? error : undefined);
     res.status(500).json({ error: "Failed to get roleplays" });
@@ -117,6 +156,32 @@ router.get("/export", requirePermission("roleplay:manage"), async (req: AuthRequ
   }
 });
 
+router.post("/import/preview", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
+  try {
+    const multer = (await import("multer")).default;
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+    });
+    await new Promise<void>((resolve, reject) => {
+      upload.single("file")(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    const file = (req as AuthRequest & { file?: Express.Multer.File }).file;
+    if (!file) {
+      return res.status(400).json({ error: "Zip file is required (field name: file)" });
+    }
+    const result = await roleplaySystemController.previewImportFromZip(file.buffer);
+    res.json(result);
+  } catch (error) {
+    platformLogger.error("import preview error", error instanceof Error ? error : undefined);
+    const message = error instanceof Error ? error.message : "Failed to preview import";
+    res.status(400).json({ error: message });
+  }
+});
+
 router.post("/import", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const contentType = req.headers["content-type"] ?? "";
@@ -136,9 +201,13 @@ router.post("/import", requirePermission("roleplay:manage"), async (req: AuthReq
       if (!file) {
         return res.status(400).json({ error: "Zip file is required (field name: file)" });
       }
+      const createMissingClassifications =
+        (req.body as { createMissingClassifications?: string })?.createMissingClassifications ===
+        "true";
       const result = await roleplaySystemController.importRoleplaysFromZip(
         req.user!.id,
         file.buffer,
+        { createMissingClassifications },
       );
       return res.status(201).json(result);
     }

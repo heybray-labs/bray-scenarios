@@ -12,6 +12,11 @@ import {
   roleplayCriterionScores,
 } from "../shared/schemas/roleplay-core.ts";
 import {
+  classificationDimensions,
+  classificationOptions,
+  roleplayClassificationLinks,
+} from "../shared/schemas/roleplay-classifications.ts";
+import {
   roleplayAppConfig,
   roleplayProviderKeys,
   roleplayAllowedPersonaModels,
@@ -30,6 +35,9 @@ const schema = {
   roleplayAttempts,
   roleplayMessages,
   roleplayCriterionScores,
+  classificationDimensions,
+  classificationOptions,
+  roleplayClassificationLinks,
   roleplayAppConfig,
   roleplayProviderKeys,
   roleplayAllowedPersonaModels,

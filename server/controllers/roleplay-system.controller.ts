@@ -1,5 +1,5 @@
 import { db } from "../db.ts";
-import { and, eq, desc, sql, inArray } from "drizzle-orm";
+import { and, eq, desc, sql, inArray, or, ilike, count } from "drizzle-orm";
 import {
   AIMessage,
   HumanMessage,
@@ -55,14 +55,62 @@ import {
 } from "../roleplay/grading.ts";
 import { generateLiveHint } from "../roleplay/coaching.ts";
 import { emitRoleplayEvent } from "../roleplay/roleplay-events.ts";
+import { classificationService } from "../services/classification.service.ts";
+import type {
+  MissingImportClassificationOption,
+  RoleplayClassificationInput,
+  RoleplayClassifications,
+} from "../../shared/schemas/roleplay-classifications.ts";
+import {
+  IMPORT_PROMPT_DIMENSIONS,
+} from "../../shared/schemas/roleplay-classifications.ts";
 
 const log = createLogger("roleplay");
+
+function classificationInputFromScenario(scenario: TransferScenario): RoleplayClassificationInput {
+  const roleplay = scenario.roleplay as Record<string, unknown>;
+  return {
+    category: typeof roleplay.category === "string" ? roleplay.category : null,
+    audienceLevel:
+      typeof roleplay.audienceLevel === "string" ? roleplay.audienceLevel : null,
+    duration: typeof roleplay.duration === "string" ? roleplay.duration : null,
+    tags: Array.isArray(roleplay.tags)
+      ? roleplay.tags.filter((tag): tag is string => typeof tag === "string")
+      : [],
+  };
+}
+
+export type ImportPreviewResult = {
+  scenarioCount: number;
+  missing: MissingImportClassificationOption[];
+  autoImportTagCount: number;
+};
 
 export interface BulkRoleplayPayload {
   roleplay: Partial<Roleplay> & Record<string, unknown>;
   settings?: Record<string, unknown>;
   persona?: Record<string, unknown>;
   criteria?: Array<Record<string, unknown>>;
+  classifications?: RoleplayClassificationInput;
+}
+
+export interface RoleplayListOptions {
+  publishedOnly?: boolean;
+  page?: number;
+  limit?: number;
+  search?: string;
+  categories?: string[];
+  audienceLevels?: string[];
+  durations?: string[];
+  tags?: string[];
+  difficulties?: string[];
+}
+
+export interface RoleplayListResult {
+  items: Array<Record<string, unknown>>;
+  total: number;
+  page: number;
+  limit: number;
 }
 
 function chunkText(content: unknown): string {
@@ -79,24 +127,111 @@ function chunkText(content: unknown): string {
 export class RoleplaySystemController {
   // ===================== CRUD =====================
 
-  async getRoleplays(options?: { publishedOnly?: boolean }) {
-    let query = db
+  async getRoleplays(options?: RoleplayListOptions): Promise<RoleplayListResult> {
+    const page = Math.max(1, options?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options?.limit ?? 50));
+    const offset = (page - 1) * limit;
+
+    const filters: ReturnType<typeof sql>[] = [];
+
+    if (options?.publishedOnly) {
+      filters.push(eq(roleplays.status, "published"));
+    }
+
+    if (options?.search?.trim()) {
+      const term = `%${options.search.trim()}%`;
+      filters.push(
+        or(ilike(roleplays.title, term), ilike(roleplays.description, term))!,
+      );
+    }
+
+    if (options?.difficulties?.length) {
+      const difficultyValues = options.difficulties.map((d) => d.trim()).filter(Boolean);
+      if (difficultyValues.length) {
+        filters.push(
+          inArray(roleplayPersonas.difficulty, difficultyValues),
+        );
+      }
+    }
+
+    const addClassificationInFilter = (dimensionSlug: string, slugs: string[]) => {
+      if (!slugs.length) return;
+      filters.push(sql`EXISTS (
+        SELECT 1 FROM roleplay_classification_links rcl
+        INNER JOIN classification_options co ON co.id = rcl.option_id
+        INNER JOIN classification_dimensions cd ON cd.id = co.dimension_id
+        WHERE rcl.roleplay_id = ${roleplays.id}
+          AND cd.slug = ${dimensionSlug}
+          AND co.slug IN (${sql.join(slugs.map((slug) => sql`${slug}`), sql`, `)})
+      )`);
+    };
+
+    if (options?.categories?.length) {
+      addClassificationInFilter(
+        "category",
+        options.categories.map((c) => c.trim()).filter(Boolean),
+      );
+    }
+    if (options?.audienceLevels?.length) {
+      addClassificationInFilter(
+        "audience_level",
+        options.audienceLevels.map((a) => a.trim()).filter(Boolean),
+      );
+    }
+    if (options?.durations?.length) {
+      addClassificationInFilter(
+        "duration",
+        options.durations.map((d) => d.trim()).filter(Boolean),
+      );
+    }
+
+    const tagSlugs = (options?.tags ?? []).map((t) => t.trim()).filter(Boolean);
+    if (tagSlugs.length) {
+      addClassificationInFilter("tags", tagSlugs);
+    }
+
+    const whereClause = filters.length ? and(...filters) : undefined;
+
+    const [countRow] = await db
+      .select({ total: count() })
+      .from(roleplays)
+      .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
+      .where(whereClause);
+
+    const rows = await db
       .select({
         roleplay: roleplays,
         difficulty: roleplayPersonas.difficulty,
       })
       .from(roleplays)
       .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
-      .$dynamic();
+      .where(whereClause)
+      .orderBy(desc(roleplays.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    if (options?.publishedOnly) {
-      query = query.where(eq(roleplays.status, "published"));
-    }
+    const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
+    const classificationMap = await classificationService.getClassificationsForRoleplays(roleplayIds);
 
-    const rows = await query.orderBy(desc(roleplays.createdAt));
-    return rows.map(({ roleplay, difficulty }) =>
-      withCoverImageUrl({ ...roleplay, difficulty: difficulty ?? null }),
+    const items = rows.map(({ roleplay, difficulty }) =>
+      withCoverImageUrl({
+        ...roleplay,
+        difficulty: difficulty ?? null,
+        classifications: classificationMap.get(roleplay.id) ?? {
+          category: null,
+          audienceLevel: null,
+          duration: null,
+          tags: [],
+        },
+      }),
     );
+
+    return {
+      items,
+      total: Number(countRow?.total ?? 0),
+      page,
+      limit,
+    };
   }
 
   async getRoleplayById(roleplayId: number) {
@@ -122,7 +257,8 @@ export class RoleplaySystemController {
       .from(roleplayCriteria)
       .where(eq(roleplayCriteria.roleplayId, roleplayId))
       .orderBy(roleplayCriteria.orderIndex);
-    return { ...withCoverImageUrl(roleplay), settings, persona, criteria };
+    const classifications = await classificationService.getClassificationsForRoleplay(roleplayId);
+    return { ...withCoverImageUrl(roleplay), settings, persona, criteria, classifications };
   }
 
   async bulkSaveRoleplay(
@@ -259,7 +395,12 @@ export class RoleplaySystemController {
         }
       }
 
-      return withCoverImageUrl(saved);
+      if (payload.classifications) {
+        await classificationService.setRoleplayClassifications(rid, payload.classifications, tx);
+      }
+
+      const classifications = await classificationService.getClassificationsForRoleplay(rid);
+      return { ...withCoverImageUrl(saved), classifications };
     });
   }
 
@@ -284,11 +425,13 @@ export class RoleplaySystemController {
       settings,
       persona,
       criteria,
+      classifications,
       ...roleplayFields
     } = full as Record<string, unknown> & {
       settings?: Record<string, unknown> | null;
       persona?: Record<string, unknown> | null;
       criteria?: Array<Record<string, unknown>>;
+      classifications?: RoleplayClassifications;
     };
 
     const sourceTitle =
@@ -312,6 +455,14 @@ export class RoleplaySystemController {
       settings: stripRelationIds(settings ?? undefined),
       persona: stripRelationIds(persona ?? undefined),
       criteria: (criteria ?? []).map((c) => stripRelationIds(c)!),
+      classifications: classifications
+        ? {
+            category: classifications.category?.slug ?? null,
+            audienceLevel: classifications.audienceLevel?.slug ?? null,
+            duration: classifications.duration?.slug ?? null,
+            tags: classifications.tags.map((t) => t.slug),
+          }
+        : undefined,
     });
   }
 
@@ -385,7 +536,15 @@ export class RoleplaySystemController {
       }
 
       scenarios.push(
-        stripForExport(full as unknown as Record<string, unknown>, { coverImage }),
+        stripForExport(full as unknown as Record<string, unknown>, {
+          coverImage,
+          classifications: {
+            category: full.classifications?.category?.slug ?? null,
+            tags: full.classifications?.tags?.map((t) => t.slug) ?? [],
+            audienceLevel: full.classifications?.audienceLevel?.slug ?? null,
+            duration: full.classifications?.duration?.slug ?? null,
+          },
+        }),
       );
     }
 
@@ -550,6 +709,7 @@ export class RoleplaySystemController {
   async importRoleplaysFromZip(
     userId: number,
     zipBuffer: Buffer,
+    options?: { createMissingClassifications?: boolean },
   ): Promise<{ created: Roleplay[]; warnings: string[] }> {
     const JSZip = (await import("jszip")).default;
     const zip = await JSZip.loadAsync(zipBuffer);
@@ -592,7 +752,48 @@ export class RoleplaySystemController {
       });
     }
 
-    return this.importRoleplays(userId, scenarios, mediaFiles);
+    return this.importRoleplays(userId, scenarios, mediaFiles, options);
+  }
+
+  async previewImportFromZip(zipBuffer: Buffer): Promise<ImportPreviewResult> {
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(zipBuffer);
+    const manifestEntry =
+      zip.file("scenarios.json") ?? zip.file(/\.json$/i)[0] ?? null;
+    if (!manifestEntry) {
+      throw new Error("Zip must contain scenarios.json");
+    }
+    const manifestText = await manifestEntry.async("string");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(manifestText);
+    } catch {
+      throw new Error("scenarios.json is not valid JSON");
+    }
+
+    const { scenarios, error } = normalizeImportPayload(raw);
+    if (error || !scenarios.length) {
+      throw new Error(error ?? "No scenarios found in zip");
+    }
+
+    return this.previewImport(scenarios);
+  }
+
+  async previewImport(scenarios: TransferScenario[]): Promise<ImportPreviewResult> {
+    const inputs = scenarios.map(classificationInputFromScenario);
+    const missing = await classificationService.findMissingImportOptions(
+      inputs,
+      IMPORT_PROMPT_DIMENSIONS,
+    );
+    const autoImportTags = await classificationService.findMissingImportOptions(
+      inputs,
+      ["tags"],
+    );
+    return {
+      scenarioCount: scenarios.length,
+      missing,
+      autoImportTagCount: autoImportTags.length,
+    };
   }
 
   async importRoleplays(
@@ -602,10 +803,28 @@ export class RoleplaySystemController {
       string,
       { buffer: Buffer; mimeType: string; originalFilename: string }
     >,
+    options?: { createMissingClassifications?: boolean },
   ): Promise<{ created: Roleplay[]; warnings: string[] }> {
     const created: Roleplay[] = [];
     const warnings: string[] = [];
     const coverPathToMediaId = new Map<string, number>();
+    const inputs = scenarios.map(classificationInputFromScenario);
+
+    const autoTagCount = await classificationService.ensureAutoImportTags(inputs);
+    if (autoTagCount > 0) {
+      warnings.push(
+        `Added ${autoTagCount} missing tag ${autoTagCount === 1 ? "value" : "values"} from import`,
+      );
+    }
+
+    if (options?.createMissingClassifications) {
+      const createdCount = await classificationService.ensurePromptImportOptions(inputs);
+      if (createdCount > 0) {
+        warnings.push(
+          `Added ${createdCount} missing classification ${createdCount === 1 ? "value" : "values"} from import`,
+        );
+      }
+    }
 
     for (const scenario of scenarios) {
       const prepared = prepareScenarioForImport(scenario);
@@ -617,12 +836,28 @@ export class RoleplaySystemController {
       );
       warnings.push(...modelWarnings);
 
+      const classificationsInput: RoleplayClassificationInput =
+        classificationInputFromScenario(prepared);
       const roleplayFields = { ...(prepared.roleplay as Record<string, unknown>) };
       const coverPath =
         typeof roleplayFields.coverImage === "string" ? roleplayFields.coverImage : null;
       delete roleplayFields.coverImage;
       delete roleplayFields.coverImageUrl;
       delete roleplayFields.coverImageMediaId;
+      delete roleplayFields.category;
+      delete roleplayFields.tags;
+      delete roleplayFields.audienceLevel;
+      delete roleplayFields.duration;
+
+      let resolvedClassifications: RoleplayClassificationInput | undefined;
+      try {
+        resolvedClassifications = await classificationService.resolveImportClassifications(
+          classificationsInput,
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "invalid classifications";
+        warnings.push(`"${title}": ${detail}`);
+      }
 
       let coverImageMediaId: number | null = null;
       if (coverPath) {
@@ -667,6 +902,7 @@ export class RoleplaySystemController {
         settings,
         persona: prepared.persona as Record<string, unknown> | undefined,
         criteria: prepared.criteria as Array<Record<string, unknown>> | undefined,
+        classifications: resolvedClassifications,
       };
 
       const roleplay = await this.bulkSaveRoleplay(null, userId, payload);

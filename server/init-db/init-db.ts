@@ -4,6 +4,7 @@ import { users } from "../../shared/schemas/users.ts";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { createLogger } from "../utils/logger.ts";
+import { seedClassifications } from "./seed-classifications.ts";
 
 const log = createLogger("init-db");
 
@@ -50,11 +51,78 @@ async function ensureMediaSchema() {
     ALTER TABLE roleplays DROP COLUMN IF EXISTS cover_image_url
   `);
 
+  await db.execute(sql`
+    ALTER TABLE roleplays DROP COLUMN IF EXISTS category
+  `);
+
+  await db.execute(sql`
+    ALTER TABLE roleplays DROP COLUMN IF EXISTS tags
+  `);
+
   log.info("Media schema ensured (media_assets + cover_image_media_id)");
+}
+
+async function ensureClassificationOptionDisplayColumns() {
+  await db.execute(sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'classification_options'
+          AND column_name = 'color'
+      ) THEN
+        ALTER TABLE classification_options ADD COLUMN color text;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'classification_options'
+          AND column_name = 'icon'
+      ) THEN
+        ALTER TABLE classification_options ADD COLUMN icon text;
+      END IF;
+    END $$
+  `);
+}
+
+async function assertDatabaseConnection() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(
+      "DATABASE_URL is not set. Configure it in .env (see .env.example).",
+    );
+  }
+
+  try {
+    await db.execute(sql`SELECT 1`);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const hints: string[] = [];
+
+    if (databaseUrl.includes("@db:")) {
+      hints.push(
+        "DATABASE_URL uses Docker hostname db — run `docker compose up -d db` (from repo root), or set DATABASE_URL to your local Postgres (e.g. localhost:5432).",
+      );
+    } else if (databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
+      hints.push(
+        "No Postgres is listening on that host/port — start your local Postgres service, or run `docker compose up -d db` and expose port 5432.",
+      );
+    }
+
+    hints.push("For local dev, npm run db:init reads ../.env (not .env.local).");
+
+    throw new Error(
+      `Cannot connect to database.\n  DATABASE_URL=${databaseUrl}\n  ${detail}\n\n${hints.join("\n  ")}`,
+    );
+  }
 }
 
 export async function initializeDatabase() {
   log.info("Running database init (drizzle push + seed)");
+
+  await assertDatabaseConnection();
 
   const { execSync } = await import("child_process");
   const path = await import("path");
@@ -85,6 +153,7 @@ export async function initializeDatabase() {
   // Re-run after push in case roleplays was created for the first time.
   try {
     await ensureMediaSchema();
+    await ensureClassificationOptionDisplayColumns();
   } catch (error) {
     log.warn("ensureMediaSchema failed after push", {
       error: error instanceof Error ? error.message : String(error),
@@ -148,6 +217,14 @@ async function seedDatabase() {
     } else {
       log.debug("Role already exists", { name: def.name, skipped: true });
     }
+  }
+
+  try {
+    await seedClassifications();
+  } catch (error) {
+    log.warn("Classification seed failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   if (!seedAdminFromEnv) {

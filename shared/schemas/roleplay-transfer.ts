@@ -16,6 +16,8 @@ const portableRoleplaySchema = z
     coverImageUrl: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
     tags: z.array(z.string()).nullable().optional(),
+    audienceLevel: z.string().nullable().optional(),
+    duration: z.string().nullable().optional(),
     learnerRole: z.string().nullable().optional(),
     situationContext: z.string().nullable().optional(),
     learnerObjective: z.string().nullable().optional(),
@@ -104,6 +106,7 @@ const ROLEPLAY_STRIP_KEYS = new Set([
   "persona",
   "criteria",
   "myBestAttempt",
+  "classifications",
   "coverImageMediaId",
   "coverImageUrl",
 ]);
@@ -135,7 +138,15 @@ function serializeDate(value: unknown): string | null | undefined {
 /** Build a portable scenario from a full roleplay record (with settings/persona/criteria). */
 export function stripForExport(
   full: Record<string, unknown>,
-  options?: { coverImage?: string | null },
+  options?: {
+    coverImage?: string | null;
+    classifications?: {
+      category?: string | null;
+      tags?: string[];
+      audienceLevel?: string | null;
+      duration?: string | null;
+    };
+  },
 ): TransferScenario {
   const roleplayRaw = omitKeys(full, ROLEPLAY_STRIP_KEYS) ?? {};
   const roleplay = {
@@ -144,6 +155,10 @@ export function stripForExport(
     startDate: serializeDate(roleplayRaw.startDate),
     endDate: serializeDate(roleplayRaw.endDate),
     coverImage: options?.coverImage ?? null,
+    category: options?.classifications?.category ?? roleplayRaw.category ?? null,
+    tags: options?.classifications?.tags ?? roleplayRaw.tags ?? null,
+    audienceLevel: options?.classifications?.audienceLevel ?? roleplayRaw.audienceLevel ?? null,
+    duration: options?.classifications?.duration ?? roleplayRaw.duration ?? null,
   };
 
   const settingsRaw = omitKeys(

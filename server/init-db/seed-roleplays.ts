@@ -7,6 +7,8 @@ import {
   roleplayCriteria,
 } from "../../shared/schemas/roleplay-core.ts";
 import { createLogger } from "../utils/logger.ts";
+import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
+import { classificationService } from "../services/classification.service.ts";
 
 const log = createLogger("seed-roleplays");
 
@@ -14,6 +16,8 @@ const SEED_SCENARIOS = [
   {
     title: "Handling an Angry Customer",
     category: "Customer Service",
+    audienceLevel: "manager",
+    duration: "standard",
     tags: ["de-escalation", "empathy", "retail"],
     learnerRole: "Store Manager",
     situationContext:
@@ -40,6 +44,8 @@ const SEED_SCENARIOS = [
   {
     title: "Negotiating a Raise",
     category: "Leadership",
+    audienceLevel: "individual-contributor",
+    duration: "standard",
     tags: ["negotiation", "career", "self-advocacy"],
     learnerRole: "Senior Software Engineer",
     situationContext:
@@ -66,6 +72,8 @@ const SEED_SCENARIOS = [
   {
     title: "Delivering Bad News to Your Team",
     category: "Management",
+    audienceLevel: "manager",
+    duration: "standard",
     tags: ["communication", "leadership", "change-management"],
     learnerRole: "Team Lead",
     situationContext:
@@ -92,6 +100,8 @@ const SEED_SCENARIOS = [
   {
     title: "Cold Call Sales Pitch",
     category: "Sales",
+    audienceLevel: "individual-contributor",
+    duration: "quick",
     tags: ["prospecting", "B2B", "objection-handling"],
     learnerRole: "Account Executive",
     situationContext:
@@ -118,6 +128,8 @@ const SEED_SCENARIOS = [
   {
     title: "Breaking Difficult Medical News",
     category: "Healthcare",
+    audienceLevel: "individual-contributor",
+    duration: "extended",
     tags: ["bedside-manner", "empathy", "communication"],
     learnerRole: "Primary Care Physician",
     situationContext:
@@ -144,6 +156,8 @@ const SEED_SCENARIOS = [
   {
     title: "Conducting a Performance Review",
     category: "HR",
+    audienceLevel: "manager",
+    duration: "standard",
     tags: ["feedback", "management", "development"],
     learnerRole: "Department Manager",
     situationContext:
@@ -170,6 +184,8 @@ const SEED_SCENARIOS = [
   {
     title: "Mediating a Workplace Conflict",
     category: "HR",
+    audienceLevel: "manager",
+    duration: "extended",
     tags: ["conflict-resolution", "mediation", "teamwork"],
     learnerRole: "HR Business Partner",
     situationContext:
@@ -196,6 +212,8 @@ const SEED_SCENARIOS = [
   {
     title: "Upselling Premium Features",
     category: "Sales",
+    audienceLevel: "individual-contributor",
+    duration: "quick",
     tags: ["upselling", "SaaS", "customer-success"],
     learnerRole: "Customer Success Manager",
     situationContext:
@@ -222,6 +240,8 @@ const SEED_SCENARIOS = [
   {
     title: "Interviewing a Skeptical Candidate",
     category: "Recruitment",
+    audienceLevel: "manager",
+    duration: "standard",
     tags: ["hiring", "employer-brand", "interviewing"],
     learnerRole: "Hiring Manager",
     situationContext:
@@ -248,6 +268,8 @@ const SEED_SCENARIOS = [
   {
     title: "Explaining a Product Delay",
     category: "Customer Success",
+    audienceLevel: "manager",
+    duration: "standard",
     tags: ["account-management", "trust", "communication"],
     learnerRole: "Account Manager",
     situationContext:
@@ -274,8 +296,9 @@ const SEED_SCENARIOS = [
 ];
 
 async function seedRoleplays() {
-  const [admin] = await db.select().from(users).limit(1);
+  await seedClassifications();
 
+  const [admin] = await db.select().from(users).limit(1);
   const createdBy = admin?.id ?? null;
 
   let created = 0;
@@ -288,8 +311,6 @@ async function seedRoleplays() {
         title: scenario.title,
         description: `${scenario.category} scenario: practice ${scenario.learnerObjective.toLowerCase()}`,
         introduction: scenario.introduction,
-        category: scenario.category,
-        tags: scenario.tags,
         learnerRole: scenario.learnerRole,
         situationContext: scenario.situationContext,
         learnerObjective: scenario.learnerObjective,
@@ -298,6 +319,13 @@ async function seedRoleplays() {
         createdBy,
       })
       .returning();
+
+    await classificationService.setRoleplayClassifications(roleplay.id, {
+      category: categoryLabelToSlug(scenario.category),
+      audienceLevel: scenario.audienceLevel,
+      duration: scenario.duration,
+      tags: scenario.tags,
+    });
 
     await db.insert(roleplaySettings).values({
       roleplayId: roleplay.id,

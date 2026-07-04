@@ -1,10 +1,18 @@
 import { Drama } from "lucide-react";
+import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
+import { overlayPillStyle } from "@/lib/classification-display";
 import { cn } from "@/lib/utils";
 
 export type ScenarioCoverStatus = {
   score: number;
   isPassed: boolean | null;
+};
+
+export type ScenarioCoverClassification = {
+  label: string;
+  color: string;
+  icon: string;
 };
 
 type ScenarioCoverProps = {
@@ -14,12 +22,16 @@ type ScenarioCoverProps = {
   status?: ScenarioCoverStatus | null;
   /** Difficulty pill overlaid bottom-right (cards). */
   difficulty?: string | null;
+  /** Category pill overlaid bottom-right below difficulty. */
+  category?: ScenarioCoverClassification | null;
+  /** Audience level pill overlaid bottom-right beside category. */
+  audienceLevel?: ScenarioCoverClassification | null;
   /** Click handler for the status pill (e.g. open best attempt). */
   onStatusClick?: () => void;
 };
 
 const pillBase =
-  "absolute z-[1] rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm backdrop-blur-sm";
+  "rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-sm";
 
 function formatDifficulty(difficulty: string): string {
   const label = difficulty.trim();
@@ -27,16 +39,22 @@ function formatDifficulty(difficulty: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
 }
 
-function difficultyPillClass(difficulty: string): string {
+function difficultyPillColor(difficulty: string): string {
   switch (difficulty.toLowerCase()) {
     case "easy":
-      return "bg-emerald-600/90 text-white";
+      return "#059669";
     case "hard":
-      return "bg-orange-600/90 text-white";
+      return "#ea580c";
     case "medium":
     default:
-      return "bg-sky-600/90 text-white";
+      return "#0284c7";
   }
+}
+
+function statusPillColor(status: ScenarioCoverStatus): string {
+  if (status.isPassed === true) return "#059669";
+  if (status.isPassed === false) return "#e11d48";
+  return "#475569";
 }
 
 export function ScenarioCover({
@@ -44,6 +62,8 @@ export function ScenarioCover({
   className,
   status,
   difficulty,
+  category,
+  audienceLevel,
   onStatusClick,
 }: ScenarioCoverProps) {
   const { src, isLoading } = useAuthenticatedImage(mediaId);
@@ -54,6 +74,7 @@ export function ScenarioCover({
       : null;
 
   const difficultyLabel = difficulty?.trim() ? formatDifficulty(difficulty) : null;
+  const showBottomRight = difficultyLabel || category || audienceLevel;
 
   return (
     <div
@@ -86,14 +107,10 @@ export function ScenarioCover({
             e.stopPropagation();
             onStatusClick?.();
           }}
+          style={overlayPillStyle(statusPillColor(status!))}
           className={cn(
             pillBase,
-            "top-2 right-2",
-            status?.isPassed === true
-              ? "bg-emerald-600/95 text-white"
-              : status?.isPassed === false
-                ? "bg-rose-600/95 text-white"
-                : "bg-slate-700/90 text-white",
+            "absolute top-2 right-2 z-[1]",
             onStatusClick && "hover:opacity-90 cursor-pointer",
             !onStatusClick && "cursor-default",
           )}
@@ -102,16 +119,37 @@ export function ScenarioCover({
         </button>
       )}
 
-      {difficultyLabel && (
-        <span
-          className={cn(
-            pillBase,
-            "bottom-2 right-2",
-            difficultyPillClass(difficultyLabel),
+      {showBottomRight && (
+        <div className="absolute bottom-2 right-2 z-[1] flex max-w-[calc(100%-1rem)] flex-col items-end gap-1.5">
+          {difficultyLabel && (
+            <span
+              className={pillBase}
+              style={overlayPillStyle(difficultyPillColor(difficulty!))}
+            >
+              {difficultyLabel}
+            </span>
           )}
-        >
-          {difficultyLabel}
-        </span>
+          {(category || audienceLevel) && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {category && (
+                <ClassificationChip
+                  label={category.label}
+                  color={category.color}
+                  icon={category.icon}
+                  overlay
+                />
+              )}
+              {audienceLevel && (
+                <ClassificationChip
+                  label={audienceLevel.label}
+                  color={audienceLevel.color}
+                  icon={audienceLevel.icon}
+                  overlay
+                />
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

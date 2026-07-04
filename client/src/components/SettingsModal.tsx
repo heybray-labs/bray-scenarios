@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { UsersManagementPanel } from "@/components/UsersManagementPanel";
 import { MediaManagementPanel } from "@/components/MediaManagementPanel";
+import { ClassificationManagementPanel } from "@/components/ClassificationManagementPanel";
 import { AboutPanel } from "@/components/AboutPanel";
 import { useAuth } from "@/hooks/use-auth";
 import { Settings } from "lucide-react";
@@ -38,7 +39,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
-      <DialogContent className="flex h-[50vh] min-h-[50vh] max-h-[50vh] w-full max-w-5xl flex-col overflow-hidden">
+      <DialogContent className="flex h-[70vh] min-h-[24rem] max-h-[70vh] w-full max-w-5xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -51,6 +52,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             {canManage && <TabsTrigger value="media">Media</TabsTrigger>}
+            {canManage && <TabsTrigger value="classifications">Classifications</TabsTrigger>}
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
@@ -69,6 +71,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {canManage && (
               <TabsContent value="media" className="mt-0 h-full overflow-y-auto pr-1">
                 <MediaManagementPanel />
+              </TabsContent>
+            )}
+
+            {canManage && (
+              <TabsContent value="classifications" className="mt-0 h-full overflow-y-auto pr-1">
+                <ClassificationManagementPanel />
               </TabsContent>
             )}
 

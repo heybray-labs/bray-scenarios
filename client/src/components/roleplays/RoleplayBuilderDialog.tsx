@@ -24,6 +24,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
 import { CoverImagePicker } from "@/components/roleplays/CoverImagePicker";
+import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
+import { classificationChipStyle, resolveLucideIcon } from "@/lib/classification-display";
 import {
   Loader2,
   Plus,
@@ -76,6 +78,10 @@ export default function RoleplayBuilderDialog({
   const [playbook, setPlaybook] = useState("");
   const [status, setStatus] = useState("draft");
   const [coverImageMediaId, setCoverImageMediaId] = useState<number | null>(null);
+  const [categorySlug, setCategorySlug] = useState("");
+  const [audienceLevelSlug, setAudienceLevelSlug] = useState("");
+  const [durationSlug, setDurationSlug] = useState("");
+  const [tagSlugs, setTagSlugs] = useState<string[]>([]);
 
   // Persona
   const [personaName, setPersonaName] = useState("");
@@ -148,6 +154,21 @@ export default function RoleplayBuilderDialog({
     enabled: open,
   });
 
+  const { data: taxonomy } = useQuery<{
+    dimensions: Array<{
+      slug: string;
+      name: string;
+      cardinality: string;
+      options: Array<{ slug: string; label: string; color: string; icon: string }>;
+    }>;
+  }>({
+    queryKey: ["/api/roleplay-classifications"],
+    enabled: open,
+  });
+
+  const dimensionOptions = (slug: string) =>
+    taxonomy?.dimensions.find((d) => d.slug === slug)?.options ?? [];
+
   const formatModelKey = (provider?: string | null, model?: string | null) =>
     provider && model ? `${provider}:${model}` : "";
 
@@ -177,6 +198,10 @@ export default function RoleplayBuilderDialog({
     setPlaybook("");
     setStatus("draft");
     setCoverImageMediaId(null);
+    setCategorySlug("");
+    setAudienceLevelSlug("");
+    setDurationSlug("");
+    setTagSlugs([]);
     setPersonaName("");
     setRoleTitle("");
     setPersonalityTraits("");
@@ -212,6 +237,12 @@ export default function RoleplayBuilderDialog({
     setPlaybook(existing.playbook ?? "");
     setStatus(existing.status ?? "draft");
     setCoverImageMediaId(existing.coverImageMediaId ?? null);
+
+    const cls = existing.classifications ?? {};
+    setCategorySlug(cls.category?.slug ?? "");
+    setAudienceLevelSlug(cls.audienceLevel?.slug ?? "");
+    setDurationSlug(cls.duration?.slug ?? "");
+    setTagSlugs((cls.tags ?? []).map((t: { slug: string }) => t.slug));
 
     const p = existing.persona ?? {};
     setPersonaName(p.name ?? "");
@@ -303,6 +334,12 @@ export default function RoleplayBuilderDialog({
       weight: c.weight,
       maxScore: c.maxScore,
     })),
+    classifications: {
+      category: categorySlug || null,
+      audienceLevel: audienceLevelSlug || null,
+      duration: durationSlug || null,
+      tags: tagSlugs,
+    },
   });
 
   const saveMutation = useMutation({
@@ -410,6 +447,93 @@ export default function RoleplayBuilderDialog({
                 </Field>
                 <Field label="Short description">
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+                </Field>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Category">
+                    <Select value={categorySlug || undefined} onValueChange={setCategorySlug}>
+                      <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                      <SelectContent>
+                        {dimensionOptions("category").map((opt) => (
+                          <SelectItem key={opt.slug} value={opt.slug}>
+                            <ClassificationOptionLabel
+                              label={opt.label}
+                              color={opt.color}
+                              icon={opt.icon}
+                            />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Audience level">
+                    <Select value={audienceLevelSlug || undefined} onValueChange={setAudienceLevelSlug}>
+                      <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
+                      <SelectContent>
+                        {dimensionOptions("audience_level").map((opt) => (
+                          <SelectItem key={opt.slug} value={opt.slug}>
+                            <ClassificationOptionLabel
+                              label={opt.label}
+                              color={opt.color}
+                              icon={opt.icon}
+                            />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Duration">
+                    <Select value={durationSlug || undefined} onValueChange={setDurationSlug}>
+                      <SelectTrigger><SelectValue placeholder="Select duration" /></SelectTrigger>
+                      <SelectContent>
+                        {dimensionOptions("duration").map((opt) => (
+                          <SelectItem key={opt.slug} value={opt.slug}>
+                            <ClassificationOptionLabel
+                              label={opt.label}
+                              color={opt.color}
+                              icon={opt.icon}
+                            />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+                <Field label="Tags">
+                  <div className="flex flex-wrap gap-2">
+                    {dimensionOptions("tags").map((opt) => {
+                      const selected = tagSlugs.includes(opt.slug);
+                      const Icon = resolveLucideIcon(opt.icon);
+                      const chipStyle = classificationChipStyle(opt.color);
+                      return (
+                        <Button
+                          key={opt.slug}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          style={
+                            selected
+                              ? {
+                                  color: opt.color,
+                                  backgroundColor: chipStyle.backgroundColor,
+                                  borderColor: opt.color,
+                                }
+                              : undefined
+                          }
+                          onClick={() =>
+                            setTagSlugs((prev) =>
+                              selected
+                                ? prev.filter((s) => s !== opt.slug)
+                                : [...prev, opt.slug],
+                            )
+                          }
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {opt.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </Field>
                 <Field label="Cover image">
                   <CoverImagePicker

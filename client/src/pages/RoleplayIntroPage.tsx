@@ -34,6 +34,7 @@ import {
   Copy,
 } from "lucide-react";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
+import { ScenarioMetadata } from "@/components/roleplays/ScenarioMetadata";
 import { ClockFading } from "@/components/icons/roleplay-field-icons";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -310,6 +311,11 @@ export default function RoleplayIntroPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            <ScenarioMetadata
+              difficulty={persona.difficulty}
+              classifications={roleplay.classifications}
+            />
 
             {completedAttempts.length > 0 && (
               <Card>
