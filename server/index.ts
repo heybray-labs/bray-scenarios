@@ -13,7 +13,14 @@ import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "./utils/logger.ts";
 import { requestLogging } from "./middleware/request-logging.ts";
 import { globalRateLimiter } from "./middleware/rate-limit.ts";
-import { getAuthConfigurationError } from "./config/auth-config.ts";
+import {
+  getAuthConfigurationError,
+  getAuthProtocol,
+  getOidcProviderName,
+  getSamlProviderName,
+  type AuthProtocol,
+} from "./config/auth-config.ts";
+import { getAppVersion } from "./utils/app-version.ts";
 import { oidcAuthService } from "./services/oidc-auth.service.ts";
 import { samlAuthService } from "./services/saml-auth.service.ts";
 
@@ -52,6 +59,26 @@ app.use(requestLogging);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+function getAuthProtocolLabel(protocol: AuthProtocol): string {
+  switch (protocol) {
+    case "local":
+      return "Local sign-in";
+    case "oidc":
+      return getOidcProviderName();
+    case "saml":
+      return getSamlProviderName();
+  }
+}
+
+app.get("/api/about", (_req, res) => {
+  const authProtocol = getAuthProtocol();
+  res.json({
+    version: getAppVersion(),
+    authProtocol,
+    authProtocolLabel: getAuthProtocolLabel(authProtocol),
+  });
 });
 
 app.use("/api/auth", authRoutes);

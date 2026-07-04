@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { UsersManagementPanel } from "@/components/UsersManagementPanel";
 import { MediaManagementPanel } from "@/components/MediaManagementPanel";
+import { AboutPanel } from "@/components/AboutPanel";
 import { useAuth } from "@/hooks/use-auth";
 import { Settings } from "lucide-react";
 
@@ -50,6 +51,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             {canManage && <TabsTrigger value="media">Media</TabsTrigger>}
+            <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
           <div className="mt-4 min-h-0 flex-1 overflow-hidden">
@@ -69,6 +71,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <MediaManagementPanel />
               </TabsContent>
             )}
+
+            <TabsContent value="about" className="mt-0 h-full overflow-y-auto pr-1">
+              <AboutPanel />
+            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
