@@ -79,15 +79,21 @@ function chunkText(content: unknown): string {
 export class RoleplaySystemController {
   // ===================== CRUD =====================
 
-  async getRoleplays() {
-    const rows = await db
+  async getRoleplays(options?: { publishedOnly?: boolean }) {
+    let query = db
       .select({
         roleplay: roleplays,
         difficulty: roleplayPersonas.difficulty,
       })
       .from(roleplays)
       .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
-      .orderBy(desc(roleplays.createdAt));
+      .$dynamic();
+
+    if (options?.publishedOnly) {
+      query = query.where(eq(roleplays.status, "published"));
+    }
+
+    const rows = await query.orderBy(desc(roleplays.createdAt));
     return rows.map(({ roleplay, difficulty }) =>
       withCoverImageUrl({ ...roleplay, difficulty: difficulty ?? null }),
     );
