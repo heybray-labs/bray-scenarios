@@ -75,7 +75,7 @@ export function AboutPanel() {
 
       <div className="space-y-1 text-xs text-muted-foreground">
         <p>© {new Date().getFullYear()} HeyBray Labs</p>
-        <p>Open source — license pending</p>
+        <p>License not yet specified</p>
         <p>Standalone deployment of the roleplay feature from the Bray platform</p>
       </div>
     </div>
