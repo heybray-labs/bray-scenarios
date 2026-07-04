@@ -92,6 +92,7 @@ Important Docker-specific values:
 | `DATABASE_URL` | `postgresql://postgres:postgres@db:5432/roleplay_app` (overridden in compose) |
 | `APP_URL` | `http://localhost:3001` — must match the URL users open in the browser |
 | `SAML_SP_CERT_DIR` | `/app/data/saml` — mounted volume for stable SAML certificates |
+| `MEDIA_DIR` | `/app/data/media` — mounted `media_data` volume for scenario cover images |
 
 `docker-compose.yml` overrides `DATABASE_URL` and `PORT` so a local-dev `.env` with `localhost` does not break the container.
 
@@ -126,6 +127,7 @@ Google SAML requires **HTTPS**. For local Docker:
 3. Set `AUTH_PROTOCOL=saml` and `SAML_IDP_METADATA` (and other SAML vars). See [AUTHENTICATION.md](../AUTHENTICATION.md).
 4. In Google Admin, set ACS URL and Entity ID to match `APP_URL` paths above.
 5. SAML SP certificates are stored in the `saml_certs` volume — they persist across `docker compose down` / `up` so metadata stays stable.
+6. Scenario cover images are stored in the `media_data` volume (`MEDIA_DIR=/app/data/media`) — they persist across container rebuilds.
 
 ### Checklist before enabling SSO
 
@@ -140,7 +142,7 @@ Google SAML requires **HTTPS**. For local Docker:
 npm run docker:up      # build and start in foreground
 docker compose up -d # detached
 npm run docker:down  # stop and remove containers (volumes kept)
-docker compose down -v  # also remove pgdata and saml_certs volumes
+docker compose down -v  # also remove pgdata, saml_certs, and media_data volumes
 ```
 
 ## Health check

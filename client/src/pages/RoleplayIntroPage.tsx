@@ -8,23 +8,33 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Drama,
   PlayCircle,
   MoreVertical,
   Pencil,
   Trash2,
   Target,
   User,
-  MessageSquare,
+  Route,
   AlertTriangle,
   ArrowLeft,
+  Copy,
 } from "lucide-react";
+import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
+import { ClockFading } from "@/components/icons/roleplay-field-icons";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,7 +46,12 @@ export default function RoleplayIntroPage() {
   const { toast } = useToast();
   const { hasPermission } = useAuth();
   const roleplayId = params.id ? parseInt(params.id) : null;
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
+  const [duplicateResult, setDuplicateResult] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
   const canManage = hasPermission("roleplay:manage");
 
   const { data: roleplay, isLoading } = useQuery<any>({
@@ -60,6 +75,15 @@ export default function RoleplayIntroPage() {
   const hasUnlimited = !maxAttempts || maxAttempts <= 0;
   const remaining = hasUnlimited ? null : Math.max(0, maxAttempts - myAttempts.length);
   const isOutOfAttempts = !hasUnlimited && remaining === 0;
+  const maxTurns =
+    typeof settings.maxTurns === "number" && settings.maxTurns > 0
+      ? settings.maxTurns
+      : null;
+  const timeLimitMinutes =
+    typeof settings.timeLimitMinutes === "number" && settings.timeLimitMinutes > 0
+      ? settings.timeLimitMinutes
+      : null;
+  const liveCoaching = !!settings.liveCoaching;
   const bestScore = completedAttempts.length
     ? Math.max(...completedAttempts.map((a) => parseFloat(a.score) || 0))
     : null;
@@ -79,6 +103,34 @@ export default function RoleplayIntroPage() {
       navigate("/");
     },
   });
+
+  const handleDuplicate = async () => {
+    if (!roleplayId) return;
+    setDuplicating(true);
+    try {
+      const created = await apiRequest("POST", `/api/roleplays/${roleplayId}/duplicate`);
+      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      setDuplicateResult({
+        id: created.id,
+        title: created.title ?? "Copy of scenario",
+      });
+    } catch (error) {
+      toast({
+        title: "Duplicate failed",
+        description: error instanceof Error ? error.message : "Could not duplicate scenario",
+        variant: "destructive",
+      });
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  const openDuplicatedScenario = () => {
+    if (!duplicateResult) return;
+    const id = duplicateResult.id;
+    setDuplicateResult(null);
+    setEditId(id);
+  };
 
   const startMutation = useMutation({
     mutationFn: async () => apiRequest("POST", `/api/roleplays/${roleplayId}/attempts`),
@@ -123,15 +175,16 @@ export default function RoleplayIntroPage() {
           <ArrowLeft className="h-4 w-4" /> Back to scenarios
         </Link>
 
+        <div className="mb-6 overflow-hidden rounded-xl border">
+          <ScenarioCover mediaId={roleplay.coverImageMediaId} />
+        </div>
+
         <div className="flex items-start justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <Drama className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-2xl font-semibold">{roleplay.title}</h1>
-              {roleplay.description && (
-                <p className="text-muted-foreground text-sm mt-1">{roleplay.description}</p>
-              )}
-            </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold">{roleplay.title}</h1>
+            {roleplay.description && (
+              <p className="text-muted-foreground text-sm mt-1">{roleplay.description}</p>
+            )}
           </div>
           {canManage && (
             <DropdownMenu>
@@ -149,8 +202,12 @@ export default function RoleplayIntroPage() {
                   />
                   <span className="text-sm">Published</span>
                 </div>
-                <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+                <DropdownMenuItem onClick={() => setEditId(roleplayId)}>
                   <Pencil className="h-4 w-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={duplicating} onClick={() => void handleDuplicate()}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  {duplicating ? "Duplicating…" : "Duplicate"}
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate()}>
                   <Trash2 className="h-4 w-4 mr-2" /> Delete
@@ -160,20 +217,29 @@ export default function RoleplayIntroPage() {
           )}
         </div>
 
-        <div className="flex gap-6">
-          <div className="flex-1 space-y-4">
-            {roleplay.introduction && (
-              <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: roleplay.introduction }} />
-            )}
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 space-y-4 min-w-0">
             {roleplay.situationContext && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" /> The Situation
+                    <Route className="h-4 w-4" /> Context
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roleplay.situationContext}</p>
+                </CardContent>
+              </Card>
+            )}
+            {roleplay.introduction && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ClockFading className="h-4 w-4" /> Current Situation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roleplay.introduction}</p>
                 </CardContent>
               </Card>
             )}
@@ -204,15 +270,28 @@ export default function RoleplayIntroPage() {
             )}
           </div>
 
-          <aside className="hidden lg:block w-72 space-y-4">
+          <aside className="w-full lg:w-72 shrink-0 space-y-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Ready to start?</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Pass threshold: {settings.passThreshold ?? 70}%
-                </p>
+                <ul className="space-y-1.5 text-sm text-muted-foreground">
+                  <li>Pass threshold: {settings.passThreshold ?? 70}%</li>
+                  {maxTurns != null && (
+                    <li>
+                      Max turns: {maxTurns}
+                      {settings.autoEndOnMaxTurns ? " (auto-submits)" : ""}
+                    </li>
+                  )}
+                  {timeLimitMinutes != null && (
+                    <li>
+                      Time limit: {timeLimitMinutes}{" "}
+                      {timeLimitMinutes === 1 ? "minute" : "minutes"}
+                    </li>
+                  )}
+                  <li>Coaching: {liveCoaching ? "On" : "Off"}</li>
+                </ul>
                 {notConfigured && (
                   <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -267,9 +346,36 @@ export default function RoleplayIntroPage() {
         </div>
       </div>
 
-      {roleplayId && (
-        <EditRoleplayDialog roleplayId={roleplayId} open={isEditOpen} onOpenChange={setIsEditOpen} />
+      {editId && (
+        <EditRoleplayDialog
+          roleplayId={editId}
+          open={!!editId}
+          onOpenChange={(open) => {
+            if (!open) setEditId(null);
+          }}
+        />
       )}
+      <Dialog
+        open={!!duplicateResult}
+        onOpenChange={(open) => {
+          if (!open) setDuplicateResult(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scenario duplicated</DialogTitle>
+            <DialogDescription>
+              "{duplicateResult?.title}" was created as a draft.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateResult(null)}>
+              OK
+            </Button>
+            <Button onClick={openDuplicatedScenario}>Open</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

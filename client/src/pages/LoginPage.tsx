@@ -312,7 +312,7 @@ export default function LoginPage() {
             )
           ) : showPasswordLogin ? (
             <form onSubmit={handleLogin} className="w-full max-w-md space-y-4">
-              <h1 className="text-3xl font-bold">Welcome back</h1>
+              <h1 className="text-3xl font-bold">Welcome back!</h1>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

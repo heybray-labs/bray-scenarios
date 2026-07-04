@@ -17,10 +17,12 @@ import {
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
 } from "../shared/schemas/agent/roleplay-app-config.ts";
+import { mediaAssets } from "../shared/schemas/media-assets.ts";
 
 const schema = {
   users,
   roles,
+  mediaAssets,
   roleplays,
   roleplaySettings,
   roleplayPersonas,

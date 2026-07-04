@@ -1,8 +1,11 @@
 node_modules/
 dist/
+examples/
 dist-frontend/
 .env
 *.log
 .DS_Store
 server/drizzle/
 server/data/saml/
+server/data/media/
+data/media/

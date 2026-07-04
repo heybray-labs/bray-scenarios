@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { UsersManagementPanel } from "@/components/UsersManagementPanel";
+import { MediaManagementPanel } from "@/components/MediaManagementPanel";
+import { useAuth } from "@/hooks/use-auth";
 import { Settings } from "lucide-react";
 
 interface SettingsModalProps {
@@ -19,6 +21,8 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission("roleplay:manage");
   const [aiDirty, setAiDirty] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -45,6 +49,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <TabsList className="shrink-0">
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            {canManage && <TabsTrigger value="media">Media</TabsTrigger>}
           </TabsList>
 
           <div className="mt-4 min-h-0 flex-1 overflow-hidden">
@@ -58,6 +63,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsContent value="users" className="mt-0 h-full overflow-y-auto pr-1">
               <UsersManagementPanel />
             </TabsContent>
+
+            {canManage && (
+              <TabsContent value="media" className="mt-0 h-full overflow-y-auto pr-1">
+                <MediaManagementPanel />
+              </TabsContent>
+            )}
           </div>
         </Tabs>
       </DialogContent>

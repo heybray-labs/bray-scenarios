@@ -7,6 +7,8 @@ import authRoutes from "./routes/authentication.ts";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
 import userRoutes from "./routes/users.ts";
+import mediaRoutes from "./routes/media.ts";
+import { ensureMediaDir } from "./services/media.service.ts";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "./utils/logger.ts";
 import { requestLogging } from "./middleware/request-logging.ts";
@@ -56,6 +58,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roleplays", roleplayRoutes);
 app.use("/api/roleplay-config", roleplayConfigRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/media", mediaRoutes);
 
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client/dist");
 if (fs.existsSync(clientDist)) {
@@ -73,6 +76,7 @@ async function start() {
       logger.error("Authentication configuration error", undefined, { message: authConfigError });
     }
     await initializeDatabase();
+    ensureMediaDir();
     oidcAuthService.logStartupStatus();
     await samlAuthService.logStartupStatus();
     app.listen(PORT, () => {

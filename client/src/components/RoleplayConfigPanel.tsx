@@ -56,6 +56,8 @@ function ModelPicker({
   allowedModels,
   visibleProviders,
   keys,
+  catalogApiKeys,
+  catalogGeneration,
   base,
   onAdd,
   onRemove,
@@ -63,6 +65,10 @@ function ModelPicker({
   allowedModels: ModelRef[];
   visibleProviders: AgentProvider[];
   keys: RoleplayFullConfig["keys"];
+  /** Verified draft keys to use instead of saved credentials when listing models. */
+  catalogApiKeys: Partial<Record<AgentProvider, string>>;
+  /** Bumped after a successful key test so the catalog refetches without caching the key. */
+  catalogGeneration: number;
   base: string;
   onAdd: (ref: ModelRef) => void;
   onRemove: (key: string) => void;
@@ -79,16 +85,23 @@ function ModelPicker({
   }, [activeProvider, configuredProviders]);
 
   const hasKeyForProvider = hasKeyFor(keys, activeProvider);
+  const draftApiKey = catalogApiKeys[activeProvider];
+  const usesDraftKey = Boolean(draftApiKey);
 
-  const { data: catalog, isLoading: catalogLoading, refetch } = useQuery<ModelCatalogResponse>({
-    queryKey: [`${base}/model-catalog`, activeProvider, refreshToken],
-    queryFn: async () => {
-      const refresh = refreshToken > 0 ? "&refresh=true" : "";
-      return apiRequest(
-        "GET",
-        `${base}/model-catalog?provider=${activeProvider}${refresh}`,
-      ) as Promise<ModelCatalogResponse>;
-    },
+  const { data: catalog, isLoading: catalogLoading } = useQuery<ModelCatalogResponse>({
+    queryKey: [
+      `${base}/model-catalog`,
+      activeProvider,
+      refreshToken,
+      catalogGeneration,
+      usesDraftKey ? "draft" : "saved",
+    ],
+    queryFn: async () =>
+      apiRequest("POST", `${base}/model-catalog`, {
+        provider: activeProvider,
+        refresh: refreshToken > 0,
+        ...(draftApiKey ? { apiKey: draftApiKey } : {}),
+      }) as Promise<ModelCatalogResponse>,
     enabled: hasKeyForProvider,
     staleTime: 60 * 60 * 1000,
   });
@@ -145,10 +158,7 @@ function ModelPicker({
             size="sm"
             className="h-7 px-2 shrink-0"
             disabled={!hasKeyForProvider || catalogLoading}
-            onClick={() => {
-              setRefreshToken((n) => n + 1);
-              void refetch();
-            }}
+            onClick={() => setRefreshToken((n) => n + 1)}
           >
             <RefreshCw className={`h-3 w-3 mr-1 ${catalogLoading ? "animate-spin" : ""}`} />
             Refresh
@@ -159,7 +169,8 @@ function ModelPicker({
           <TabsContent key={p} value={p} className="mt-3 space-y-2">
             {!hasKeyFor(keys, p) && p === activeProvider && (
               <p className="text-xs text-muted-foreground">
-                Save an API key for {PROVIDER_LABELS[p]} to load models from the provider API.
+                Enter and test an API key for {PROVIDER_LABELS[p]} to load models from the
+                provider API.
               </p>
             )}
             <div className="space-y-1">
@@ -174,7 +185,7 @@ function ModelPicker({
                   <SelectValue
                     placeholder={
                       !hasKeyFor(keys, p)
-                        ? "Save API key to load models"
+                        ? "Test API key to load models"
                         : catalogLoading
                           ? "Loading…"
                           : availableModels.length === 0
@@ -210,6 +221,11 @@ export function RoleplayConfigPanel({
   const [providerDrafts, setProviderDrafts] = useState<
     Partial<Record<AgentProvider, ProviderKeyDraft>>
   >({});
+  /** Provider → draft key string that passed a successful test (enables model catalog before save). */
+  const [verifiedDraftKeys, setVerifiedDraftKeys] = useState<
+    Partial<Record<AgentProvider, string>>
+  >({});
+  const [catalogGeneration, setCatalogGeneration] = useState(0);
   const [visibleProviders, setVisibleProviders] = useState<AgentProvider[]>([]);
   const [removeProviders, setRemoveProviders] = useState<AgentProvider[]>([]);
   const [allowedModels, setAllowedModels] = useState<ModelRef[]>([]);
@@ -225,6 +241,8 @@ export function RoleplayConfigPanel({
     if (!data) return;
     setAllowedModels(data.allowedModels ?? []);
     setRemoveProviders([]);
+    setVerifiedDraftKeys({});
+    setCatalogGeneration(0);
     const configured = data.keys.filter((k) => k.hasKey).map((k) => k.provider);
     setVisibleProviders(configured);
     setProviderDrafts(
@@ -325,6 +343,10 @@ export function RoleplayConfigPanel({
         error?: string;
       };
       if (result.success) {
+        if (draft) {
+          setVerifiedDraftKeys((prev) => ({ ...prev, [provider]: draft }));
+        }
+        setCatalogGeneration((n) => n + 1);
         toast({ title: `${PROVIDER_LABELS[provider]} key verified` });
       } else {
         toast({
@@ -351,6 +373,11 @@ export function RoleplayConfigPanel({
       delete next[provider];
       return next;
     });
+    setVerifiedDraftKeys((prev) => {
+      const next = { ...prev };
+      delete next[provider];
+      return next;
+    });
     if (data && hasKeyFor(data.keys, provider)) {
       setRemoveProviders((prev) => [...new Set([...prev, provider])]);
     }
@@ -358,14 +385,41 @@ export function RoleplayConfigPanel({
     setPendingRemoveProvider(null);
   };
 
-  const savedKeys = useMemo((): RoleplayFullConfig["keys"] => {
-    if (!data) return [];
-    return PROVIDERS.map((provider) => ({
-      provider,
-      hasKey:
-        hasKeyFor(data.keys, provider) && !removeProviders.includes(provider),
-    }));
-  }, [data, removeProviders]);
+  const catalogApiKeys = useMemo(() => {
+    const keys: Partial<Record<AgentProvider, string>> = {};
+    for (const p of PROVIDERS) {
+      const draft = providerDrafts[p]?.value.trim() ?? "";
+      if (verifiedDraftKeys[p] && verifiedDraftKeys[p] === draft) {
+        keys[p] = draft;
+      }
+    }
+    return keys;
+  }, [providerDrafts, verifiedDraftKeys]);
+
+  const effectiveKeys = useMemo((): RoleplayFullConfig["keys"] => {
+    if (!data) {
+      return PROVIDERS.map((provider) => ({
+        provider,
+        hasKey: Boolean(
+          verifiedDraftKeys[provider] &&
+            verifiedDraftKeys[provider] ===
+              (providerDrafts[provider]?.value.trim() ?? ""),
+        ),
+      }));
+    }
+    return PROVIDERS.map((provider) => {
+      const draft = providerDrafts[provider]?.value.trim() ?? "";
+      const draftVerified =
+        Boolean(verifiedDraftKeys[provider]) &&
+        verifiedDraftKeys[provider] === draft;
+      const saved =
+        hasKeyFor(data.keys, provider) && !removeProviders.includes(provider);
+      return {
+        provider,
+        hasKey: saved || draftVerified,
+      };
+    });
+  }, [data, removeProviders, providerDrafts, verifiedDraftKeys]);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -400,15 +454,23 @@ export function RoleplayConfigPanel({
                           type="password"
                           className="flex-1"
                           value={draft?.value ?? ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const value = e.target.value;
                             setProviderDrafts((prev) => ({
                               ...prev,
                               [p]: {
-                                value: e.target.value,
+                                value,
                                 hadSavedKey: prev[p]?.hadSavedKey ?? saved ?? false,
                               },
-                            }))
-                          }
+                            }));
+                            setVerifiedDraftKeys((prev) => {
+                              if (prev[p] === undefined) return prev;
+                              if (prev[p] === value.trim()) return prev;
+                              const next = { ...prev };
+                              delete next[p];
+                              return next;
+                            });
+                          }}
                           placeholder={showConfigured ? "••••••••••••" : "Enter API key"}
                         />
                         <Button
@@ -473,7 +535,9 @@ export function RoleplayConfigPanel({
               <ModelPicker
                 allowedModels={allowedModels}
                 visibleProviders={visibleProviders}
-                keys={savedKeys}
+                keys={effectiveKeys}
+                catalogApiKeys={catalogApiKeys}
+                catalogGeneration={catalogGeneration}
                 base={base}
                 onAdd={(ref) => {
                   if (allowedModels.some((m) => modelKey(m) === modelKey(ref))) return;

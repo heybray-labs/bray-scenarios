@@ -2,6 +2,7 @@ import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users.ts";
+import { mediaAssets } from "./media-assets.ts";
 
 export const roleplays = pgTable("roleplays", {
   id: serial("id").primaryKey(),
@@ -10,7 +11,9 @@ export const roleplays = pgTable("roleplays", {
   introduction: text("introduction"),
   customThankYouMessage: text("custom_thank_you_message"),
   status: text("status").notNull().default("draft"),
-  coverImageUrl: text("cover_image_url"),
+  coverImageMediaId: integer("cover_image_media_id").references(() => mediaAssets.id, {
+    onDelete: "set null",
+  }),
   category: text("category"),
   tags: jsonb("tags").$type<string[]>(),
   learnerRole: text("learner_role"),

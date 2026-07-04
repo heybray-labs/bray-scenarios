@@ -101,18 +101,42 @@ router.put("/allowlists", async (req: AuthRequest, res) => {
   }
 });
 
-router.get("/model-catalog", async (req, res) => {
+const modelCatalogSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "google"]),
+  refresh: z.boolean().optional(),
+  /** Unsaved key (e.g. after a successful test) — never log this value. */
+  apiKey: z.string().min(1).optional(),
+});
+
+async function handleModelCatalog(
+  provider: AgentProvider,
+  options: { refresh?: boolean; apiKey?: string },
+  res: import("express").Response,
+) {
   try {
-    const provider = req.query.provider as AgentProvider | undefined;
-    if (!provider || !["openai", "anthropic", "google"].includes(provider)) {
-      return res.status(400).json({ error: "Query param provider is required (openai | anthropic | google)" });
-    }
-    const refresh = req.query.refresh === "true";
-    const result = await agentModelCatalogService.getModelsForProvider(provider, { refresh });
+    const result = await agentModelCatalogService.getModelsForProvider(provider, options);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to load model catalog" });
   }
+}
+
+router.get("/model-catalog", async (req, res) => {
+  const provider = req.query.provider as AgentProvider | undefined;
+  if (!provider || !["openai", "anthropic", "google"].includes(provider)) {
+    return res.status(400).json({ error: "Query param provider is required (openai | anthropic | google)" });
+  }
+  const refresh = req.query.refresh === "true";
+  await handleModelCatalog(provider, { refresh }, res);
+});
+
+router.post("/model-catalog", async (req: AuthRequest, res) => {
+  const parsed = modelCatalogSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ error: "provider is required (openai | anthropic | google)" });
+  }
+  const { provider, refresh, apiKey } = parsed.data;
+  await handleModelCatalog(provider, { refresh, apiKey }, res);
 });
 
 const testKeySchema = z.object({

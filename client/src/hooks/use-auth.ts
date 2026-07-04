@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { AuthService, type AuthResponse } from "@/lib/auth";
-import type { UserWithRole, LoginCredentials, SetupAdminCredentials, ChangePasswordCredentials } from "@shared/schemas/types";
+import type { UserWithRole, LoginCredentials, SetupAdminCredentials } from "@shared/schemas/types";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextValue = {
@@ -17,8 +17,6 @@ type AuthContextValue = {
   isLoading: boolean;
   isLoggingIn: boolean;
   login: (credentials: LoginCredentials) => Promise<AuthResponse>;
-  setupAdmin: (credentials: SetupAdminCredentials) => Promise<AuthResponse>;
-  changePassword: (credentials: ChangePasswordCredentials) => Promise<UserWithRole>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
   hasRole: (roleName: string) => boolean;
@@ -49,33 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await AuthService.login(credentials);
       setUser(response.user);
-      if (!response.user.mustChangePassword) {
-        toast({ title: "Login successful", description: `Welcome back!` });
-      }
-      return response;
-    } finally {
-      setIsLoggingIn(false);
-    }
-  }, [toast]);
-
-  const changePassword = useCallback(async (credentials: ChangePasswordCredentials) => {
-    setIsLoggingIn(true);
-    try {
-      const updatedUser = await AuthService.changePassword(credentials);
-      setUser(updatedUser);
-      toast({ title: "Password updated", description: "Your password has been changed." });
-      return updatedUser;
-    } finally {
-      setIsLoggingIn(false);
-    }
-  }, [toast]);
-
-  const setupAdmin = useCallback(async (credentials: SetupAdminCredentials) => {
-    setIsLoggingIn(true);
-    try {
-      const response = await AuthService.setupAdmin(credentials);
-      setUser(response.user);
-      toast({ title: "Admin account created", description: "Welcome!" });
+      toast({ title: "Login successful", description: `Welcome back!` });
       return response;
     } finally {
       setIsLoggingIn(false);
@@ -110,8 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     isLoggingIn,
     login,
-    setupAdmin,
-    changePassword,
     logout,
     hasPermission,
     hasRole,

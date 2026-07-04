@@ -16,6 +16,20 @@ import {
   roleplayCriterionScores,
   type Roleplay,
 } from "../../shared/schemas/roleplay-core.ts";
+import {
+  buildTransferEnvelope,
+  normalizeImportPayload,
+  portableMediaPath,
+  prepareScenarioForImport,
+  stripForExport,
+  type TransferEnvelope,
+  type TransferScenario,
+} from "../../shared/schemas/roleplay-transfer.ts";
+import {
+  mediaService,
+  MediaValidationError,
+  withCoverImageUrl,
+} from "../services/media.service.ts";
 import { users } from "../../shared/schemas/users.ts";
 import { createLogger } from "../utils/logger.ts";
 import {
@@ -65,11 +79,18 @@ function chunkText(content: unknown): string {
 export class RoleplaySystemController {
   // ===================== CRUD =====================
 
-  async getRoleplays(): Promise<Roleplay[]> {
-    return db
-      .select()
+  async getRoleplays() {
+    const rows = await db
+      .select({
+        roleplay: roleplays,
+        difficulty: roleplayPersonas.difficulty,
+      })
       .from(roleplays)
+      .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
       .orderBy(desc(roleplays.createdAt));
+    return rows.map(({ roleplay, difficulty }) =>
+      withCoverImageUrl({ ...roleplay, difficulty: difficulty ?? null }),
+    );
   }
 
   async getRoleplayById(roleplayId: number) {
@@ -95,15 +116,15 @@ export class RoleplaySystemController {
       .from(roleplayCriteria)
       .where(eq(roleplayCriteria.roleplayId, roleplayId))
       .orderBy(roleplayCriteria.orderIndex);
-    return { ...roleplay, settings, persona, criteria };
+    return { ...withCoverImageUrl(roleplay), settings, persona, criteria };
   }
 
   async bulkSaveRoleplay(
     roleplayId: number | null,
     userId: number,
     payload: BulkRoleplayPayload,
-  ): Promise<Roleplay> {
-    if (payload.settings) {
+  ) {
+    if (payload.settings && this.settingsHaveAllModels(payload.settings)) {
       await roleplayConfigService.validateRoleplayModelSettings(payload.settings);
     }
 
@@ -114,8 +135,24 @@ export class RoleplaySystemController {
         createdBy: _createdBy,
         createdAt: _createdAt,
         updatedAt: _updatedAt,
+        coverImageUrl: _coverImageUrl,
+        coverImage: _coverImage,
         ...safeRoleplay
       } = (payload.roleplay ?? {}) as Record<string, unknown>;
+
+      if ("coverImageMediaId" in safeRoleplay) {
+        const raw = safeRoleplay.coverImageMediaId;
+        if (raw === null || raw === undefined || raw === "") {
+          safeRoleplay.coverImageMediaId = null;
+        } else {
+          const mediaId = Number(raw);
+          if (!Number.isInteger(mediaId) || mediaId <= 0) {
+            throw new MediaValidationError("Invalid cover image");
+          }
+          await mediaService.assertExists(mediaId);
+          safeRoleplay.coverImageMediaId = mediaId;
+        }
+      }
 
       // Keep the published boolean in sync with status so the intro page gate is consistent
       if (typeof (safeRoleplay as any).status === "string") {
@@ -216,7 +253,7 @@ export class RoleplaySystemController {
         }
       }
 
-      return saved;
+      return withCoverImageUrl(saved);
     });
   }
 
@@ -226,6 +263,411 @@ export class RoleplaySystemController {
       .where(eq(roleplays.id, roleplayId))
       .returning();
     return result.length > 0;
+  }
+
+  async duplicateRoleplay(roleplayId: number, userId: number) {
+    const full = await this.getRoleplayById(roleplayId);
+    if (!full) return null;
+
+    const {
+      id: _id,
+      createdBy: _createdBy,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      coverImageUrl: _coverImageUrl,
+      settings,
+      persona,
+      criteria,
+      ...roleplayFields
+    } = full as Record<string, unknown> & {
+      settings?: Record<string, unknown> | null;
+      persona?: Record<string, unknown> | null;
+      criteria?: Array<Record<string, unknown>>;
+    };
+
+    const sourceTitle =
+      typeof roleplayFields.title === "string" && roleplayFields.title.trim()
+        ? roleplayFields.title.trim()
+        : "Untitled";
+
+    const stripRelationIds = (row: Record<string, unknown> | null | undefined) => {
+      if (!row) return undefined;
+      const { id: _rowId, roleplayId: _rid, createdAt: _rowCreatedAt, ...rest } = row;
+      return rest;
+    };
+
+    return this.bulkSaveRoleplay(null, userId, {
+      roleplay: {
+        ...roleplayFields,
+        title: `Copy of ${sourceTitle}`,
+        status: "draft",
+        published: false,
+      },
+      settings: stripRelationIds(settings ?? undefined),
+      persona: stripRelationIds(persona ?? undefined),
+      criteria: (criteria ?? []).map((c) => stripRelationIds(c)!),
+    });
+  }
+
+  // ===================== Export / Import =====================
+
+  private settingsHaveAllModels(settings: Record<string, unknown>): boolean {
+    return Boolean(
+      settings.personaProvider &&
+        settings.personaModel &&
+        settings.graderProvider &&
+        settings.graderModel,
+    );
+  }
+
+  async exportRoleplays(ids: number[]): Promise<TransferEnvelope> {
+    const { envelope } = await this.buildExportPayload(ids);
+    return envelope;
+  }
+
+  async exportRoleplaysZip(
+    ids: number[],
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const { envelope, mediaFiles, filenameBase } = await this.buildExportPayload(ids);
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    zip.file("scenarios.json", JSON.stringify(envelope, null, 2));
+    for (const [pathInZip, buffer] of mediaFiles) {
+      zip.file(pathInZip, buffer);
+    }
+    const buffer = Buffer.from(await zip.generateAsync({ type: "nodebuffer" }));
+    return { buffer, filename: `${filenameBase}.zip` };
+  }
+
+  private async buildExportPayload(ids: number[]): Promise<{
+    envelope: TransferEnvelope;
+    mediaFiles: Map<string, Buffer>;
+    filenameBase: string;
+  }> {
+    const uniqueIds = [...new Set(ids)];
+    if (!uniqueIds.length) {
+      throw new Error("At least one roleplay id is required");
+    }
+
+    const mediaIdToPath = new Map<number, string>();
+    const mediaFiles = new Map<string, Buffer>();
+    const scenarios: TransferScenario[] = [];
+
+    for (const id of uniqueIds) {
+      const full = await this.getRoleplayById(id);
+      if (!full) {
+        throw new Error(`Roleplay not found: ${id}`);
+      }
+
+      let coverImage: string | null = null;
+      const mediaId = full.coverImageMediaId;
+      if (mediaId != null) {
+        let pathInZip = mediaIdToPath.get(mediaId);
+        if (!pathInZip) {
+          const asset = await mediaService.getById(mediaId);
+          if (asset) {
+            pathInZip = portableMediaPath(asset.storageKey);
+            mediaIdToPath.set(mediaId, pathInZip);
+            try {
+              mediaFiles.set(pathInZip, await mediaService.readFile(asset));
+            } catch {
+              pathInZip = undefined;
+            }
+          }
+        }
+        coverImage = pathInZip ?? null;
+      }
+
+      scenarios.push(
+        stripForExport(full as unknown as Record<string, unknown>, { coverImage }),
+      );
+    }
+
+    const envelope = buildTransferEnvelope(scenarios);
+    const filenameBase =
+      scenarios.length === 1
+        ? `scenario-${this.slugifyTitle(scenarios[0].roleplay.title)}`
+        : `scenarios-export-${new Date().toISOString().slice(0, 10)}`;
+
+    return { envelope, mediaFiles, filenameBase };
+  }
+
+  private slugifyTitle(title: string): string {
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48);
+    return slug || "scenario";
+  }
+
+  private clearModelFields(settings: Record<string, unknown>): Record<string, unknown> {
+    return {
+      ...settings,
+      personaProvider: null,
+      personaModel: null,
+      graderProvider: null,
+      graderModel: null,
+    };
+  }
+
+  private async isModelAvailable(
+    purpose: "persona" | "grader",
+    ref: RoleplayModelRef,
+  ): Promise<boolean> {
+    try {
+      await roleplayConfigService.assertModelAllowedForPurpose(purpose, ref);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Resolve model fields for import: keep valid models, fall back to app defaults
+   * with warnings, or clear models when unavailable. Never throws — import always proceeds.
+   */
+  private async resolveModelsForImport(
+    title: string,
+    settings: Record<string, unknown> | undefined,
+  ): Promise<{ settings: Record<string, unknown> | undefined; warnings: string[] }> {
+    if (!settings) return { settings: undefined, warnings: [] };
+
+    const warnings: string[] = [];
+    const next = { ...settings };
+    const defaults = await roleplayConfigService.getDefaults();
+
+    const applyDefaultOrClear = async (
+      purpose: "persona" | "grader",
+      providerKey: string,
+      modelKey: string,
+      defaultRef: RoleplayModelRef | null,
+      unavailableLabel: string,
+    ) => {
+      if (
+        defaultRef &&
+        (await this.isModelAvailable(purpose, defaultRef))
+      ) {
+        next[providerKey] = defaultRef.provider;
+        next[modelKey] = defaultRef.model;
+        warnings.push(
+          `"${title}": ${unavailableLabel}; using default ${defaultRef.provider}:${defaultRef.model}`,
+        );
+        return;
+      }
+      next[providerKey] = null;
+      next[modelKey] = null;
+      warnings.push(
+        `"${title}": ${unavailableLabel}; imported without a ${purpose} model (configure AI in Settings)`,
+      );
+    };
+
+    const tryModel = async (
+      purpose: "persona" | "grader",
+      providerKey: string,
+      modelKey: string,
+      defaultRef: RoleplayModelRef | null,
+    ) => {
+      const provider = next[providerKey] as string | null | undefined;
+      const model = next[modelKey] as string | null | undefined;
+
+      // No model in file — leave unset unless we can apply a valid default silently
+      if (!provider || !model) {
+        if (defaultRef && (await this.isModelAvailable(purpose, defaultRef))) {
+          next[providerKey] = defaultRef.provider;
+          next[modelKey] = defaultRef.model;
+        } else {
+          next[providerKey] = null;
+          next[modelKey] = null;
+        }
+        return;
+      }
+
+      const available = await this.isModelAvailable(purpose, {
+        provider: provider as RoleplayModelRef["provider"],
+        model,
+      });
+      if (available) return;
+
+      await applyDefaultOrClear(
+        purpose,
+        providerKey,
+        modelKey,
+        defaultRef,
+        `${purpose} model ${provider}:${model} is not available`,
+      );
+    };
+
+    await tryModel("persona", "personaProvider", "personaModel", defaults.persona);
+    await tryModel("grader", "graderProvider", "graderModel", defaults.grader);
+
+    // Partial model pairs are not valid — clear both and warn if anything was set
+    if (!this.settingsHaveAllModels(next)) {
+      const hadAny =
+        next.personaProvider ||
+        next.personaModel ||
+        next.graderProvider ||
+        next.graderModel;
+      Object.assign(next, this.clearModelFields(next));
+      if (hadAny) {
+        warnings.push(
+          `"${title}": incomplete model settings; imported without model preferences`,
+        );
+      }
+    } else {
+      // Final guard: never let model validation fail the import
+      try {
+        await roleplayConfigService.validateRoleplayModelSettings(next);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "validation failed";
+        warnings.push(
+          `"${title}": model settings could not be applied (${detail}); imported without model preferences`,
+        );
+        Object.assign(next, this.clearModelFields(next));
+      }
+    }
+
+    return { settings: next, warnings };
+  }
+
+  private coerceOptionalDate(value: unknown): Date | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "string" && value.trim()) {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  async importRoleplaysFromZip(
+    userId: number,
+    zipBuffer: Buffer,
+  ): Promise<{ created: Roleplay[]; warnings: string[] }> {
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(zipBuffer);
+    const manifestEntry =
+      zip.file("scenarios.json") ?? zip.file(/\.json$/i)[0] ?? null;
+    if (!manifestEntry) {
+      throw new Error("Zip must contain scenarios.json");
+    }
+    const manifestText = await manifestEntry.async("string");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(manifestText);
+    } catch {
+      throw new Error("scenarios.json is not valid JSON");
+    }
+
+    const { scenarios, error } = normalizeImportPayload(raw);
+    if (error || !scenarios.length) {
+      throw new Error(error ?? "No scenarios found in zip");
+    }
+
+    const mediaFiles = new Map<
+      string,
+      { buffer: Buffer; mimeType: string; originalFilename: string }
+    >();
+    for (const [name, entry] of Object.entries(zip.files)) {
+      if (entry.dir) continue;
+      const normalized = name.replace(/^\.\//, "");
+      if (!normalized.startsWith("media/")) continue;
+      const buffer = Buffer.from(await entry.async("nodebuffer"));
+      const lower = normalized.toLowerCase();
+      let mimeType = "application/octet-stream";
+      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) mimeType = "image/jpeg";
+      else if (lower.endsWith(".png")) mimeType = "image/png";
+      else if (lower.endsWith(".webp")) mimeType = "image/webp";
+      mediaFiles.set(normalized, {
+        buffer,
+        mimeType,
+        originalFilename: normalized.split("/").pop() || "image",
+      });
+    }
+
+    return this.importRoleplays(userId, scenarios, mediaFiles);
+  }
+
+  async importRoleplays(
+    userId: number,
+    scenarios: TransferScenario[],
+    mediaFiles?: Map<
+      string,
+      { buffer: Buffer; mimeType: string; originalFilename: string }
+    >,
+  ): Promise<{ created: Roleplay[]; warnings: string[] }> {
+    const created: Roleplay[] = [];
+    const warnings: string[] = [];
+    const coverPathToMediaId = new Map<string, number>();
+
+    for (const scenario of scenarios) {
+      const prepared = prepareScenarioForImport(scenario);
+      const title = String(prepared.roleplay.title ?? "Untitled");
+
+      const { settings, warnings: modelWarnings } = await this.resolveModelsForImport(
+        title,
+        prepared.settings as Record<string, unknown> | undefined,
+      );
+      warnings.push(...modelWarnings);
+
+      const roleplayFields = { ...(prepared.roleplay as Record<string, unknown>) };
+      const coverPath =
+        typeof roleplayFields.coverImage === "string" ? roleplayFields.coverImage : null;
+      delete roleplayFields.coverImage;
+      delete roleplayFields.coverImageUrl;
+      delete roleplayFields.coverImageMediaId;
+
+      let coverImageMediaId: number | null = null;
+      if (coverPath) {
+        const existingId = coverPathToMediaId.get(coverPath);
+        if (existingId != null) {
+          coverImageMediaId = existingId;
+        } else {
+          const file = mediaFiles?.get(coverPath);
+          if (!file) {
+            warnings.push(
+              `"${title}": cover image "${coverPath}" was not included; imported without cover`,
+            );
+          } else {
+            try {
+              const asset = await mediaService.createFromBuffer(file.buffer, {
+                originalFilename: file.originalFilename,
+                mimeType: file.mimeType,
+                createdBy: userId,
+              });
+              coverPathToMediaId.set(coverPath, asset.id);
+              coverImageMediaId = asset.id;
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : "upload failed";
+              warnings.push(
+                `"${title}": cover image could not be imported (${detail})`,
+              );
+            }
+          }
+        }
+      }
+
+      const payload: BulkRoleplayPayload = {
+        roleplay: {
+          ...roleplayFields,
+          title,
+          status: "draft",
+          published: false,
+          coverImageMediaId,
+          startDate: this.coerceOptionalDate(roleplayFields.startDate),
+          endDate: this.coerceOptionalDate(roleplayFields.endDate),
+        },
+        settings,
+        persona: prepared.persona as Record<string, unknown> | undefined,
+        criteria: prepared.criteria as Array<Record<string, unknown>> | undefined,
+      };
+
+      const roleplay = await this.bulkSaveRoleplay(null, userId, payload);
+      created.push(roleplay);
+    }
+
+    return { created, warnings };
   }
 
   async publishRoleplay(roleplayId: number) {

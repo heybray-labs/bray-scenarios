@@ -357,7 +357,7 @@ const FALLBACK_MODELS: Record<AgentProvider, AgentModelOption[]> = {
 export class AgentModelCatalogService {
   async getModelsForProvider(
     provider: AgentProvider,
-    options?: { refresh?: boolean },
+    options?: { refresh?: boolean; apiKey?: string },
   ): Promise<{
     provider: AgentProvider;
     models: AgentModelOption[];
@@ -368,8 +368,13 @@ export class AgentModelCatalogService {
       catalogCache = null;
     }
 
-    const { roleplayConfigService } = await import("./roleplay-config.service.ts");
-    const apiKey = await roleplayConfigService.getDecryptedApiKeyForProvider(provider);
+    let apiKey = options?.apiKey?.trim();
+    if (!apiKey) {
+      const { roleplayConfigService } = await import("./roleplay-config.service.ts");
+      apiKey =
+        (await roleplayConfigService.getDecryptedApiKeyForProvider(provider)) ??
+        undefined;
+    }
 
     if (!apiKey) {
       return {

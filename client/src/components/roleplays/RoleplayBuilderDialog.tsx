@@ -20,10 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, Trash2, Drama } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
+import { CoverImagePicker } from "@/components/roleplays/CoverImagePicker";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Drama,
+  Download,
+  FileText,
+  UserRound,
+  ListChecks,
+  Settings2,
+} from "lucide-react";
 
 interface RoleplayBuilderDialogProps {
   roleplayId: number | null;
@@ -64,6 +75,7 @@ export default function RoleplayBuilderDialog({
   const [learnerObjective, setLearnerObjective] = useState("");
   const [playbook, setPlaybook] = useState("");
   const [status, setStatus] = useState("draft");
+  const [coverImageMediaId, setCoverImageMediaId] = useState<number | null>(null);
 
   // Persona
   const [personaName, setPersonaName] = useState("");
@@ -91,6 +103,27 @@ export default function RoleplayBuilderDialog({
   const [graderModelKey, setGraderModelKey] = useState("");
 
   const [criteria, setCriteria] = useState<CriterionDraft[]>(DEFAULT_CRITERIA);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!roleplayId) return;
+    setExporting(true);
+    try {
+      await fetchAndDownloadExport([roleplayId]);
+      toast({
+        title: "Scenario exported",
+        description: "Exported the last saved version.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Could not export",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data: existing, isLoading } = useQuery<any>({
     queryKey: [`/api/roleplays/${roleplayId}`],
@@ -134,6 +167,41 @@ export default function RoleplayBuilderDialog({
   };
 
   useEffect(() => {
+    if (!open || isEdit) return;
+    setTitle("");
+    setDescription("");
+    setIntroduction("");
+    setLearnerRole("");
+    setSituationContext("");
+    setLearnerObjective("");
+    setPlaybook("");
+    setStatus("draft");
+    setCoverImageMediaId(null);
+    setPersonaName("");
+    setRoleTitle("");
+    setPersonalityTraits("");
+    setMood("");
+    setDifficulty("medium");
+    setBackgroundFacts("");
+    setHiddenObjective("");
+    setOpeningStyle("");
+    setMaxAttempts("");
+    setPassThreshold(70);
+    setAllowManualEnd(true);
+    setMaxTurns("");
+    setAutoEndOnMaxTurns(false);
+    setAllowAiEnd(false);
+    setLiveCoaching(false);
+    setTimeLimitMinutes("");
+    setShowLeaderboard(false);
+    setAnonymousLeaderboard(false);
+    setPostSessionDisplayMode("full_breakdown");
+    setPersonaModelKey("");
+    setGraderModelKey("");
+    setCriteria(DEFAULT_CRITERIA);
+  }, [open, isEdit]);
+
+  useEffect(() => {
     if (!existing) return;
     setTitle(existing.title ?? "");
     setDescription(existing.description ?? "");
@@ -143,6 +211,7 @@ export default function RoleplayBuilderDialog({
     setLearnerObjective(existing.learnerObjective ?? "");
     setPlaybook(existing.playbook ?? "");
     setStatus(existing.status ?? "draft");
+    setCoverImageMediaId(existing.coverImageMediaId ?? null);
 
     const p = existing.persona ?? {};
     setPersonaName(p.name ?? "");
@@ -192,6 +261,7 @@ export default function RoleplayBuilderDialog({
       learnerObjective,
       playbook,
       status: nextStatus ?? status,
+      coverImageMediaId,
     },
     settings: {
       maxAttempts: maxAttempts === "" ? null : Number(maxAttempts),
@@ -208,12 +278,11 @@ export default function RoleplayBuilderDialog({
       ...(() => {
         const p = parseModelKey(personaModelKey);
         const g = parseModelKey(graderModelKey);
-        if (!p || !g) throw new Error("Persona and grader models are required");
         return {
-          personaProvider: p.provider,
-          personaModel: p.model,
-          graderProvider: g.provider,
-          graderModel: g.model,
+          personaProvider: p?.provider ?? null,
+          personaModel: p?.model ?? null,
+          graderProvider: g?.provider ?? null,
+          graderModel: g?.model ?? null,
         };
       })(),
     },
@@ -246,6 +315,11 @@ export default function RoleplayBuilderDialog({
     },
     onSuccess: (saved: any) => {
       toast({ title: isEdit ? "Roleplay updated" : "Roleplay created" });
+      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/media"] });
+      if (saved?.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${saved.id}`] });
+      }
       onSave?.(saved.id);
       onOpenChange(false);
     },
@@ -254,16 +328,49 @@ export default function RoleplayBuilderDialog({
     },
   });
 
-  const canSave =
-    title.trim().length > 0 &&
-    !!personaModelKey &&
-    !!graderModelKey &&
-    !saveMutation.isPending;
+  const getValidationErrors = (): string[] => {
+    const errors: string[] = [];
+    if (!title.trim()) errors.push("Add a title on the Scenario tab");
+    if (!personaModelKey) errors.push("Select a persona model on the Persona tab");
+    if (!graderModelKey) errors.push("Select an assessor model on the Rubric tab");
+    return errors;
+  };
+
+  const handleSave = (nextStatus: string) => {
+    if (nextStatus === "draft" && status === "published") {
+      const confirmed = window.confirm(
+        "This scenario is currently published. Saving as a draft will make it unavailable to users until you publish it again.\n\nSave as draft anyway?",
+      );
+      if (!confirmed) return;
+    }
+
+    if (nextStatus !== "draft") {
+      const errors = getValidationErrors();
+      if (errors.length > 0) {
+        toast({
+          title: "Complete required fields to publish",
+          description:
+            errors.length === 1 ? (
+              errors[0]
+            ) : (
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                {errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            ),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    saveMutation.mutate(nextStatus);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden gap-4">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Drama className="h-5 w-5" />
             {isEdit ? "Edit Roleplay" : "New Roleplay"}
@@ -275,15 +382,27 @@ export default function RoleplayBuilderDialog({
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <Tabs defaultValue="scenario" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="grid grid-cols-5 w-full">
-              <TabsTrigger value="scenario">Scenario</TabsTrigger>
-              <TabsTrigger value="persona">Persona</TabsTrigger>
-              <TabsTrigger value="rubric">Rubric</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
+          <Tabs defaultValue="scenario" className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <TabsList className="grid grid-cols-4 w-full shrink-0">
+              <TabsTrigger value="scenario" className="gap-1.5">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">Scenario</span>
+              </TabsTrigger>
+              <TabsTrigger value="persona" className="gap-1.5">
+                <UserRound className="h-4 w-4 shrink-0" />
+                <span className="truncate">Persona</span>
+              </TabsTrigger>
+              <TabsTrigger value="rubric" className="gap-1.5">
+                <ListChecks className="h-4 w-4 shrink-0" />
+                <span className="truncate">Rubric</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1.5">
+                <Settings2 className="h-4 w-4 shrink-0" />
+                <span className="truncate">Settings</span>
+              </TabsTrigger>
             </TabsList>
 
-            <ScrollArea className="flex-1 mt-4 pr-3">
+            <div className="flex-1 min-h-0 mt-4 overflow-y-auto pr-3">
               {/* Scenario */}
               <TabsContent value="scenario" className="space-y-4 mt-0">
                 <Field label="Title" required>
@@ -292,14 +411,20 @@ export default function RoleplayBuilderDialog({
                 <Field label="Short description">
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
                 </Field>
-                <Field label="Introduction (shown before the learner starts)">
-                  <Textarea value={introduction} onChange={(e) => setIntroduction(e.target.value)} rows={3} />
+                <Field label="Cover image">
+                  <CoverImagePicker
+                    mediaId={coverImageMediaId}
+                    onChange={setCoverImageMediaId}
+                  />
                 </Field>
                 <Field label="Learner's role">
                   <Input value={learnerRole} onChange={(e) => setLearnerRole(e.target.value)} placeholder="e.g. Customer Support Agent" />
                 </Field>
-                <Field label="Situation / context">
+                <Field label="Context">
                   <Textarea value={situationContext} onChange={(e) => setSituationContext(e.target.value)} rows={3} placeholder="Describe the scenario setup the persona is reacting to." />
+                </Field>
+                <Field label="Current Situation">
+                  <Textarea value={introduction} onChange={(e) => setIntroduction(e.target.value)} rows={3} placeholder="What the learner walks into when the conversation starts." />
                 </Field>
                 <Field label="Learner's objective">
                   <Textarea value={learnerObjective} onChange={(e) => setLearnerObjective(e.target.value)} rows={2} placeholder="What should the learner achieve in this conversation?" />
@@ -487,18 +612,45 @@ export default function RoleplayBuilderDialog({
                   <ToggleRow label="Anonymous leaderboard" checked={anonymousLeaderboard} onChange={setAnonymousLeaderboard} />
                 </div>
               </TabsContent>
-            </ScrollArea>
+            </div>
           </Tabs>
         )}
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="secondary" disabled={!canSave} onClick={() => saveMutation.mutate("draft")}>
-            Save draft
-          </Button>
-          <Button disabled={!canSave} onClick={() => saveMutation.mutate("published")}>
-            {saveMutation.isPending ? "Saving…" : "Save & publish"}
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between shrink-0">
+          <div className="flex gap-2">
+            {isEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={exporting || isLoading}
+                onClick={() => void handleExport()}
+                title="Exports the last saved version"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Export
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button
+              variant="secondary"
+              disabled={saveMutation.isPending}
+              onClick={() => handleSave("draft")}
+            >
+              Save draft
+            </Button>
+            <Button
+              disabled={saveMutation.isPending}
+              onClick={() => handleSave("published")}
+            >
+              {saveMutation.isPending ? "Saving…" : "Save & publish"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

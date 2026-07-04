@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FaUser } from "react-icons/fa";
@@ -7,18 +7,36 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, Flag, Lightbulb, Drama } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Send, Flag, Lightbulb, Drama, Clock, MessageSquare } from "lucide-react";
+import logo from "@assets/logo.png";
+import { AppBrandTitle } from "@/components/AppBrandTitle";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { MainLayout } from "@/components/MainLayout";
+import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
   id: number | string;
   role: string;
   content: string;
+}
+
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export default function RoleplayTaking() {
@@ -31,13 +49,17 @@ export default function RoleplayTaking() {
   const roleplayId = params.id ? parseInt(params.id) : null;
 
   const [attemptId, setAttemptId] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [coachHint, setCoachHint] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const initOnce = useRef(false);
+  const timeExpiredOnce = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: roleplay } = useQuery<any>({
@@ -48,8 +70,24 @@ export default function RoleplayTaking() {
   const persona = roleplay?.persona ?? {};
 
   const learnerTurns = messages.filter((m) => m.role === "learner").length;
-  const maxTurns: number | null = settings.maxTurns ?? null;
+  const maxTurns: number | null =
+    typeof settings.maxTurns === "number" && settings.maxTurns > 0
+      ? settings.maxTurns
+      : null;
+  const turnsRemaining = maxTurns != null ? Math.max(0, maxTurns - learnerTurns) : null;
   const reachedMaxTurns = maxTurns != null && learnerTurns >= maxTurns;
+  const timeLimitMinutes: number | null =
+    typeof settings.timeLimitMinutes === "number" && settings.timeLimitMinutes > 0
+      ? settings.timeLimitMinutes
+      : null;
+  const showTimer = settings.showTimer !== false;
+  const remainingMs =
+    timeLimitMinutes != null && startedAt
+      ? Math.max(0, startedAt.getTime() + timeLimitMinutes * 60_000 - now)
+      : null;
+  const timeExpired = remainingMs != null && remainingMs <= 0;
+  const timeUrgent = remainingMs != null && remainingMs <= 60_000;
+  const turnsUrgent = turnsRemaining != null && turnsRemaining <= 1;
 
   const userInitials =
     [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
@@ -76,6 +114,7 @@ export default function RoleplayTaking() {
             `/api/roleplays/${roleplayId}/attempts/${inProgress.id}`,
           );
           setAttemptId(inProgress.id);
+          setStartedAt(new Date(inProgress.startedAt ?? data.attempt?.startedAt ?? Date.now()));
           setMessages(data.messages ?? []);
         } else {
           const data = await apiRequest(
@@ -83,6 +122,7 @@ export default function RoleplayTaking() {
             `/api/roleplays/${roleplayId}/attempts`,
           );
           setAttemptId(data.attempt.id);
+          setStartedAt(new Date(data.attempt.startedAt ?? Date.now()));
           setMessages(data.messages ?? []);
         }
       } catch (err) {
@@ -104,7 +144,13 @@ export default function RoleplayTaking() {
 
   useEffect(() => () => stop(), [stop]);
 
-  const submitAttempt = async (endReason: string) => {
+  useEffect(() => {
+    if (timeLimitMinutes == null || !startedAt || submitting) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [timeLimitMinutes, startedAt, submitting]);
+
+  const submitAttempt = useCallback(async (endReason: string) => {
     if (!roleplayId || !attemptId || submitting) return;
     setSubmitting(true);
     try {
@@ -126,11 +172,21 @@ export default function RoleplayTaking() {
       });
       setSubmitting(false);
     }
-  };
+  }, [roleplayId, attemptId, submitting, navigate, toast]);
+
+  useEffect(() => {
+    if (remainingMs == null || remainingMs > 0 || submitting || timeExpiredOnce.current) return;
+    timeExpiredOnce.current = true;
+    toast({
+      title: "Time's up",
+      description: "Your time limit has been reached. Submitting for grading…",
+    });
+    void submitAttempt("time_limit");
+  }, [remainingMs, submitting, submitAttempt, toast]);
 
   const sendTurn = async () => {
     const text = input.trim();
-    if (!text || !roleplayId || !attemptId || isStreaming) return;
+    if (!text || !roleplayId || !attemptId || isStreaming || timeExpired || reachedMaxTurns) return;
 
     setInput("");
     setCoachHint(null);
@@ -203,13 +259,13 @@ export default function RoleplayTaking() {
   return (
     <MainLayout>
     <div className="w-full max-w-3xl mx-auto py-4 flex flex-col px-4" style={{ height: "calc(100vh - 7rem)" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Drama className="h-5 w-5 text-primary" />
-          <div>
-            <h1 className="text-lg font-semibold leading-tight">{roleplay?.title ?? "Roleplay"}</h1>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Drama className="h-5 w-5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold leading-tight truncate">{roleplay?.title ?? "Roleplay"}</h1>
             {persona.name && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground truncate">
                 Talking to {persona.name}
                 {persona.roleTitle ? ` · ${persona.roleTitle}` : ""}
               </p>
@@ -220,7 +276,8 @@ export default function RoleplayTaking() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => submitAttempt("manual")}
+            className="shrink-0"
+            onClick={() => setConfirmEndOpen(true)}
             disabled={submitting || isStreaming}
           >
             <Flag className="h-4 w-4 mr-1" />
@@ -228,6 +285,53 @@ export default function RoleplayTaking() {
           </Button>
         )}
       </div>
+
+      {(maxTurns != null || (timeLimitMinutes != null && showTimer)) && !submitting && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {timeLimitMinutes != null && showTimer && remainingMs != null && (
+            <div
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold tabular-nums shadow-sm",
+                timeUrgent
+                  ? "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                  : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200",
+              )}
+              aria-live="polite"
+              aria-label={`${formatCountdown(remainingMs)} remaining`}
+            >
+              <Clock className={cn("h-4 w-4", timeUrgent && "animate-pulse")} />
+              <span>{formatCountdown(remainingMs)}</span>
+              <span className="font-medium opacity-80">remaining</span>
+            </div>
+          )}
+          {maxTurns != null && turnsRemaining != null && (
+            <div
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm",
+                turnsUrgent
+                  ? "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                  : "border-primary/30 bg-primary/10 text-primary",
+              )}
+              aria-live="polite"
+              aria-label={
+                turnsRemaining === 0
+                  ? "No turns remaining"
+                  : `${turnsRemaining} ${turnsRemaining === 1 ? "turn" : "turns"} remaining`
+              }
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span>
+                {turnsRemaining === 0
+                  ? "No turns left"
+                  : `${turnsRemaining} ${turnsRemaining === 1 ? "turn" : "turns"} left`}
+              </span>
+              <span className="font-medium opacity-70">
+                ({Math.min(learnerTurns, maxTurns)}/{maxTurns})
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <Card className="flex-1 overflow-hidden flex flex-col">
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-3" ref={scrollRef as any}>
@@ -298,6 +402,10 @@ export default function RoleplayTaking() {
             <p className="text-sm text-primary/70">Hang tight while we review your performance…</p>
           </div>
         </div>
+      ) : timeExpired ? (
+        <div className="mt-3 text-center text-sm text-muted-foreground">
+          Time&apos;s up — submitting for grading…
+        </div>
       ) : reachedMaxTurns && !settings.autoEndOnMaxTurns ? (
         <div className="mt-3 text-center">
           <p className="text-sm text-muted-foreground mb-2">You've reached the maximum number of turns.</p>
@@ -318,20 +426,62 @@ export default function RoleplayTaking() {
             }}
             placeholder={reachedMaxTurns ? "Submitting…" : "Type your reply…"}
             rows={2}
-            disabled={isStreaming || reachedMaxTurns}
+            disabled={isStreaming || reachedMaxTurns || timeExpired}
             className="resize-none"
           />
-          <Button onClick={sendTurn} disabled={isStreaming || !input.trim()} className="h-auto">
+          <Button
+            onClick={sendTurn}
+            disabled={isStreaming || !input.trim() || timeExpired}
+            className="h-auto"
+          >
             {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       )}
-      {maxTurns != null && !submitting && (
-        <p className="text-xs text-muted-foreground mt-1 text-center">
-          Turn {Math.min(learnerTurns, maxTurns)} of {maxTurns}
-        </p>
-      )}
     </div>
+
+      <Dialog
+        open={confirmEndOpen}
+        onOpenChange={(open) => {
+          if (!submitting) setConfirmEndOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="items-center text-center sm:items-center sm:text-center">
+            <div className="mx-auto mb-2 flex items-center gap-3">
+              <img src={logo} alt="" className="h-10 w-10" />
+              <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} />
+            </div>
+            <DialogTitle className="flex items-center justify-center gap-2">
+              <Flag className="h-5 w-5 text-primary" />
+              End & submit?
+            </DialogTitle>
+            <DialogDescription>
+              This will end the conversation and submit it for grading. You won&apos;t be able to
+              send any more messages.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmEndOpen(false)}
+              disabled={submitting}
+            >
+              Keep going
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmEndOpen(false);
+                void submitAttempt("manual");
+              }}
+              disabled={submitting}
+            >
+              <Flag className="h-4 w-4 mr-1" />
+              End & Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
