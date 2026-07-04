@@ -10,6 +10,19 @@ export type ParseScenarioFilesResult = {
   errors: { fileName: string; message: string }[];
 };
 
+export type MissingImportClassification = {
+  dimensionSlug: string;
+  dimensionName: string;
+  slug: string;
+  suggestedLabel: string;
+};
+
+export type ImportPreviewResult = {
+  scenarioCount: number;
+  missing: MissingImportClassification[];
+  autoImportTagCount: number;
+};
+
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("auth_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -64,11 +77,64 @@ export async function fetchAndDownloadExport(ids: number[]): Promise<void> {
   downloadBlob(blob, filename);
 }
 
+export async function previewScenarioImport(file: File): Promise<ImportPreviewResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/roleplays/import/preview", {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const data = await res.json();
+      message = data.error || data.message || message;
+    } catch {
+      // keep
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+/** Preview selected zips and merge missing classification values. */
+export async function previewScenarioImports(
+  files: File[],
+): Promise<ImportPreviewResult> {
+  const missingByKey = new Map<string, MissingImportClassification>();
+  let scenarioCount = 0;
+  let autoImportTagCount = 0;
+
+  for (const file of files) {
+    const result = await previewScenarioImport(file);
+    scenarioCount += result.scenarioCount;
+    autoImportTagCount += result.autoImportTagCount ?? 0;
+    for (const item of result.missing) {
+      missingByKey.set(`${item.dimensionSlug}:${item.slug}`, item);
+    }
+  }
+
+  return {
+    scenarioCount,
+    autoImportTagCount,
+    missing: Array.from(missingByKey.values()).sort((a, b) => {
+      const dim = a.dimensionName.localeCompare(b.dimensionName);
+      if (dim !== 0) return dim;
+      return a.suggestedLabel.localeCompare(b.suggestedLabel);
+    }),
+  };
+}
+
 export async function importScenariosZip(
   file: File,
+  options?: { createMissingClassifications?: boolean },
 ): Promise<{ created: unknown[]; warnings: string[] }> {
   const form = new FormData();
   form.append("file", file);
+  if (options?.createMissingClassifications) {
+    form.append("createMissingClassifications", "true");
+  }
   const res = await fetch("/api/roleplays/import", {
     method: "POST",
     headers: authHeaders(),
@@ -90,6 +156,7 @@ export async function importScenariosZip(
 /** Import one or more scenario zip packages sequentially. */
 export async function importScenariosZips(
   files: File[],
+  options?: { createMissingClassifications?: boolean },
 ): Promise<{ created: unknown[]; warnings: string[] }> {
   if (!files.length) throw new Error("Select at least one zip file");
 
@@ -99,7 +166,7 @@ export async function importScenariosZips(
 
   for (const file of files) {
     try {
-      const result = await importScenariosZip(file);
+      const result = await importScenariosZip(file, options);
       created.push(...(result.created ?? []));
       for (const warning of result.warnings ?? []) {
         warnings.push(`"${file.name}": ${warning}`);

@@ -123,17 +123,26 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      compact ? "py-1 pl-8 pr-2 text-xs text-muted-foreground focus:text-muted-foreground data-[highlighted]:text-muted-foreground" : "py-1.5 pl-8 pr-2 text-sm",
+      "relative flex cursor-default select-none items-center rounded-sm outline-none transition-colors focus:bg-accent data-[highlighted]:bg-accent focus:text-foreground data-[highlighted]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      compact ? "py-1 pl-8 pr-2 text-xs" : "py-1.5 pl-8 pr-2 text-sm",
       className
     )}
     checked={checked}
     {...props}
   >
-    <span className={cn("absolute left-2 flex items-center justify-center", compact ? "h-3 w-3" : "h-3.5 w-3.5")}>
-      <DropdownMenuPrimitive.ItemIndicator>
-        <Check className={compact ? "h-3 w-3" : "h-4 w-4"} />
-      </DropdownMenuPrimitive.ItemIndicator>
+    <span
+      className={cn(
+        "absolute left-2 flex items-center justify-center rounded-[3px] border",
+        compact ? "h-3 w-3" : "h-3.5 w-3.5",
+        checked
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-muted-foreground/50 bg-background",
+      )}
+      aria-hidden
+    >
+      {checked ? (
+        <Check className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} strokeWidth={3} />
+      ) : null}
     </span>
     {children}
   </DropdownMenuPrimitive.CheckboxItem>

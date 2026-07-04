@@ -14,8 +14,6 @@ export const roleplays = pgTable("roleplays", {
   coverImageMediaId: integer("cover_image_media_id").references(() => mediaAssets.id, {
     onDelete: "set null",
   }),
-  category: text("category"),
-  tags: jsonb("tags").$type<string[]>(),
   learnerRole: text("learner_role"),
   situationContext: text("situation_context"),
   learnerObjective: text("learner_objective"),

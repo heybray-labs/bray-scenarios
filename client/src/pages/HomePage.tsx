@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,9 @@ import {
   CheckSquare,
   Square,
   Copy,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { useAuth } from "@/hooks/use-auth";
@@ -42,6 +46,18 @@ import CreateRoleplayDialog from "@/components/roleplays/create-roleplay-dialog"
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import ImportRoleplaysDialog from "@/components/roleplays/import-roleplays-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { ClassificationChip } from "@/components/classifications/ClassificationChip";
+import { ClassificationMultiSelect } from "@/components/classifications/ClassificationMultiSelect";
+import { FilterMultiSelect } from "@/components/classifications/FilterMultiSelect";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+const DIFFICULTY_FILTER_OPTIONS = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+] as const;
 
 export default function HomePage() {
   const { hasPermission } = useAuth();
@@ -63,10 +79,95 @@ export default function HomePage() {
     id: number;
     title: string;
   } | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const trimmedSearchInput = searchInput.trim();
+  const debouncedSearch = useDebouncedValue(
+    trimmedSearchInput,
+    trimmedSearchInput === "" ? 0 : SEARCH_DEBOUNCE_MS,
+  );
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [audienceFilters, setAudienceFilters] = useState<string[]>([]);
+  const [durationFilters, setDurationFilters] = useState<string[]>([]);
+  const [difficultyFilters, setDifficultyFilters] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
-  const { data: roleplays = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/roleplays"],
+  const prevDebouncedSearch = useRef(debouncedSearch);
+  useEffect(() => {
+    if (prevDebouncedSearch.current !== debouncedSearch) {
+      prevDebouncedSearch.current = debouncedSearch;
+      setPage(1);
+    }
+  }, [debouncedSearch]);
+
+  const listUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", String(pageSize));
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    categoryFilters.forEach((c) => params.append("category", c));
+    tagFilters.forEach((t) => params.append("tag", t));
+    audienceFilters.forEach((a) => params.append("audience_level", a));
+    durationFilters.forEach((d) => params.append("duration", d));
+    difficultyFilters.forEach((d) => params.append("difficulty", d));
+    return `/api/roleplays?${params.toString()}`;
+  }, [page, pageSize, debouncedSearch, categoryFilters, tagFilters, audienceFilters, durationFilters, difficultyFilters]);
+
+  const { data: listData, isLoading, isFetching } = useQuery<{
+    items: any[];
+    total: number;
+    page: number;
+    limit: number;
+  }>({
+    queryKey: [
+      "/api/roleplays",
+      page,
+      pageSize,
+      debouncedSearch,
+      categoryFilters,
+      tagFilters,
+      audienceFilters,
+      durationFilters,
+      difficultyFilters,
+    ],
+    queryFn: () => apiRequest("GET", listUrl),
+    placeholderData: (previous) => previous,
   });
+
+  const { data: taxonomy } = useQuery<{
+    dimensions: Array<{
+      slug: string;
+      options: Array<{ slug: string; label: string; color: string; icon: string }>;
+    }>;
+  }>({
+    queryKey: ["/api/roleplay-classifications"],
+  });
+
+  const roleplays = listData?.items ?? [];
+  const total = listData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const dimensionOptions = (slug: string) =>
+    taxonomy?.dimensions.find((d) => d.slug === slug)?.options ?? [];
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setCategoryFilters([]);
+    setTagFilters([]);
+    setAudienceFilters([]);
+    setDurationFilters([]);
+    setDifficultyFilters([]);
+    setPage(1);
+  };
+
+  const hasActiveFilters =
+    debouncedSearch ||
+    categoryFilters.length > 0 ||
+    tagFilters.length > 0 ||
+    audienceFilters.length > 0 ||
+    durationFilters.length > 0 ||
+    difficultyFilters.length > 0;
 
   const publishMutation = useMutation({
     mutationFn: ({ id, publish }: { id: number; publish: boolean }) =>
@@ -268,13 +369,108 @@ export default function HomePage() {
           )}
         </div>
 
-        {isLoading ? (
+        <div className="mb-6 space-y-2">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 flex-1 max-w-sm">
+              <Search
+                className={`absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground ${
+                  isFetching && listData ? "opacity-50" : ""
+                }`}
+              />
+              <Input
+                className="h-8 pl-8 text-sm"
+                placeholder="Search scenarios…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              {(trimmedSearchInput !== debouncedSearch || (isFetching && debouncedSearch)) &&
+                listData && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
+                  Searching…
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <ClassificationMultiSelect
+                compact
+                placeholder="Category"
+                className="w-[6.75rem]"
+                options={dimensionOptions("category")}
+                selected={categoryFilters}
+                onChange={(next) => {
+                  setCategoryFilters(next);
+                  setPage(1);
+                }}
+              />
+              <ClassificationMultiSelect
+                compact
+                placeholder="Tags"
+                className="w-[5.5rem]"
+                options={dimensionOptions("tags")}
+                selected={tagFilters}
+                onChange={(next) => {
+                  setTagFilters(next);
+                  setPage(1);
+                }}
+              />
+              <ClassificationMultiSelect
+                compact
+                placeholder="Audience"
+                className="w-[6.75rem]"
+                options={dimensionOptions("audience_level")}
+                selected={audienceFilters}
+                onChange={(next) => {
+                  setAudienceFilters(next);
+                  setPage(1);
+                }}
+              />
+              <ClassificationMultiSelect
+                compact
+                placeholder="Duration"
+                className="w-[6.25rem]"
+                options={dimensionOptions("duration")}
+                selected={durationFilters}
+                onChange={(next) => {
+                  setDurationFilters(next);
+                  setPage(1);
+                }}
+              />
+              <FilterMultiSelect
+                compact
+                placeholder="Difficulty"
+                className="w-[5.75rem]"
+                options={[...DIFFICULTY_FILTER_OPTIONS]}
+                selected={difficultyFilters}
+                onChange={(next) => {
+                  setDifficultyFilters(next);
+                  setPage(1);
+                }}
+              />
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearFilters}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground">
+              {total === 0 ? "No scenarios match your filters" : `${total} scenario${total === 1 ? "" : "s"}`}
+            </p>
+          )}
+        </div>
+
+        {isLoading && !listData ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : roleplays.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Drama className="h-12 w-12 mx-auto mb-4 opacity-40" />
-              <p>No roleplays yet.{canManage ? " Create your first scenario." : ""}</p>
+              <p>
+                {hasActiveFilters
+                  ? "No scenarios match your filters."
+                  : `No roleplays yet.${canManage ? " Create your first scenario." : ""}`}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -371,6 +567,8 @@ export default function HomePage() {
                     <ScenarioCover
                       mediaId={rp.coverImageMediaId}
                       difficulty={rp.difficulty}
+                      category={rp.classifications?.category ?? null}
+                      audienceLevel={rp.classifications?.audienceLevel ?? null}
                       status={
                         rp.myBestAttempt
                           ? {
@@ -400,9 +598,25 @@ export default function HomePage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="line-clamp-2 mb-4">
+                    <CardDescription
+                      className={`line-clamp-2 ${(rp.classifications?.tags ?? []).length > 0 ? "mb-3" : "mb-4"}`}
+                    >
                       {rp.description || "No description"}
                     </CardDescription>
+                    {(rp.classifications?.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {(rp.classifications?.tags ?? []).slice(0, 2).map(
+                          (tag: { slug: string; label: string; color: string; icon: string }) => (
+                            <ClassificationChip
+                              key={tag.slug}
+                              label={tag.label}
+                              color={tag.color}
+                              icon={tag.icon}
+                            />
+                          ),
+                        )}
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -417,6 +631,31 @@ export default function HomePage() {
                 </Card>
               ))}
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </>
         )}
       </div>
