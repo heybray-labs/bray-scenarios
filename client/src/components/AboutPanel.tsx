@@ -13,6 +13,8 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import logo from "@assets/logo.png";
 
+declare const __APP_VERSION__: string;
+
 type AboutResponse = {
   version: string;
   authProtocol: "local" | "oidc" | "saml";
