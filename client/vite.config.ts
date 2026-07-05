@@ -7,6 +7,9 @@ const pkg = JSON.parse(
   readFileSync(path.resolve(import.meta.dirname, "..", "package.json"), "utf-8"),
 ) as { version: string };
 
+const apiPort = process.env.VITE_API_PORT || process.env.PORT || "3001";
+const devPort = parseInt(process.env.VITE_PORT || "5173", 10);
+
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -25,11 +28,11 @@ export default defineConfig({
     target: "es2022",
   },
   server: {
-    port: 5173,
+    port: devPort,
     allowedHosts: ["reliable-slouchy-scariness.ngrok-free.dev"],
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: `http://localhost:${apiPort}`,
         changeOrigin: true,
       },
     },

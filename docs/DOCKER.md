@@ -33,9 +33,10 @@ Installs to `~/.bray-scenarios/` (override with `BRAY_SCENARIOS_HOME`). On first
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3001` | Host port for the app |
+| `APP_INSTANCE_PREFIX` | (unset) | Optional prefix — isolates Docker project/volumes; quickstart uses `~/.bray-scenarios/{prefix}/` |
 | `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.2`) | Docker image tag to pull |
 | `BRAY_VERSION` | latest GitHub release tag (e.g. `v1.0.2`) | Git ref for the compose file |
-| `BRAY_SCENARIOS_HOME` | `~/.bray-scenarios` | Install directory |
+| `BRAY_SCENARIOS_HOME` | `~/.bray-scenarios` | Base install directory (instance subdir appended when prefix is set) |
 
 By default the script resolves the latest GitHub release tag for both the compose file and Docker image.
 
@@ -52,7 +53,43 @@ docker compose -f docker-compose.quickstart.yml down -v   # reset database
 
 Open [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
 
-To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `docker compose -f docker-compose.quickstart.yml up -d`. See [AUTHENTICATION.md](AUTHENTICATION.md).
+To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `./bin/compose-env.sh -- docker compose up -d` from the install directory. See [AUTHENTICATION.md](AUTHENTICATION.md).
+
+## Running multiple instances
+
+Use `APP_INSTANCE_PREFIX` to isolate Docker volumes, networks, and containers on one host. Set `PORT` and `APP_URL` manually for each instance — ports are not auto-derived from the prefix.
+
+### Second quickstart instance
+
+```bash
+APP_INSTANCE_PREFIX=demo2 PORT=3002 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+# Installs to ~/.bray-scenarios/demo2/ with Compose project bray-scenarios-demo2
+# Edit ~/.bray-scenarios/demo2/.env if APP_URL needs updating
+```
+
+### Second clone-docker instance
+
+```bash
+# In .env:
+# APP_INSTANCE_PREFIX=dev2
+# PORT=3011
+# POSTGRES_PORT=5434
+# APP_URL=http://localhost:3011
+
+npm run docker:up
+```
+
+Use `./bin/compose-env.sh -- docker compose ...` for manual compose commands when a prefix is set (clone-docker and quickstart installs both persist `APP_INSTANCE_PREFIX` in `.env`).
+
+### Native dev (no Docker)
+
+Set ports in `.env` and run `npm run dev`:
+
+```bash
+# PORT=3011
+# VITE_PORT=5183
+# APP_URL=http://localhost:5183
+```
 
 ## Quick start (from clone)
 
@@ -139,10 +176,11 @@ Google SAML requires **HTTPS**. For local Docker:
 ## Commands
 
 ```bash
-npm run docker:up      # build and start in foreground
-docker compose up -d # detached
-npm run docker:down  # stop and remove containers (volumes kept)
-docker compose down -v  # also remove pgdata, saml_certs, and media_data volumes
+npm run docker:up      # build and start (uses bin/compose-env.sh)
+docker compose up -d   # detached (use compose-env.sh when APP_INSTANCE_PREFIX is set)
+npm run docker:down    # stop and remove containers (volumes kept)
+npm run docker:logs    # follow app logs
+docker compose down -v # also remove pgdata, saml_certs, and media_data volumes
 ```
 
 ## Health check
