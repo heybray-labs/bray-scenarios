@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { createLogger } from "../utils/logger.ts";
 import { seedClassifications } from "./seed-classifications.ts";
+import { runMigrations } from "./run-migrations.ts";
 
 const log = createLogger("init-db");
 
@@ -12,80 +13,6 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 const seedAdminFromEnv = Boolean(ADMIN_EMAIL && ADMIN_PASSWORD);
-
-/**
- * Apply media-library schema changes without drizzle-kit interactive prompts.
- * Drizzle treats cover_image_url → cover_image_media_id as a rename and asks
- * for confirmation, which fails in Docker/CI (no TTY).
- */
-async function ensureMediaSchema() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS media_assets (
-      id serial PRIMARY KEY,
-      original_filename text NOT NULL,
-      mime_type text NOT NULL,
-      size_bytes integer NOT NULL,
-      storage_key text NOT NULL UNIQUE,
-      created_by integer REFERENCES users(id),
-      created_at timestamp NOT NULL DEFAULT now()
-    )
-  `);
-
-  await db.execute(sql`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'roleplays'
-          AND column_name = 'cover_image_media_id'
-      ) THEN
-        ALTER TABLE roleplays
-          ADD COLUMN cover_image_media_id integer
-          REFERENCES media_assets(id) ON DELETE SET NULL;
-      END IF;
-    END $$
-  `);
-
-  await db.execute(sql`
-    ALTER TABLE roleplays DROP COLUMN IF EXISTS cover_image_url
-  `);
-
-  await db.execute(sql`
-    ALTER TABLE roleplays DROP COLUMN IF EXISTS category
-  `);
-
-  await db.execute(sql`
-    ALTER TABLE roleplays DROP COLUMN IF EXISTS tags
-  `);
-
-  log.info("Media schema ensured (media_assets + cover_image_media_id)");
-}
-
-async function ensureClassificationOptionDisplayColumns() {
-  await db.execute(sql`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'classification_options'
-          AND column_name = 'color'
-      ) THEN
-        ALTER TABLE classification_options ADD COLUMN color text;
-      END IF;
-
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'classification_options'
-          AND column_name = 'icon'
-      ) THEN
-        ALTER TABLE classification_options ADD COLUMN icon text;
-      END IF;
-    END $$
-  `);
-}
 
 async function assertDatabaseConnection() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -120,46 +47,10 @@ async function assertDatabaseConnection() {
 }
 
 export async function initializeDatabase() {
-  log.info("Running database init (drizzle push + seed)");
+  log.info("Running database init (migrate + seed)");
 
   await assertDatabaseConnection();
-
-  const { execSync } = await import("child_process");
-  const path = await import("path");
-  const { fileURLToPath } = await import("url");
-  const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-  // Resolve column rename/drop before drizzle push so it does not prompt.
-  try {
-    await ensureMediaSchema();
-  } catch (error) {
-    log.warn("ensureMediaSchema failed — roleplays table may not exist yet", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  try {
-    execSync("npm run db:push", {
-      cwd: serverRoot,
-      stdio: "inherit",
-      env: process.env as NodeJS.ProcessEnv,
-    });
-  } catch (error) {
-    log.warn("drizzle push failed — tables may already exist", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  // Re-run after push in case roleplays was created for the first time.
-  try {
-    await ensureMediaSchema();
-    await ensureClassificationOptionDisplayColumns();
-  } catch (error) {
-    log.warn("ensureMediaSchema failed after push", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
+  await runMigrations();
   await seedDatabase();
 }
 

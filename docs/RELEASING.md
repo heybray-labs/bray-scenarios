@@ -6,9 +6,22 @@
 
 - `npm run typecheck` — type-checks both `client` and `server`
 - `npm run build --workspace=client` — production Vite build
+- `npm run db:migrate` — applies committed SQL migrations against a fresh Postgres service
 - a Docker build smoke test (build only, no push) — catches `Dockerfile` breakage
 
 All of these must pass before merging.
+
+## Database migrations
+
+Schema changes use versioned SQL in [`server/drizzle/`](../server/drizzle/). On every app start (Docker or native), pending migrations run automatically before the server accepts traffic.
+
+**When changing `shared/schemas/`:**
+
+1. Run `npm run db:generate` and commit the new files under `server/drizzle/`
+2. Review generated SQL in the PR (watch for accidental `DROP COLUMN`)
+3. CI applies all migrations on a fresh Postgres database
+
+Operator upgrade flow: [UPGRADING.md](UPGRADING.md).
 
 ## Cutting a release
 
@@ -20,11 +33,25 @@ npm version patch   # or: minor / major
 git push --follow-tags
 ```
 
+Use **`npm version minor`** for releases that change operator-visible behavior (e.g. the first migration-based release, new upgrade scripts, or breaking upgrade steps). Use **patch** for bug fixes and **major** for incompatible API or config changes.
+
 `npm version` bumps the root `package.json`, commits, and creates a `vX.Y.Z` tag. Pushing that tag runs [`.github/workflows/release.yml`](../.github/workflows/release.yml), which:
 
 1. Re-runs the typecheck/build gate as a safety net.
 2. Builds and pushes the Docker image to `ghcr.io/heybray-labs/bray-scenarios`, tagged `X.Y.Z`, `X.Y`, `X`, and `latest`.
 3. Creates a GitHub Release for the tag with auto-generated notes from merged PRs/commits since the last release.
+
+### Release notes (migrations and upgrades)
+
+When shipping schema or upgrade changes, add to the GitHub Release description:
+
+- Automatic migrations on container start (no manual `db:migrate` for Docker installs)
+- Link to [UPGRADING.md](UPGRADING.md)
+- For quickstart operators: `./upgrade-backup.sh` before upgrade, re-run quickstart with `BRAY_IMAGE_TAG`, then `./upgrade-verify.sh`
+
+Example operator summary:
+
+> Upgrading from 1.0.x: run `./upgrade-backup.sh`, then re-run quickstart with `BRAY_IMAGE_TAG=<new version>`, then `./upgrade-verify.sh`.
 
 ## Pulling the image
 

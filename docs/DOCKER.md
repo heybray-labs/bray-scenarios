@@ -184,6 +184,8 @@ npm run docker:logs    # follow app logs
 docker compose down -v # also remove pgdata, saml_certs, and media_data volumes
 ```
 
+For in-place upgrades that preserve data, see [UPGRADING.md](UPGRADING.md).
+
 ## Health check
 
 ```bash
