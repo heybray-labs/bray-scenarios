@@ -9,6 +9,7 @@ import roleplayConfigRoutes from "./routes/roleplay-config.ts";
 import userRoutes from "./routes/users.ts";
 import mediaRoutes from "./routes/media.ts";
 import roleplayClassificationsRoutes from "./routes/roleplay-classifications.ts";
+import pointsRoutes from "./routes/points.ts";
 import { requestLogging } from "./middleware/request-logging.ts";
 import { globalRateLimiter } from "./middleware/rate-limit.ts";
 import {
@@ -77,6 +78,7 @@ export function createApp(): express.Application {
   app.use("/api/users", userRoutes);
   app.use("/api/media", mediaRoutes);
   app.use("/api/roleplay-classifications", roleplayClassificationsRoutes);
+  app.use("/api/points", pointsRoutes);
 
   if (process.env.NODE_ENV !== "test") {
     const clientDist = path.resolve(

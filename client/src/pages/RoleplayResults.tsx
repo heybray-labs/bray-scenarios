@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Flag,
   ClipboardList,
+  Star,
 } from "lucide-react";
 import { ClockFading } from "@/components/icons/roleplay-field-icons";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
@@ -175,6 +176,8 @@ export default function RoleplayResults() {
   const score = attempt.score != null ? Math.round(parseFloat(attempt.score)) : null;
   const passed = attempt.isPassed;
   const gradingFailed = attempt.gradingStatus === "failed";
+  const pointsAwarded = Number(data.pointsAwarded ?? 0);
+  const tierName = data.tierName as string | null | undefined;
 
   const userInitials =
     [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
@@ -328,6 +331,16 @@ export default function RoleplayResults() {
             <div className="flex-1 space-y-2 min-w-0">
               {score != null && <Progress value={score} className="h-2" />}
             </div>
+          </div>
+        )}
+
+        {pointsAwarded > 0 && !gradingFailed && (
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 flex items-center gap-2">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
+            <span>
+              <span className="font-semibold">+{pointsAwarded} points earned</span>
+              {tierName ? ` — reached ${tierName}` : ""}
+            </span>
           </div>
         )}
 

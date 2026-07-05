@@ -15,6 +15,20 @@
       "when": 1783252891751,
       "tag": "0001_legacy_schema_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783252891752,
+      "tag": "0002_points_and_leaderboard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783252891753,
+      "tag": "0003_reward_tier_display",
+      "breakpoints": true
     }
   ]
 }

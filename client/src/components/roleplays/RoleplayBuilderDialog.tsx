@@ -36,7 +36,13 @@ import {
   UserRound,
   ListChecks,
   Settings2,
+  Trophy,
 } from "lucide-react";
+import {
+  DEFAULT_REWARD_TIERS as SHARED_DEFAULT_REWARD_TIERS,
+  REWARD_TIER_ICON_OPTIONS,
+  resolveRewardTierDisplay,
+} from "@shared/schemas/points";
 
 interface RoleplayBuilderDialogProps {
   roleplayId: number | null;
@@ -52,6 +58,23 @@ interface CriterionDraft {
   weight: number;
   maxScore: number;
 }
+
+interface RewardTierDraft {
+  id?: number;
+  tierName: string;
+  minScorePercent: number;
+  rewardPoints: number;
+  color: string;
+  icon: string;
+}
+
+const DEFAULT_REWARD_TIERS: RewardTierDraft[] = SHARED_DEFAULT_REWARD_TIERS.map((tier) => ({
+  tierName: tier.tierName,
+  minScorePercent: tier.minScorePercent,
+  rewardPoints: tier.rewardPoints,
+  color: tier.color ?? resolveRewardTierDisplay(tier).color,
+  icon: tier.icon ?? resolveRewardTierDisplay(tier).icon,
+}));
 
 const DEFAULT_CRITERIA: CriterionDraft[] = [
   { name: "Empathy", description: "Acknowledged feelings and built rapport.", weight: 1, maxScore: 100 },
@@ -109,6 +132,7 @@ export default function RoleplayBuilderDialog({
   const [graderModelKey, setGraderModelKey] = useState("");
 
   const [criteria, setCriteria] = useState<CriterionDraft[]>(DEFAULT_CRITERIA);
+  const [rewardTiers, setRewardTiers] = useState<RewardTierDraft[]>(DEFAULT_REWARD_TIERS);
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -224,6 +248,7 @@ export default function RoleplayBuilderDialog({
     setPersonaModelKey("");
     setGraderModelKey("");
     setCriteria(DEFAULT_CRITERIA);
+    setRewardTiers(DEFAULT_REWARD_TIERS);
   }, [open, isEdit]);
 
   useEffect(() => {
@@ -280,6 +305,30 @@ export default function RoleplayBuilderDialog({
         })),
       );
     }
+
+    if (Array.isArray(existing.rewardTiers) && existing.rewardTiers.length) {
+      setRewardTiers(
+        sortRewardTiers(
+          existing.rewardTiers.map((t: any) => {
+            const resolved = resolveRewardTierDisplay({
+              tierName: t.tierName ?? "",
+              color: t.color,
+              icon: t.icon,
+            });
+            return {
+              id: t.id,
+              tierName: t.tierName ?? "",
+              minScorePercent: t.minScorePercent ?? 0,
+              rewardPoints: t.rewardPoints ?? 0,
+              color: resolved.color,
+              icon: resolved.icon,
+            };
+          }),
+        ),
+      );
+    } else {
+      setRewardTiers(DEFAULT_REWARD_TIERS);
+    }
   }, [existing]);
 
   const buildPayload = (nextStatus?: string) => ({
@@ -333,6 +382,15 @@ export default function RoleplayBuilderDialog({
       description: c.description,
       weight: c.weight,
       maxScore: c.maxScore,
+    })),
+    rewardTiers: rewardTiers.map((t, index) => ({
+      id: t.id,
+      tierName: t.tierName,
+      minScorePercent: Number(t.minScorePercent),
+      rewardPoints: Number(t.rewardPoints),
+      orderIndex: index,
+      color: t.color,
+      icon: t.icon,
     })),
     classifications: {
       category: categorySlug || null,
@@ -406,7 +464,7 @@ export default function RoleplayBuilderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden gap-4">
+      <DialogContent className="max-w-3xl h-[60vh] max-h-[60vh] flex flex-col overflow-hidden gap-4">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Drama className="h-5 w-5" />
@@ -415,12 +473,12 @@ export default function RoleplayBuilderDialog({
         </DialogHeader>
 
         {isEdit && isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex flex-1 items-center justify-center min-h-0">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <Tabs defaultValue="scenario" className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-4 w-full shrink-0">
+            <TabsList className="grid grid-cols-5 w-full shrink-0">
               <TabsTrigger value="scenario" className="gap-1.5">
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate">Scenario</span>
@@ -432,6 +490,10 @@ export default function RoleplayBuilderDialog({
               <TabsTrigger value="rubric" className="gap-1.5">
                 <ListChecks className="h-4 w-4 shrink-0" />
                 <span className="truncate">Rubric</span>
+              </TabsTrigger>
+              <TabsTrigger value="rewards" className="gap-1.5">
+                <Trophy className="h-4 w-4 shrink-0" />
+                <span className="truncate">Rewards</span>
               </TabsTrigger>
               <TabsTrigger value="settings" className="gap-1.5">
                 <Settings2 className="h-4 w-4 shrink-0" />
@@ -685,6 +747,138 @@ export default function RoleplayBuilderDialog({
                 </Button>
               </TabsContent>
 
+              {/* Rewards */}
+              <TabsContent value="rewards" className="space-y-2 mt-0">
+                <p className="text-xs text-muted-foreground">
+                  Score thresholds and point rewards. Retakes only award the incremental
+                  difference vs. a previous best tier.
+                </p>
+                <div className="rounded-md border overflow-hidden text-sm">
+                  <div className="grid grid-cols-[2rem_5.5rem_minmax(0,1fr)_3.75rem_3.75rem_2rem] gap-x-2 items-center px-2 py-1.5 bg-muted/40 border-b text-[11px] font-medium text-muted-foreground">
+                    <span aria-hidden />
+                    <span>Icon</span>
+                    <span>Name</span>
+                    <span>Min %</span>
+                    <span>Pts</span>
+                    <span aria-hidden />
+                  </div>
+                  {rewardTiers.map((tier, idx) => {
+                    const TierIcon = resolveLucideIcon(tier.icon);
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-[2rem_5.5rem_minmax(0,1fr)_3.75rem_3.75rem_2rem] gap-x-2 items-center px-2 py-1.5 border-b last:border-b-0"
+                      >
+                        <Input
+                          type="color"
+                          value={tier.color}
+                          onChange={(e) =>
+                            updateRewardTier(setRewardTiers, idx, { color: e.target.value })
+                          }
+                          className="h-7 w-7 p-0.5 cursor-pointer border-0 shadow-none"
+                          title="Tier color"
+                        />
+                        <Select
+                          value={tier.icon}
+                          onValueChange={(value) => updateRewardTier(setRewardTiers, idx, { icon: value })}
+                        >
+                          <SelectTrigger className="h-8 px-2" title={tier.icon}>
+                            <SelectValue>
+                              <span className="flex items-center gap-1.5">
+                                <TierIcon
+                                  className="h-3.5 w-3.5 shrink-0"
+                                  style={{ color: tier.color }}
+                                />
+                                <span className="truncate capitalize text-xs">{tier.icon}</span>
+                              </span>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="max-h-52">
+                            {REWARD_TIER_ICON_OPTIONS.map((iconName) => {
+                              const ItemIcon = resolveLucideIcon(iconName);
+                              return (
+                                <SelectItem key={iconName} value={iconName}>
+                                  <span className="flex items-center gap-2">
+                                    <ItemIcon className="h-4 w-4" />
+                                    <span className="capitalize">{iconName}</span>
+                                  </span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={tier.tierName}
+                          onChange={(e) => {
+                            const tierName = e.target.value;
+                            const preset = resolveRewardTierDisplay({ tierName });
+                            updateRewardTier(setRewardTiers, idx, {
+                              tierName,
+                              color: preset.color,
+                              icon: preset.icon,
+                            });
+                          }}
+                          placeholder="Gold"
+                          className="h-8"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={tier.minScorePercent}
+                          onChange={(e) =>
+                            updateRewardTier(setRewardTiers, idx, {
+                              minScorePercent: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-8 px-2"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          value={tier.rewardPoints}
+                          onChange={(e) =>
+                            updateRewardTier(setRewardTiers, idx, {
+                              rewardPoints: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-8 px-2"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removeAt(setRewardTiers, idx)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() =>
+                    setRewardTiers((prev) =>
+                      sortRewardTiers([
+                        ...prev,
+                        {
+                          tierName: "",
+                          minScorePercent: 0,
+                          rewardPoints: 0,
+                          color: resolveRewardTierDisplay({ tierName: "" }).color,
+                          icon: resolveRewardTierDisplay({ tierName: "" }).icon,
+                        },
+                      ]),
+                    )
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add tier
+                </Button>
+              </TabsContent>
+
               {/* Settings */}
               <TabsContent value="settings" className="space-y-4 mt-0">
                 <div className="grid grid-cols-2 gap-4">
@@ -800,6 +994,21 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
+}
+
+function sortRewardTiers(tiers: RewardTierDraft[]): RewardTierDraft[] {
+  return [...tiers].sort((a, b) => a.minScorePercent - b.minScorePercent);
+}
+
+function updateRewardTier(
+  setter: React.Dispatch<React.SetStateAction<RewardTierDraft[]>>,
+  idx: number,
+  patch: Partial<RewardTierDraft>,
+) {
+  setter((prev) => {
+    const next = prev.map((item, i) => (i === idx ? { ...item, ...patch } : item));
+    return patch.minScorePercent !== undefined ? sortRewardTiers(next) : next;
+  });
 }
 
 function updateCriterion<T>(

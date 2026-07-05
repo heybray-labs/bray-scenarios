@@ -163,6 +163,9 @@ export default function RoleplayTaking() {
         queryKey: [`/api/roleplays/${roleplayId}/my-attempts`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/me/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/leaderboard"] });
       navigate(`/roleplays/${roleplayId}/results/${attemptId}`);
     } catch (err) {
       toast({

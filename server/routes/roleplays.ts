@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import { roleplaySystemController } from "../controllers/roleplay-system.controller.ts";
+import { pointsController } from "../controllers/points.controller.ts";
 import { roleplayConfigService } from "../services/roleplay-config.service.ts";
 import { RoleplayNotConfiguredError, describeRoleplayModelError } from "../roleplay/model-factory.ts";
 import {
@@ -20,6 +21,19 @@ const bulkRoleplayPayloadSchema = z.object({
   settings: z.object({}).passthrough().optional(),
   persona: z.object({}).passthrough().optional(),
   criteria: z.array(z.object({}).passthrough()).optional(),
+  rewardTiers: z
+    .array(
+      z.object({
+        id: z.number().optional(),
+        tierName: z.string(),
+        minScorePercent: z.number(),
+        rewardPoints: z.number(),
+        orderIndex: z.number().optional(),
+        color: z.string().nullable().optional(),
+        icon: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
   classifications: z
     .object({
       category: z.string().nullable().optional(),
@@ -353,6 +367,17 @@ router.get("/:id/stats", async (req: AuthRequest, res: Response) => {
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: "Failed to get stats" });
+  }
+});
+
+router.get("/:id/my-progress", async (req: AuthRequest, res: Response) => {
+  try {
+    const roleplayId = parseInt(req.params.id);
+    if (!(await getRoleplayForUser(req, res, roleplayId))) return;
+    const progress = await pointsController.getScenarioProgress(req.user!.id, roleplayId);
+    res.json(progress);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get progress" });
   }
 });
 

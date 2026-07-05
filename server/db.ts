@@ -23,6 +23,12 @@ import {
   roleplayAllowedGraderModels,
 } from "../shared/schemas/agent/roleplay-app-config.ts";
 import { mediaAssets } from "../shared/schemas/media-assets.ts";
+import {
+  scenarioRewardTiers,
+  userScenarioTierRewards,
+  pointTransactions,
+} from "../shared/schemas/points.ts";
+import { resolveDatabaseUrl } from "./init-db/resolve-database-url.ts";
 
 const schema = {
   users,
@@ -42,12 +48,15 @@ const schema = {
   roleplayProviderKeys,
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
+  scenarioRewardTiers,
+  userScenarioTierRewards,
+  pointTransactions,
 };
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set");
 }
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new pg.Pool({ connectionString: resolveDatabaseUrl(process.env.DATABASE_URL) });
 export const db = drizzle(pool, { schema });
 export { pool };

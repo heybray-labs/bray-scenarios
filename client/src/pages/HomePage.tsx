@@ -50,6 +50,8 @@ import { ClassificationChip } from "@/components/classifications/ClassificationC
 import { ClassificationMultiSelect } from "@/components/classifications/ClassificationMultiSelect";
 import { FilterMultiSelect } from "@/components/classifications/FilterMultiSelect";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { LeaderboardPanel } from "@/components/points/LeaderboardPanel";
+import { Star } from "lucide-react";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -150,6 +152,18 @@ export default function HomePage() {
 
   const dimensionOptions = (slug: string) =>
     taxonomy?.dimensions.find((d) => d.slug === slug)?.options ?? [];
+
+  const categoryOptions = dimensionOptions("category").map((option) => ({
+    slug: option.slug,
+    label: option.label,
+    icon: option.icon,
+    color: option.color,
+  }));
+
+  const maxRewardPoints = (rewardTiers: Array<{ rewardPoints?: number }> | undefined) => {
+    if (!rewardTiers?.length) return null;
+    return Math.max(...rewardTiers.map((tier) => tier.rewardPoints ?? 0));
+  };
 
   const clearFilters = () => {
     setSearchInput("");
@@ -317,61 +331,17 @@ export default function HomePage() {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold">Roleplay Scenarios</h1>
-            <p className="text-muted-foreground">Practice conversations with AI personas</p>
-          </div>
-          {canManage && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Roleplay
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setImportOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import scenarios…
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!selectedIds.size || exporting}
-                  onClick={() => void handleExport([...selectedIds])}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export selected
-                  {selectedIds.size ? ` (${selectedIds.size})` : ""}
-                </DropdownMenuItem>
-                {roleplays.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={selectAll}>
-                      <CheckSquare className="h-4 w-4 mr-2" />
-                      Select all
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={!selectedIds.size}
-                      onClick={clearSelection}
-                    >
-                      <Square className="h-4 w-4 mr-2" />
-                      Clear selection
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+      <div className="w-full px-4 lg:px-6 py-6 flex flex-col min-h-[calc(100vh-3.5rem)]">
+        <div className="mb-8 shrink-0">
+          <h1 className="text-2xl font-semibold">Roleplay Scenarios</h1>
+          <p className="text-muted-foreground">Practice conversations with AI personas</p>
         </div>
 
+        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+          <div className="min-w-0 flex-1 lg:w-[70%] overflow-auto">
         <div className="mb-6 space-y-2">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1 max-w-sm">
+            <div className="relative min-w-0 flex-1 max-w-md">
               <Search
                 className={`absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground ${
                   isFetching && listData ? "opacity-50" : ""
@@ -454,9 +424,55 @@ export default function HomePage() {
             </div>
           </div>
           {!isLoading && (
-            <p className="text-sm text-muted-foreground">
-              {total === 0 ? "No scenarios match your filters" : `${total} scenario${total === 1 ? "" : "s"}`}
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                {total === 0 ? "No scenarios match your filters" : `${total} scenario${total === 1 ? "" : "s"}`}
+              </p>
+              {canManage && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Roleplay
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import scenarios…
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!selectedIds.size || exporting}
+                      onClick={() => void handleExport([...selectedIds])}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export selected
+                      {selectedIds.size ? ` (${selectedIds.size})` : ""}
+                    </DropdownMenuItem>
+                    {roleplays.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={selectAll}>
+                          <CheckSquare className="h-4 w-4 mr-2" />
+                          Select all
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={!selectedIds.size}
+                          onClick={clearSelection}
+                        >
+                          <Square className="h-4 w-4 mr-2" />
+                          Clear selection
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           )}
         </div>
 
@@ -617,6 +633,12 @@ export default function HomePage() {
                         )}
                       </div>
                     )}
+                    {maxRewardPoints(rp.rewardTiers) != null && (
+                      <p className="text-xs text-amber-700 font-medium mb-3 flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                        Up to {maxRewardPoints(rp.rewardTiers)} pts
+                      </p>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -658,6 +680,12 @@ export default function HomePage() {
             )}
           </>
         )}
+          </div>
+
+          <aside className="w-full lg:w-[30%] shrink-0 flex flex-col min-h-[20rem] lg:min-h-0">
+            <LeaderboardPanel categoryOptions={categoryOptions} className="flex-1" />
+          </aside>
+        </div>
       </div>
 
       {canManage && (

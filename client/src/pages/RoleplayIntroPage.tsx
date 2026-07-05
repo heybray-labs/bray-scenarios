@@ -3,10 +3,8 @@ import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
 import { NotFoundScreen } from "@/components/errors";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -15,27 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  PlayCircle,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Target,
-  User,
-  Route,
-  AlertTriangle,
-  ArrowLeft,
-  Copy,
-} from "lucide-react";
-import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
-import { ScenarioMetadata } from "@/components/roleplays/ScenarioMetadata";
-import { ClockFading } from "@/components/icons/roleplay-field-icons";
+import { ArrowLeft } from "lucide-react";
+import { ScenarioDetailHeader } from "@/components/roleplays/scenario-detail/ScenarioDetailHeader";
+import { ScenarioNarrative } from "@/components/roleplays/scenario-detail/ScenarioNarrative";
+import { ScenarioRubricPreview } from "@/components/roleplays/scenario-detail/ScenarioRubricPreview";
+import { ScenarioDetailRail } from "@/components/roleplays/scenario-detail/ScenarioDetailRail";
+import type { ScenarioAttempt } from "@/components/roleplays/scenario-detail/ScenarioAttemptsList";
+import type { ScenarioProgressData } from "@/components/roleplays/scenario-detail/ScenarioProgressPanel";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -69,9 +53,21 @@ export default function RoleplayIntroPage() {
     enabled: !!roleplayId,
   });
 
+  const { data: progress, isLoading: progressLoading } = useQuery<ScenarioProgressData>({
+    queryKey: [`/api/roleplays/${roleplayId}/my-progress`],
+    enabled: !!roleplayId,
+  });
+
   const settings = roleplay?.settings ?? {};
   const persona = roleplay?.persona ?? {};
   const completedAttempts = myAttempts.filter((a) => a.status === "completed");
+  const bestAttempt = completedAttempts.length
+    ? completedAttempts.reduce((best, a) => {
+        const score = parseFloat(a.score || "0");
+        const bestScore = parseFloat(best.score || "0");
+        return score > bestScore ? a : best;
+      })
+    : null;
   const maxAttempts = settings.maxAttempts;
   const hasUnlimited = !maxAttempts || maxAttempts <= 0;
   const remaining = hasUnlimited ? null : Math.max(0, maxAttempts - myAttempts.length);
@@ -85,9 +81,25 @@ export default function RoleplayIntroPage() {
       ? settings.timeLimitMinutes
       : null;
   const liveCoaching = !!settings.liveCoaching;
-  const bestScore = completedAttempts.length
-    ? Math.max(...completedAttempts.map((a) => parseFloat(a.score) || 0))
-    : null;
+  const bestScore = progress?.bestScore ?? null;
+  const rewardTiers = roleplay?.rewardTiers ?? [];
+
+  const sortedAttempts: ScenarioAttempt[] = [...myAttempts]
+    .sort((a, b) => (b.attemptNumber ?? 0) - (a.attemptNumber ?? 0))
+    .map((a) => ({
+      id: a.id,
+      attemptNumber: a.attemptNumber,
+      status: a.status,
+      score: a.score,
+    }));
+
+  const handleAttemptClick = (attempt: ScenarioAttempt) => {
+    if (attempt.status === "completed") {
+      navigate(`/roleplays/${roleplayId}/results/${attempt.id}`);
+    } else if (attempt.status === "in_progress") {
+      navigate(`/roleplays/${roleplayId}/take`);
+    }
+  };
 
   const publishMutation = useMutation({
     mutationFn: async (publish: boolean) =>
@@ -135,7 +147,11 @@ export default function RoleplayIntroPage() {
 
   const startMutation = useMutation({
     mutationFn: async () => apiRequest("POST", `/api/roleplays/${roleplayId}/attempts`),
-    onSuccess: () => navigate(`/roleplays/${roleplayId}/take`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}/my-progress`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}/my-attempts`] });
+      navigate(`/roleplays/${roleplayId}/take`);
+    },
     onError: (err: Error) =>
       toast({ title: "Could not start", description: err.message, variant: "destructive" }),
   });
@@ -143,9 +159,18 @@ export default function RoleplayIntroPage() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="p-6 space-y-6 max-w-6xl mx-auto">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
+        <div className="w-full px-4 lg:px-6 py-6 space-y-6">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-10 w-2/3 max-w-md" />
+          <Skeleton className="h-6 w-full max-w-xl" />
+          <Skeleton className="h-8 w-full max-w-lg" />
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex-1 space-y-6">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+            <Skeleton className="h-96 w-full lg:w-[30%] shrink-0" />
+          </div>
         </div>
       </MainLayout>
     );
@@ -169,186 +194,82 @@ export default function RoleplayIntroPage() {
   const notConfigured = configNotReady || !hasRoleplayModels;
   const canStart = isPublished && !isOutOfAttempts && !notConfigured;
 
+  const maxAttemptsDisplay =
+    maxAttempts && maxAttempts > 0 ? maxAttempts : null;
+
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto p-6">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+      <div className="w-full px-4 lg:px-6 py-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft className="h-4 w-4" /> Back to scenarios
         </Link>
 
-        <div className="mb-6 overflow-hidden rounded-xl border">
-          <ScenarioCover mediaId={roleplay.coverImageMediaId} />
-        </div>
+        <ScenarioDetailHeader
+          title={roleplay.title}
+          description={roleplay.description}
+          difficulty={persona.difficulty}
+          classifications={roleplay.classifications}
+          canManage={canManage}
+          isPublished={isPublished}
+          publishPending={publishMutation.isPending}
+          duplicating={duplicating}
+          onPublishChange={(c) => publishMutation.mutate(c)}
+          onEdit={() => setEditId(roleplayId)}
+          onDuplicate={() => void handleDuplicate()}
+          onDelete={() => deleteMutation.mutate()}
+        />
 
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold">{roleplay.title}</h1>
-            {roleplay.description && (
-              <p className="text-muted-foreground text-sm mt-1">{roleplay.description}</p>
-            )}
-          </div>
-          {canManage && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 flex items-center gap-2">
-                  <Switch
-                    checked={isPublished}
-                    onCheckedChange={(c) => publishMutation.mutate(c)}
-                    disabled={publishMutation.isPending}
-                  />
-                  <span className="text-sm">Published</span>
-                </div>
-                <DropdownMenuItem onClick={() => setEditId(roleplayId)}>
-                  <Pencil className="h-4 w-4 mr-2" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={duplicating} onClick={() => void handleDuplicate()}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  {duplicating ? "Duplicating…" : "Duplicate"}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate()}>
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 space-y-4 min-w-0">
-            {roleplay.situationContext && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Route className="h-4 w-4" /> Context
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roleplay.situationContext}</p>
-                </CardContent>
-              </Card>
-            )}
-            {roleplay.introduction && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ClockFading className="h-4 w-4" /> Current Situation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roleplay.introduction}</p>
-                </CardContent>
-              </Card>
-            )}
-            {roleplay.learnerObjective && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Target className="h-4 w-4" /> Your Objective
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roleplay.learnerObjective}</p>
-                </CardContent>
-              </Card>
-            )}
-            {(persona.name || persona.roleTitle) && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <User className="h-4 w-4" /> Who you&apos;ll talk to
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {persona.name && <p className="font-medium text-foreground">{persona.name}</p>}
-                  {persona.roleTitle && <p>{persona.roleTitle}</p>}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <aside className="w-full lg:w-72 shrink-0 space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Ready to start?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  <li>Pass threshold: {settings.passThreshold ?? 70}%</li>
-                  {maxTurns != null && (
-                    <li>
-                      Max turns: {maxTurns}
-                      {settings.autoEndOnMaxTurns ? " (auto-submits)" : ""}
-                    </li>
-                  )}
-                  {timeLimitMinutes != null && (
-                    <li>
-                      Time limit: {timeLimitMinutes}{" "}
-                      {timeLimitMinutes === 1 ? "minute" : "minutes"}
-                    </li>
-                  )}
-                  <li>Coaching: {liveCoaching ? "On" : "Off"}</li>
-                </ul>
-                {notConfigured && (
-                  <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {configNotReady
-                      ? "AI not configured. Ask an admin to set up API keys and model allowlists."
-                      : "This roleplay is missing AI models. An admin must edit it and select persona and grader models."}
-                  </div>
-                )}
-                <Button
-                  className="w-full"
-                  onClick={() => startMutation.mutate()}
-                  disabled={!canStart || startMutation.isPending}
-                >
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                  {startMutation.isPending ? "Starting…" : "Start Roleplay"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <ScenarioMetadata
-              difficulty={persona.difficulty}
-              classifications={roleplay.classifications}
+        <div className="flex flex-col-reverse lg:flex-row gap-6">
+          <div className="min-w-0 flex-1 lg:w-[70%]">
+            <ScenarioNarrative
+              learnerRole={roleplay.learnerRole}
+              situationContext={roleplay.situationContext}
+              introduction={roleplay.introduction}
+              learnerObjective={roleplay.learnerObjective}
+              personaName={persona.name}
+              personaRoleTitle={persona.roleTitle}
             />
+            <ScenarioRubricPreview criteria={roleplay.criteria ?? []} className="mt-8" />
+          </div>
 
-            {completedAttempts.length > 0 && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Your attempts</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1">
-                  {completedAttempts.map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => navigate(`/roleplays/${roleplayId}/results/${a.id}`)}
-                      className="w-full text-left p-2 rounded-md text-sm hover:bg-muted"
-                    >
-                      Attempt {a.attemptNumber} — {Math.round(parseFloat(a.score || "0"))}%
-                    </button>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {canManage && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Admin</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link href={`/roleplays/${roleplayId}/attempts`}>View all attempts</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </aside>
+          <ScenarioDetailRail
+            roleplayId={roleplayId!}
+            coverImageMediaId={roleplay.coverImageMediaId}
+            coverStatus={
+              bestAttempt
+                ? {
+                    score: parseFloat(bestAttempt.score || "0"),
+                    isPassed: bestAttempt.isPassed ?? null,
+                  }
+                : null
+            }
+            onCoverStatusClick={
+              bestAttempt
+                ? () => navigate(`/roleplays/${roleplayId}/results/${bestAttempt.id}`)
+                : undefined
+            }
+            progress={progress}
+            progressLoading={progressLoading}
+            rewardTiers={rewardTiers}
+            bestScore={bestScore}
+            attempts={sortedAttempts}
+            onAttemptClick={handleAttemptClick}
+            passThreshold={settings.passThreshold ?? 70}
+            maxTurns={maxTurns}
+            autoEndOnMaxTurns={settings.autoEndOnMaxTurns}
+            timeLimitMinutes={timeLimitMinutes}
+            liveCoaching={liveCoaching}
+            maxAttempts={maxAttemptsDisplay}
+            notConfigured={notConfigured}
+            configNotReady={!!configNotReady}
+            canStart={canStart}
+            startPending={startMutation.isPending}
+            onStart={() => startMutation.mutate()}
+            canManage={canManage}
+          />
         </div>
       </div>
 
@@ -371,7 +292,7 @@ export default function RoleplayIntroPage() {
           <DialogHeader>
             <DialogTitle>Scenario duplicated</DialogTitle>
             <DialogDescription>
-              "{duplicateResult?.title}" was created as a draft.
+              &quot;{duplicateResult?.title}&quot; was created as a draft.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -64,6 +64,12 @@ import type {
 import {
   IMPORT_PROMPT_DIMENSIONS,
 } from "../../shared/schemas/roleplay-classifications.ts";
+import {
+  scenarioRewardTiers,
+} from "../../shared/schemas/points.ts";
+import type { RewardTierInput } from "../../shared/schemas/points.ts";
+import { resolveRewardTierDisplay } from "../../shared/schemas/points.ts";
+import { pointsController } from "./points.controller.ts";
 
 const log = createLogger("roleplay");
 
@@ -91,6 +97,7 @@ export interface BulkRoleplayPayload {
   settings?: Record<string, unknown>;
   persona?: Record<string, unknown>;
   criteria?: Array<Record<string, unknown>>;
+  rewardTiers?: RewardTierInput[];
   classifications?: RoleplayClassificationInput;
 }
 
@@ -211,7 +218,10 @@ export class RoleplaySystemController {
       .offset(offset);
 
     const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
-    const classificationMap = await classificationService.getClassificationsForRoleplays(roleplayIds);
+    const [classificationMap, rewardTierMap] = await Promise.all([
+      classificationService.getClassificationsForRoleplays(roleplayIds),
+      pointsController.getRewardTiersForRoleplays(roleplayIds),
+    ]);
 
     const items = rows.map(({ roleplay, difficulty }) =>
       withCoverImageUrl({
@@ -223,6 +233,7 @@ export class RoleplaySystemController {
           duration: null,
           tags: [],
         },
+        rewardTiers: rewardTierMap.get(roleplay.id) ?? [],
       }),
     );
 
@@ -257,8 +268,9 @@ export class RoleplaySystemController {
       .from(roleplayCriteria)
       .where(eq(roleplayCriteria.roleplayId, roleplayId))
       .orderBy(roleplayCriteria.orderIndex);
+    const rewardTiers = await pointsController.getRewardTiersForRoleplay(roleplayId);
     const classifications = await classificationService.getClassificationsForRoleplay(roleplayId);
-    return { ...withCoverImageUrl(roleplay), settings, persona, criteria, classifications };
+    return { ...withCoverImageUrl(roleplay), settings, persona, criteria, rewardTiers, classifications };
   }
 
   async bulkSaveRoleplay(
@@ -395,6 +407,46 @@ export class RoleplaySystemController {
         }
       }
 
+      // Reward tiers (reconcile: upsert provided, delete missing)
+      if (payload.rewardTiers) {
+        const existingTiers = await tx
+          .select()
+          .from(scenarioRewardTiers)
+          .where(eq(scenarioRewardTiers.roleplayId, rid));
+        const keptTierIds: number[] = [];
+        let tierOrderIndex = 0;
+        for (const tier of payload.rewardTiers) {
+          const display = resolveRewardTierDisplay(tier);
+          const data = {
+            roleplayId: rid,
+            tierName: tier.tierName,
+            minScorePercent: tier.minScorePercent,
+            rewardPoints: tier.rewardPoints,
+            orderIndex: tier.orderIndex ?? tierOrderIndex++,
+            color: tier.color ?? display.color,
+            icon: tier.icon ?? display.icon,
+          };
+          if (tier.id) {
+            await tx
+              .update(scenarioRewardTiers)
+              .set(data)
+              .where(eq(scenarioRewardTiers.id, tier.id));
+            keptTierIds.push(tier.id);
+          } else {
+            const [ins] = await tx.insert(scenarioRewardTiers).values(data).returning();
+            keptTierIds.push(ins.id);
+          }
+        }
+        const tiersToDelete = existingTiers
+          .filter((e) => !keptTierIds.includes(e.id))
+          .map((e) => e.id);
+        if (tiersToDelete.length) {
+          await tx
+            .delete(scenarioRewardTiers)
+            .where(inArray(scenarioRewardTiers.id, tiersToDelete));
+        }
+      }
+
       if (payload.classifications) {
         await classificationService.setRoleplayClassifications(rid, payload.classifications, tx);
       }
@@ -425,12 +477,14 @@ export class RoleplaySystemController {
       settings,
       persona,
       criteria,
+      rewardTiers,
       classifications,
       ...roleplayFields
     } = full as Record<string, unknown> & {
       settings?: Record<string, unknown> | null;
       persona?: Record<string, unknown> | null;
       criteria?: Array<Record<string, unknown>>;
+      rewardTiers?: Array<Record<string, unknown>>;
       classifications?: RoleplayClassifications;
     };
 
@@ -455,6 +509,14 @@ export class RoleplaySystemController {
       settings: stripRelationIds(settings ?? undefined),
       persona: stripRelationIds(persona ?? undefined),
       criteria: (criteria ?? []).map((c) => stripRelationIds(c)!),
+      rewardTiers: (rewardTiers ?? []).map((t) => ({
+        tierName: String(t.tierName ?? ""),
+        minScorePercent: Number(t.minScorePercent ?? 0),
+        rewardPoints: Number(t.rewardPoints ?? 0),
+        orderIndex: Number(t.orderIndex ?? 0),
+        color: t.color != null ? String(t.color) : undefined,
+        icon: t.icon != null ? String(t.icon) : undefined,
+      })),
       classifications: classifications
         ? {
             category: classifications.category?.slug ?? null,
@@ -902,6 +964,7 @@ export class RoleplaySystemController {
         settings,
         persona: prepared.persona as Record<string, unknown> | undefined,
         criteria: prepared.criteria as Array<Record<string, unknown>> | undefined,
+        rewardTiers: prepared.rewardTiers,
         classifications: resolvedClassifications,
       };
 
@@ -1460,7 +1523,32 @@ export class RoleplaySystemController {
       durationMs: Date.now() - gradeStart,
     });
 
-    return this.getResults(attemptId, userId);
+    let pointsAward: Awaited<ReturnType<typeof pointsController.awardPointsForAttempt>> = null;
+    if (gradingStatus === "auto_graded") {
+      const [updatedAttempt] = await db
+        .select()
+        .from(roleplayAttempts)
+        .where(eq(roleplayAttempts.id, attemptId))
+        .limit(1);
+      if (updatedAttempt) {
+        pointsAward = await pointsController.awardPointsForAttempt(
+          updatedAttempt,
+          roleplay?.title ?? "Roleplay",
+          userId,
+          overallScore,
+        );
+      }
+    }
+
+    const results = await this.getResults(attemptId, userId);
+    if (!results) return null;
+
+    return {
+      ...results,
+      pointsAwarded: pointsAward?.pointsAwarded ?? 0,
+      tierName: pointsAward?.tierName ?? null,
+      totalPoints: pointsAward?.totalPoints ?? null,
+    };
   }
 
   async getResults(attemptId: number, userId: number) {
@@ -1495,7 +1583,15 @@ export class RoleplaySystemController {
 
     const messages = await this.getAttemptMessages(attemptId);
 
-    return { attempt, criterionScores, messages };
+    const pointsForAttempt = await pointsController.getPointsForAttempt(attemptId);
+
+    return {
+      attempt,
+      criterionScores,
+      messages,
+      pointsAwarded: pointsForAttempt?.amount ?? 0,
+      tierName: pointsForAttempt?.tierName ?? null,
+    };
   }
 
   // ===================== Admin / grading =====================
