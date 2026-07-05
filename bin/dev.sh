@@ -13,6 +13,9 @@ set -a
 source .env
 set +a
 
+export VITE_API_PORT="${VITE_API_PORT:-${PORT:-3001}}"
+export VITE_PORT="${VITE_PORT:-5173}"
+
 npm install
 npm run db:init
 npm run dev

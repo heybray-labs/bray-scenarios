@@ -14,8 +14,9 @@
     "db:push": "npm run db:push --workspace=server",
     "db:init": "npm run db:init --workspace=server",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down",
+    "docker:up": "./bin/compose-env.sh -- docker compose up --build",
+    "docker:down": "./bin/compose-env.sh -- docker compose down",
+    "docker:logs": "./bin/compose-env.sh -- docker compose logs -f app",
     "quickstart": "./bin/quickstart.sh",
     "quickstart:interactive": "./bin/quickstart.sh --interactive"
   },

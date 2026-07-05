@@ -29,7 +29,7 @@ Or, for a guided setup (port, auth mode, OIDC settings), run interactively in a 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash -s -- --interactive
 ```
-See [docs/DOCKER.md](docs/DOCKER.md) for stop, logs, reset, and SSO setup.
+See [docs/DOCKER.md](docs/DOCKER.md) for stop, logs, reset, SSO setup, and [running multiple instances](docs/DOCKER.md#running-multiple-instances) on one host.
 
 ### Option 2: 💻 Clone from GitHub and run locally (use this if you don't have docker) 
 
@@ -70,7 +70,7 @@ docker compose up --build
 # open http://localhost:3001
 ```
 
-See [docs/DOCKER.md](docs/DOCKER.md) for SSO, volumes, and troubleshooting.
+See [docs/DOCKER.md](docs/DOCKER.md) for SSO, volumes, troubleshooting, and running multiple instances on one host.
 
 Versioned images are published to `ghcr.io/heybray-labs/bray-scenarios` on each tagged release — see [docs/RELEASING.md](docs/RELEASING.md).
 

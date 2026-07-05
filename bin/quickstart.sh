@@ -3,7 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="heybray-labs/bray-scenarios"
-INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
+COMPOSE_ENV="${SCRIPT_DIR}/compose-env.sh"
+BASE_INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
 COMPOSE_FILE="docker-compose.quickstart.yml"
 LOCAL_COMPOSE="${SCRIPT_DIR}/../docker/${COMPOSE_FILE}"
 LOCAL_ENV_EXAMPLE="${SCRIPT_DIR}/../.env.docker.example"
@@ -37,6 +38,27 @@ die() {
   echo "error: $*" >&2
   exit 1
 }
+
+validate_instance_prefix() {
+  local prefix="$1"
+  if [ -z "$prefix" ]; then
+    return 0
+  fi
+  if ! [[ "$prefix" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
+    die "APP_INSTANCE_PREFIX must be 1-32 lowercase alphanumeric/hyphen chars, starting with a letter or digit (got: ${prefix})"
+  fi
+}
+
+resolve_install_dir() {
+  validate_instance_prefix "${APP_INSTANCE_PREFIX:-}"
+  if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+    INSTALL_DIR="${BASE_INSTALL_DIR}/${APP_INSTANCE_PREFIX}"
+  else
+    INSTALL_DIR="${BASE_INSTALL_DIR}"
+  fi
+}
+
+resolve_install_dir
 
 usage() {
   cat <<EOF
@@ -251,6 +273,9 @@ setup_env_noninteractive() {
   set_env_value "JWT_SECRET" "$JWT_SECRET" .env
   set_env_value "PORT" "$port" .env
   set_env_value "APP_URL" "http://localhost:${port}" .env
+  if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+    set_env_value "APP_INSTANCE_PREFIX" "$APP_INSTANCE_PREFIX" .env
+  fi
   echo "Created ${INSTALL_DIR}/.env with a generated JWT_SECRET."
 }
 
@@ -280,6 +305,9 @@ run_interactive_wizard() {
   set_env_value "APP_URL" "$app_url" .env
   set_env_value "LOG_LEVEL" "$log_level" .env
   set_env_value "AUTH_PROTOCOL" "$auth_mode" .env
+  if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+    set_env_value "APP_INSTANCE_PREFIX" "$APP_INSTANCE_PREFIX" .env
+  fi
 
   case "$auth_mode" in
     local)
@@ -333,7 +361,7 @@ print_saml_checklist() {
   echo "  2. Set APP_URL in ${INSTALL_DIR}/.env to your HTTPS tunnel URL"
   echo "  3. Register ACS URL and Entity ID in Google Admin (see docs)"
   echo "  4. Paste base64-encoded IdP metadata into SAML_IDP_METADATA in .env"
-  echo "  5. Restart: cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} up -d"
+  echo "  5. Restart: cd ${INSTALL_DIR} && ${COMPOSE_ENV} --env-file .env -- docker compose -f ${COMPOSE_FILE} up -d"
   echo "  Docs: https://github.com/${REPO}/blob/main/docs/AUTHENTICATION.md"
 }
 
@@ -352,16 +380,19 @@ print_completion() {
   echo ""
   echo "--------------------------------------------------------------------------------------------"
   echo "🚀 Bray Scenarios has started."
+  if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+    echo "   Prefix:  ${APP_INSTANCE_PREFIX}"
+  fi
   echo "   URL:     http://localhost:${PORT}"
   echo "   Install: ${INSTALL_DIR}"
   echo "   Config:  ${INSTALL_DIR}/.env (edit to change settings)"
   echo "   Health:  curl http://localhost:${PORT}/api/health"
   echo ""
   echo "🐳 Docker commands:"
-  echo "   Logs:    cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} logs -f app"
-  echo "   Stop:    cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down"
-  echo "   Reset:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} down -v"
-  echo "   Start:   cd ${INSTALL_DIR} && docker compose -f ${COMPOSE_FILE} up -d"
+  echo "   Logs:    cd ${INSTALL_DIR} && ${COMPOSE_ENV} --env-file .env -- docker compose -f ${COMPOSE_FILE} logs -f app"
+  echo "   Stop:    cd ${INSTALL_DIR} && ${COMPOSE_ENV} --env-file .env -- docker compose -f ${COMPOSE_FILE} down"
+  echo "   Reset:   cd ${INSTALL_DIR} && ${COMPOSE_ENV} --env-file .env -- docker compose -f ${COMPOSE_FILE} down -v"
+  echo "   Start:   cd ${INSTALL_DIR} && ${COMPOSE_ENV} --env-file .env -- docker compose -f ${COMPOSE_FILE} up -d"
   echo ""
 
   case "$auth_protocol" in
@@ -414,11 +445,14 @@ fi
 
 PORT="$(read_env_value "PORT" .env)"
 [ -z "$PORT" ] && PORT="3001"
+if [ -z "${APP_INSTANCE_PREFIX:-}" ]; then
+  APP_INSTANCE_PREFIX="$(read_env_value "APP_INSTANCE_PREFIX" .env)"
+fi
 BRAY_IMAGE_TAG="${BRAY_IMAGE_TAG:-latest}"
 export BRAY_IMAGE_TAG PORT
 
 compose() {
-  docker compose -f "$COMPOSE_FILE" "$@"
+  "$COMPOSE_ENV" --env-file .env -- docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 echo "🔄 Pulling images (tag: ${BRAY_IMAGE_TAG:-latest})..."
