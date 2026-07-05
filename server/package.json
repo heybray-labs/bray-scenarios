@@ -8,6 +8,8 @@
     "start:docker": "tsx index.ts",
     "typecheck": "tsc -p tsconfig.json",
     "db:push": "drizzle-kit push --config=drizzle.config.ts --force",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:init": "tsx --env-file=../.env init-db/init-db.ts"
   },
   "dependencies": {

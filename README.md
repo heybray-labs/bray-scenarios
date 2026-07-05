@@ -57,6 +57,8 @@ The script writes into the **current working directory**:
 - `.env` — configuration (generated on first run; not overwritten on later runs)
 - `compose-env.sh` — helper for Docker Compose commands
 - `docker-compose.quickstart.yml` — Compose stack definition
+- `upgrade-backup.sh` — database backup before an in-place upgrade
+- `upgrade-verify.sh` — confirm migrations and API health after an upgrade
 
 With `APP_INSTANCE_PREFIX`, a subdirectory is created first (e.g. `./demo2/`) and files go inside it.
 
@@ -74,7 +76,7 @@ cp .env.example .env
 # Edit DATABASE_URL and JWT_SECRET
 
 npm install
-npm run db:init    # push schema + seed roles
+npm run db:init    # migrate schema + seed roles
 npm run dev        # API on :3001, client on :5173
 ```
 
@@ -99,7 +101,7 @@ docker compose up --build
 # open http://localhost:3001
 ```
 
-See [docs/DOCKER.md](docs/DOCKER.md) for SSO, volumes, troubleshooting, and running multiple instances on one host.
+See [docs/DOCKER.md](docs/DOCKER.md) for SSO, volumes, troubleshooting, [upgrading](docs/UPGRADING.md), and running multiple instances on one host.
 
 Versioned images are published to `ghcr.io/heybray-labs/bray-scenarios` on each tagged release — see [docs/RELEASING.md](docs/RELEASING.md).
 
@@ -116,6 +118,10 @@ Environment variables are documented in [.env.example](.env.example) and [.env.d
 
 For authentication setup (IdP configuration, redirect URIs, Google Workspace SAML), see [AUTHENTICATION.md](AUTHENTICATION.md).
 
+## Upgrading
+
+See [docs/UPGRADING.md](docs/UPGRADING.md).
+
 ## Project structure
 
 ```
@@ -124,7 +130,7 @@ bray-scenarios/
 ├── server/     Express + Drizzle + LangChain backend
 ├── shared/     Drizzle schemas
 ├── docker/     Container entrypoint
-└── bin/        Dev scripts
+└── bin/        Dev and upgrade scripts
 ```
 
 ## License

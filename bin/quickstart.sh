@@ -15,6 +15,8 @@ COMPOSE_FILE="docker-compose.quickstart.yml"
 LOCAL_COMPOSE="${SCRIPT_DIR:+$SCRIPT_DIR/../docker/${COMPOSE_FILE}}"
 LOCAL_ENV_EXAMPLE="${SCRIPT_DIR:+$SCRIPT_DIR/../.env.docker.example}"
 LOCAL_COMPOSE_ENV="${SCRIPT_DIR:+$SCRIPT_DIR/compose-env.sh}"
+LOCAL_UPGRADE_BACKUP="${SCRIPT_DIR:+$SCRIPT_DIR/upgrade-backup.sh}"
+LOCAL_UPGRADE_VERIFY="${SCRIPT_DIR:+$SCRIPT_DIR/upgrade-verify.sh}"
 ENV_EXAMPLE_NAME=".env.docker.example"
 
 INTERACTIVE=false
@@ -533,11 +535,41 @@ ensure_compose_env() {
   COMPOSE_ENV="$dest"
 }
 
+ensure_upgrade_backup() {
+  local dest="${INSTALL_DIR}/upgrade-backup.sh"
+  if [ -f "$dest" ]; then
+    return
+  fi
+  if [ -n "${LOCAL_UPGRADE_BACKUP:-}" ] && [ -f "$LOCAL_UPGRADE_BACKUP" ]; then
+    cp "$LOCAL_UPGRADE_BACKUP" "$dest"
+  else
+    echo "🔄 Downloading upgrade-backup.sh..."
+    curl -fsSL "${RAW_BASE}/bin/upgrade-backup.sh" -o "$dest"
+  fi
+  chmod +x "$dest"
+}
+
+ensure_upgrade_verify() {
+  local dest="${INSTALL_DIR}/upgrade-verify.sh"
+  if [ -f "$dest" ]; then
+    return
+  fi
+  if [ -n "${LOCAL_UPGRADE_VERIFY:-}" ] && [ -f "$LOCAL_UPGRADE_VERIFY" ]; then
+    cp "$LOCAL_UPGRADE_VERIFY" "$dest"
+  else
+    echo "🔄 Downloading upgrade-verify.sh..."
+    curl -fsSL "${RAW_BASE}/bin/upgrade-verify.sh" -o "$dest"
+  fi
+  chmod +x "$dest"
+}
+
 setup_install_location
 
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 ensure_compose_env
+ensure_upgrade_backup
+ensure_upgrade_verify
 
 if [ ! -f "$COMPOSE_FILE" ]; then
   if [ -f "$LOCAL_COMPOSE" ]; then
