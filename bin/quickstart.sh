@@ -10,7 +10,7 @@ else
 fi
 REPO="heybray-labs/bray-scenarios"
 COMPOSE_ENV=""
-BASE_INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
+START_DIR="$(pwd)"
 COMPOSE_FILE="docker-compose.quickstart.yml"
 LOCAL_COMPOSE="${SCRIPT_DIR:+$SCRIPT_DIR/../docker/${COMPOSE_FILE}}"
 LOCAL_ENV_EXAMPLE="${SCRIPT_DIR:+$SCRIPT_DIR/../.env.docker.example}"
@@ -59,9 +59,9 @@ validate_instance_prefix() {
 resolve_install_dir() {
   validate_instance_prefix "${APP_INSTANCE_PREFIX:-}"
   if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
-    INSTALL_DIR="${BASE_INSTALL_DIR}/${APP_INSTANCE_PREFIX}"
+    INSTALL_DIR="${START_DIR}/${APP_INSTANCE_PREFIX}"
   else
-    INSTALL_DIR="${BASE_INSTALL_DIR}"
+    INSTALL_DIR="${START_DIR}"
   fi
 }
 
