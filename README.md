@@ -78,6 +78,7 @@ cp .env.example .env
 
 npm install
 npm run db:init    # migrate schema + seed roles
+npm run test       # optional: API smoke tests (requires Docker)
 npm run dev        # API on :3001, client on :5173
 ```
 
@@ -122,6 +123,10 @@ For authentication setup (IdP configuration, redirect URIs, Google Workspace SAM
 ## Upgrading
 
 See [docs/UPGRADING.md](docs/UPGRADING.md).
+
+## Testing
+
+See [docs/TESTING.md](docs/TESTING.md) for running API smoke tests locally and in CI.
 
 ## Project structure
 

@@ -30,9 +30,53 @@ jobs:
 
       - run: npm run build --workspace=client
 
+  api-tests:
+    name: API tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: roleplay_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d roleplay_app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:migrate --workspace=server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/roleplay_app
+
+      - name: Run API smoke tests
+        run: npm run test --workspace=server
+        env:
+          CI: true
+          SKIP_TEST_DOCKER: "1"
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/roleplay_app
+          JWT_SECRET: ci-test-secret
+          AUTH_PROTOCOL: local
+          RATE_LIMIT_MAX: "10000"
+          AUTH_RATE_LIMIT_MAX: "10000"
+          MEDIA_DIR: /tmp/bray-test-media
+
   docker-publish:
     name: Build & push Docker image
-    needs: verify
+    needs: [verify, api-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +111,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: verify
+    needs: [verify, api-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

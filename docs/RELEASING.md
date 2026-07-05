@@ -7,6 +7,7 @@
 - `npm run typecheck` — type-checks both `client` and `server`
 - `npm run build --workspace=client` — production Vite build
 - `npm run db:migrate` — applies committed SQL migrations against a fresh Postgres service
+- `npm run test --workspace=server` — API smoke tests (Vitest + Supertest against Postgres)
 - a Docker build smoke test (build only, no push) — catches `Dockerfile` breakage
 
 All of these must pass before merging.
@@ -37,7 +38,7 @@ Use **`npm version minor`** for releases that change operator-visible behavior (
 
 `npm version` bumps the root `package.json`, commits, and creates a `vX.Y.Z` tag. Pushing that tag runs [`.github/workflows/release.yml`](../.github/workflows/release.yml), which:
 
-1. Re-runs the typecheck/build gate as a safety net.
+1. Re-runs the typecheck/build gate and API smoke tests as a safety net.
 2. Builds and pushes the Docker image to `ghcr.io/heybray-labs/bray-scenarios`, tagged `X.Y.Z`, `X.Y`, `X`, and `latest`.
 3. Creates a GitHub Release for the tag with auto-generated notes from merged PRs/commits since the last release.
 
