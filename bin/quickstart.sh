@@ -126,31 +126,49 @@ fetch_latest_release_tag() {
     | head -1
 }
 
-resolve_versions() {
-  if [ -z "${BRAY_VERSION+x}" ] && [ -z "${BRAY_IMAGE_TAG+x}" ]; then
+resolve_scripts_ref() {
+  if [ -n "${BRAY_SCRIPTS_REF:-}" ]; then
+    SCRIPTS_REF="$BRAY_SCRIPTS_REF"
+    return
+  fi
+  local tag
+  tag="$(fetch_latest_release_tag || true)"
+  SCRIPTS_REF="${tag:-main}"
+}
+
+resolve_image_tag() {
+  if [ -z "${BRAY_IMAGE_TAG+x}" ] && [ -z "${BRAY_VERSION+x}" ]; then
     local tag
     tag="$(fetch_latest_release_tag || true)"
     if [ -n "$tag" ]; then
-      BRAY_VERSION="$tag"
       BRAY_IMAGE_TAG="${tag#v}"
       echo "Using latest release: ${tag}"
       return
     fi
-    echo "warning: could not fetch latest release; falling back to main/latest" >&2
-    BRAY_VERSION="main"
+    echo "warning: could not fetch latest release; falling back to latest image tag" >&2
     BRAY_IMAGE_TAG="latest"
     return
   fi
 
-  if [ -z "${BRAY_VERSION+x}" ]; then
-    BRAY_VERSION="v${BRAY_IMAGE_TAG#v}"
-  elif [ -z "${BRAY_IMAGE_TAG+x}" ]; then
+  if [ -z "${BRAY_IMAGE_TAG+x}" ]; then
     BRAY_IMAGE_TAG="${BRAY_VERSION#v}"
+  elif [ -z "${BRAY_VERSION+x}" ]; then
+    BRAY_VERSION="v${BRAY_IMAGE_TAG#v}"
   fi
 }
 
-resolve_versions
-RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRAY_VERSION}"
+resolve_scripts_ref
+resolve_image_tag
+
+if [ -z "${BRAY_SCRIPTS_REF:-}" ] && { [ -n "${BRAY_IMAGE_TAG+x}" ] || [ -n "${BRAY_VERSION+x}" ]; }; then
+  local_image_tag="${BRAY_IMAGE_TAG:-${BRAY_VERSION#v}}"
+  scripts_tag="${SCRIPTS_REF#v}"
+  if [ "$local_image_tag" != "$scripts_tag" ] && [ "$local_image_tag" != "latest" ]; then
+    echo "Using image tag ${local_image_tag}; fetching install scripts from ${SCRIPTS_REF}"
+  fi
+fi
+
+RAW_BASE="https://raw.githubusercontent.com/${REPO}/${SCRIPTS_REF}"
 
 command -v docker >/dev/null 2>&1 || die "Docker is required. Install Docker Desktop or Docker Engine: https://docs.docker.com/get-docker/"
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required (docker compose)."
