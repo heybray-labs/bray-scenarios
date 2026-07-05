@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+elif [ -n "${0:-}" ] && [ -f "$0" ] && [ "$(basename "$0")" != "bash" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+else
+  SCRIPT_DIR=""
+fi
 REPO="heybray-labs/bray-scenarios"
-COMPOSE_ENV="${SCRIPT_DIR}/compose-env.sh"
+COMPOSE_ENV=""
 BASE_INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
 COMPOSE_FILE="docker-compose.quickstart.yml"
-LOCAL_COMPOSE="${SCRIPT_DIR}/../docker/${COMPOSE_FILE}"
-LOCAL_ENV_EXAMPLE="${SCRIPT_DIR}/../.env.docker.example"
+LOCAL_COMPOSE="${SCRIPT_DIR:+$SCRIPT_DIR/../docker/${COMPOSE_FILE}}"
+LOCAL_ENV_EXAMPLE="${SCRIPT_DIR:+$SCRIPT_DIR/../.env.docker.example}"
+LOCAL_COMPOSE_ENV="${SCRIPT_DIR:+$SCRIPT_DIR/compose-env.sh}"
 ENV_EXAMPLE_NAME=".env.docker.example"
 
 INTERACTIVE=false
@@ -420,8 +427,25 @@ print_completion() {
 
 }
 
+ensure_compose_env() {
+  local dest="${INSTALL_DIR}/compose-env.sh"
+  if [ -f "$dest" ]; then
+    COMPOSE_ENV="$dest"
+    return
+  fi
+  if [ -n "${LOCAL_COMPOSE_ENV:-}" ] && [ -f "$LOCAL_COMPOSE_ENV" ]; then
+    cp "$LOCAL_COMPOSE_ENV" "$dest"
+  else
+    echo "🔄 Downloading compose-env.sh..."
+    curl -fsSL "${RAW_BASE}/bin/compose-env.sh" -o "$dest"
+  fi
+  chmod +x "$dest"
+  COMPOSE_ENV="$dest"
+}
+
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
+ensure_compose_env
 
 if [ ! -f "$COMPOSE_FILE" ]; then
   if [ -f "$LOCAL_COMPOSE" ]; then
