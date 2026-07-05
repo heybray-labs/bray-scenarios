@@ -91,4 +91,4 @@ Tagged releases ([`.github/workflows/release.yml`](../.github/workflows/release.
 
 ### Branch protection
 
-After merging, enable **API tests** as a required status check on `main` in GitHub repository settings (Settings → Branches → Branch protection rules). This ensures the CI gate is enforced, not advisory.
+Tracked in [issue #26](https://github.com/heybray-labs/bray-scenarios/issues/26): enable **API tests** as a required status check on `main` (Settings → Branches → Branch protection rules) so the CI gate is enforced, not advisory.
