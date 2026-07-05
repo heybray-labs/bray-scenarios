@@ -20,6 +20,8 @@ curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bi
 
 From a clone: `npm run quickstart:interactive`
 
+The wizard asks for an **instance prefix** first (optional — press Enter to install in the current directory, or enter a name to create a subdirectory and isolate Docker resources). Fresh installs default to no prefix (a stale `APP_INSTANCE_PREFIX` in your shell is ignored). Re-running `--interactive --reconfigure` from inside an install directory locks the prefix from `.env`.
+
 Re-run the wizard on an existing install (overwrites `.env`):
 
 ```bash

@@ -16,24 +16,55 @@ Bray Scenarios is an open-source AI roleplay training app for practicing real-wo
 
 ### Option 1: 🚀 Quickstart (download and launch Docker image in one command) 
 
-This will fetch and launch the latest public Docker image without downloading the codebase.  You will need to have Docker and Docker Compose installed for this to work.
+This will fetch and launch the latest public Docker image without downloading the codebase. You will need Docker and Docker Compose installed.
 
-Run the following command in the terminal, to install with default configuration (you can update this later):
+Run from the directory where you want the install files created:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 ```
 
-Or, for a guided setup (port, auth mode, OIDC settings), run interactively in a terminal:
+Or, for a guided setup (port, instance prefix, auth mode, OIDC settings), run interactively in a terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash -s -- --interactive
 ```
+
+#### Environment variables
+Can be passed on the command line before `curl` (and are asked for explicitly in interactive mode):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | `3001` | Host port for the app |
+| `APP_INSTANCE_PREFIX` | (unset) | Isolates Docker project/volumes; creates `{prefix}/` in the current directory |
+| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.7`) | Docker image tag to pull |
+
+Examples:
+
+```bash
+# Custom port
+PORT=3002 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+
+# Pin a specific release
+BRAY_IMAGE_TAG=1.0.7 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+
+# Second instance on the same host (creates ./demo2/)
+APP_INSTANCE_PREFIX=demo2 PORT=3002 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+```
+#### What gets created?
+The script writes into the **current working directory**:
+
+- `.env` — configuration (generated on first run; not overwritten on later runs)
+- `compose-env.sh` — helper for Docker Compose commands
+- `docker-compose.quickstart.yml` — Compose stack definition
+
+With `APP_INSTANCE_PREFIX`, a subdirectory is created first (e.g. `./demo2/`) and files go inside it.
+
 See [docs/DOCKER.md](docs/DOCKER.md) for stop, logs, reset, SSO setup, and [running multiple instances](docs/DOCKER.md#running-multiple-instances) on one host.
 
-### Option 2: 💻 Clone from GitHub and run locally (use this if you don't have docker) 
+### Option 2: 💻 Clone from GitHub and run locally (use this if you don't have docker, or you want to extend the codebase) 
 
-Use this if you don't have This requires Node.js 20+, npm 10+, and a PostgreSQL server in which you need to create a database for the backend
+This requires Node.js 20+, npm 10+, and a PostgreSQL server in which you need to create a database for the backend
 
 ```bash
 git clone https://github.com/heybray-labs/bray-scenarios.git
@@ -53,8 +84,6 @@ Or use the launch script, which copies `.env.example` if needed, installs depend
 chmod +x bin/dev.sh
 npm run launch:local
 ```
-
-On first visit to `/login`, create the administrator account in the setup form. Optionally set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` to seed an admin automatically on init — seeded admins must change their password on first login.
 
 ### Option 3: Clone from GitHub -> Docker 🐳
 This will download the full codebase to your local machine, builds the docker container locally and then spins up with the same docker compose as #1.  Use this is you want to customize or otherwise extend the application. 
@@ -100,4 +129,4 @@ bray-scenarios/
 
 ## License
 
-License to be confirmed.
+See [LICENSE](LICENSE).
