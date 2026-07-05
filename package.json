@@ -1,6 +1,6 @@
 {
   "name": "roleplay-standalone",
-  "version": "1.0.7",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Standalone open-source roleplay training app",
