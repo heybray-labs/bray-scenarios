@@ -37,7 +37,8 @@ Can be passed on the command line before `curl` (and are asked for explicitly in
 |----------|---------|---------|
 | `PORT` | `3001` | Host port for the app |
 | `APP_INSTANCE_PREFIX` | (unset) | Isolates Docker project/volumes; creates `{prefix}/` in the current directory |
-| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.7`) | Docker image tag to pull |
+| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.1.0`) | Docker image tag to pull |
+| `BRAY_SCRIPTS_REF` | latest GitHub release (e.g. `v1.1.0`) | Git ref for install scripts and compose file (advanced) |
 
 Examples:
 
@@ -45,7 +46,7 @@ Examples:
 # Custom port
 PORT=3002 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 
-# Pin a specific release
+# Pin a specific Docker image (install scripts still come from the latest release)
 BRAY_IMAGE_TAG=1.0.7 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 
 # Second instance on the same host (creates ./demo2/)

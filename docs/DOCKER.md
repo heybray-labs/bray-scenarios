@@ -36,14 +36,15 @@ Installs into the current working directory. On first silent run, copies `.env.d
 |----------|---------|---------|
 | `PORT` | `3001` | Host port for the app |
 | `APP_INSTANCE_PREFIX` | (unset) | Optional prefix — isolates Docker project/volumes; quickstart creates `{prefix}/` in the current directory |
-| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.2`) | Docker image tag to pull |
-| `BRAY_VERSION` | latest GitHub release tag (e.g. `v1.0.2`) | Git ref for the compose file |
+| `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.1.0`) | Docker image tag to pull |
+| `BRAY_SCRIPTS_REF` | latest GitHub release (e.g. `v1.1.0`) | Git ref for install scripts and compose file (advanced) |
+| `BRAY_VERSION` | (derived from `BRAY_IMAGE_TAG`) | Alias for pinning the Docker image tag (e.g. `v1.0.7` → image `1.0.7`) |
 
-By default the script resolves the latest GitHub release tag for both the compose file and Docker image.
+By default the script resolves the latest GitHub release for install scripts and the Docker image. Pinning `BRAY_IMAGE_TAG` does not change which scripts are downloaded — use `BRAY_SCRIPTS_REF` to pin those too.
 
 ```bash
-# Pin a specific version
-BRAY_IMAGE_TAG=1.0.2 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
+# Pin a specific Docker image (install scripts still come from the latest release)
+BRAY_IMAGE_TAG=1.0.7 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 
 # Lifecycle (run from the directory where quickstart was executed)
 ./compose-env.sh --env-file .env -- docker compose -f docker-compose.quickstart.yml logs -f app
