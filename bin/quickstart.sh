@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "bash" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+elif [ -n "${0:-}" ] && [ -f "$0" ] && [ "$(basename "$0")" != "bash" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+else
+  SCRIPT_DIR=""
+fi
 REPO="heybray-labs/bray-scenarios"
-COMPOSE_ENV="${SCRIPT_DIR}/compose-env.sh"
-BASE_INSTALL_DIR="${BRAY_SCENARIOS_HOME:-$HOME/.bray-scenarios}"
+COMPOSE_ENV=""
+START_DIR="$(pwd)"
 COMPOSE_FILE="docker-compose.quickstart.yml"
-LOCAL_COMPOSE="${SCRIPT_DIR}/../docker/${COMPOSE_FILE}"
-LOCAL_ENV_EXAMPLE="${SCRIPT_DIR}/../.env.docker.example"
+LOCAL_COMPOSE="${SCRIPT_DIR:+$SCRIPT_DIR/../docker/${COMPOSE_FILE}}"
+LOCAL_ENV_EXAMPLE="${SCRIPT_DIR:+$SCRIPT_DIR/../.env.docker.example}"
+LOCAL_COMPOSE_ENV="${SCRIPT_DIR:+$SCRIPT_DIR/compose-env.sh}"
 ENV_EXAMPLE_NAME=".env.docker.example"
 
 INTERACTIVE=false
@@ -51,14 +58,24 @@ validate_instance_prefix() {
 
 resolve_install_dir() {
   validate_instance_prefix "${APP_INSTANCE_PREFIX:-}"
-  if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
-    INSTALL_DIR="${BASE_INSTALL_DIR}/${APP_INSTANCE_PREFIX}"
+  if [ "${INSIDE_INSTALL_DIR:-false}" = true ]; then
+    INSTALL_DIR="${START_DIR}"
+  elif [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+    INSTALL_DIR="${START_DIR}/${APP_INSTANCE_PREFIX}"
   else
-    INSTALL_DIR="${BASE_INSTALL_DIR}"
+    INSTALL_DIR="${START_DIR}"
   fi
 }
 
-resolve_install_dir
+INSIDE_INSTALL_DIR=false
+if [ -f "${START_DIR}/.env" ] && { [ -f "${START_DIR}/${COMPOSE_FILE}" ] || [ -f "${START_DIR}/compose-env.sh" ]; }; then
+  INSIDE_INSTALL_DIR=true
+fi
+
+is_install_dir() {
+  local dir="$1"
+  [ -f "${dir}/.env" ] && { [ -f "${dir}/${COMPOSE_FILE}" ] || [ -f "${dir}/compose-env.sh" ]; }
+}
 
 usage() {
   cat <<EOF
@@ -247,6 +264,90 @@ prompt_auth_mode() {
   done
 }
 
+prompt_overwrite_or_abort() {
+  echo "" >&2
+  echo "Directory ${INSTALL_DIR}/ already contains a Bray Scenarios install." >&2
+  if prompt_yes_no "Overwrite configuration and re-run setup?" "n"; then
+    return 0
+  fi
+  die "Aborted."
+}
+
+prompt_instance_prefix() {
+  local default="${1:-}"
+  local prefix
+  echo "Creates a subdirectory here and isolates Docker resources. Press Enter for current directory only." >&2
+  while true; do
+    prefix="$(prompt_default "Instance prefix (optional)" "$default")"
+    if [ -z "$prefix" ] || [[ "$prefix" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
+      echo "$prefix"
+      return
+    fi
+    echo "Invalid prefix: use 1-32 lowercase alphanumeric/hyphen chars, starting with a letter or digit." >&2
+  done
+}
+
+prepare_interactive_install() {
+  local original_prefix="${APP_INSTANCE_PREFIX:-}"
+
+  echo "" >&2
+  echo -e "⭐️ Starting Bray Scenarios Setup Wizard..." >&2
+  echo "" >&2
+
+  if [ "$INSIDE_INSTALL_DIR" = true ]; then
+    INSTALL_DIR="$START_DIR"
+    if [ -f "${START_DIR}/.env" ]; then
+      APP_INSTANCE_PREFIX="$(read_env_value "APP_INSTANCE_PREFIX" "${START_DIR}/.env")"
+    fi
+    echo "Using existing install in ${INSTALL_DIR}" >&2
+    if [ -n "${APP_INSTANCE_PREFIX:-}" ]; then
+      echo "Instance prefix: ${APP_INSTANCE_PREFIX} (from .env — locked during reconfigure)" >&2
+    else
+      echo "No instance prefix (from .env — locked during reconfigure)" >&2
+    fi
+    echo "" >&2
+    return
+  fi
+
+  local prefix_default=""
+  if [ "$RECONFIGURE" = true ] && [ -n "$original_prefix" ]; then
+    prefix_default="$original_prefix"
+  fi
+  APP_INSTANCE_PREFIX="$(prompt_instance_prefix "$prefix_default")"
+  if [ "$RECONFIGURE" = true ] && [ -n "$original_prefix" ] && [ "$APP_INSTANCE_PREFIX" != "$original_prefix" ]; then
+    echo "" >&2
+    echo "Changing the prefix will create a new install in ${START_DIR}/${APP_INSTANCE_PREFIX}/." >&2
+    echo "The current install is left untouched." >&2
+    prompt_yes_no "Continue?" "n" || die "Aborted."
+  fi
+
+  resolve_install_dir
+  echo "" >&2
+  echo "Install directory: ${INSTALL_DIR}" >&2
+
+  if is_install_dir "$INSTALL_DIR"; then
+    if [ "$RECONFIGURE" = true ]; then
+      echo "Reconfiguring existing install in ${INSTALL_DIR}" >&2
+    else
+      prompt_overwrite_or_abort
+    fi
+  fi
+  echo "" >&2
+}
+
+setup_install_location() {
+  if [ "$INTERACTIVE" = true ] && { [ "$RECONFIGURE" = true ] || [ "$INSIDE_INSTALL_DIR" = false ] || [ ! -f "${START_DIR}/.env" ]; }; then
+    prepare_interactive_install
+  elif [ "$INSIDE_INSTALL_DIR" = true ]; then
+    INSTALL_DIR="$START_DIR"
+    if [ -f "${START_DIR}/.env" ]; then
+      APP_INSTANCE_PREFIX="$(read_env_value "APP_INSTANCE_PREFIX" "${START_DIR}/.env")"
+    fi
+  else
+    resolve_install_dir
+  fi
+}
+
 copy_env_from_example() {
   if [ -f "$LOCAL_ENV_EXAMPLE" ]; then
     cp "$LOCAL_ENV_EXAMPLE" .env
@@ -280,10 +381,6 @@ setup_env_noninteractive() {
 }
 
 run_interactive_wizard() {
-  echo "" >&2
-  echo -e "⭐️ Starting Bray Scenarios Setup Wizard..." >&2
-  echo "" >&2
-
   copy_env_from_example
 
   local port app_url log_level auth_mode
@@ -420,8 +517,27 @@ print_completion() {
 
 }
 
+ensure_compose_env() {
+  local dest="${INSTALL_DIR}/compose-env.sh"
+  if [ -f "$dest" ]; then
+    COMPOSE_ENV="$dest"
+    return
+  fi
+  if [ -n "${LOCAL_COMPOSE_ENV:-}" ] && [ -f "$LOCAL_COMPOSE_ENV" ]; then
+    cp "$LOCAL_COMPOSE_ENV" "$dest"
+  else
+    echo "🔄 Downloading compose-env.sh..."
+    curl -fsSL "${RAW_BASE}/bin/compose-env.sh" -o "$dest"
+  fi
+  chmod +x "$dest"
+  COMPOSE_ENV="$dest"
+}
+
+setup_install_location
+
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
+ensure_compose_env
 
 if [ ! -f "$COMPOSE_FILE" ]; then
   if [ -f "$LOCAL_COMPOSE" ]; then

@@ -20,6 +20,8 @@ curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bi
 
 From a clone: `npm run quickstart:interactive`
 
+The wizard asks for an **instance prefix** first (optional — press Enter to install in the current directory, or enter a name to create a subdirectory and isolate Docker resources). Fresh installs default to no prefix (a stale `APP_INSTANCE_PREFIX` in your shell is ignored). Re-running `--interactive --reconfigure` from inside an install directory locks the prefix from `.env`.
+
 Re-run the wizard on an existing install (overwrites `.env`):
 
 ```bash
@@ -28,15 +30,14 @@ Re-run the wizard on an existing install (overwrites `.env`):
 
 **SAML note:** the wizard sets `AUTH_PROTOCOL=saml` and `APP_URL`, then prints a checklist for tunnel setup, Google Admin configuration, and `SAML_IDP_METADATA`. Full steps are in [AUTHENTICATION.md](AUTHENTICATION.md).
 
-Installs to `~/.bray-scenarios/` (override with `BRAY_SCENARIOS_HOME`). On first silent run, copies `.env.docker.example` to `.env`, injects a generated `JWT_SECRET`, and does not overwrite `.env` on subsequent runs unless `--reconfigure` is used.
+Installs into the current working directory. On first silent run, copies `.env.docker.example` to `.env`, injects a generated `JWT_SECRET`, and does not overwrite `.env` on subsequent runs unless `--reconfigure` is used. With `APP_INSTANCE_PREFIX`, files go in a subdirectory of the current directory.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3001` | Host port for the app |
-| `APP_INSTANCE_PREFIX` | (unset) | Optional prefix — isolates Docker project/volumes; quickstart uses `~/.bray-scenarios/{prefix}/` |
+| `APP_INSTANCE_PREFIX` | (unset) | Optional prefix — isolates Docker project/volumes; quickstart creates `{prefix}/` in the current directory |
 | `BRAY_IMAGE_TAG` | latest GitHub release (e.g. `1.0.2`) | Docker image tag to pull |
 | `BRAY_VERSION` | latest GitHub release tag (e.g. `v1.0.2`) | Git ref for the compose file |
-| `BRAY_SCENARIOS_HOME` | `~/.bray-scenarios` | Base install directory (instance subdir appended when prefix is set) |
 
 By default the script resolves the latest GitHub release tag for both the compose file and Docker image.
 
@@ -44,16 +45,15 @@ By default the script resolves the latest GitHub release tag for both the compos
 # Pin a specific version
 BRAY_IMAGE_TAG=1.0.2 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
 
-# Lifecycle
-cd ~/.bray-scenarios
-docker compose -f docker-compose.quickstart.yml logs -f app
-docker compose -f docker-compose.quickstart.yml down
-docker compose -f docker-compose.quickstart.yml down -v   # reset database
+# Lifecycle (run from the directory where quickstart was executed)
+./compose-env.sh --env-file .env -- docker compose -f docker-compose.quickstart.yml logs -f app
+./compose-env.sh --env-file .env -- docker compose -f docker-compose.quickstart.yml down
+./compose-env.sh --env-file .env -- docker compose -f docker-compose.quickstart.yml down -v   # reset database
 ```
 
 Open [http://localhost:3001](http://localhost:3001). On first visit to `/login`, create the administrator account, then configure LLM keys at `/settings/ai`.
 
-To enable SSO, edit `~/.bray-scenarios/.env` (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `./bin/compose-env.sh -- docker compose up -d` from the install directory. See [AUTHENTICATION.md](AUTHENTICATION.md).
+To enable SSO, edit `.env` in the install directory (set `AUTH_PROTOCOL` and OIDC/SAML variables), then run `./compose-env.sh --env-file .env -- docker compose -f docker-compose.quickstart.yml up -d`. See [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Running multiple instances
 
@@ -62,9 +62,10 @@ Use `APP_INSTANCE_PREFIX` to isolate Docker volumes, networks, and containers on
 ### Second quickstart instance
 
 ```bash
+# From the directory where you want demo2/ created:
 APP_INSTANCE_PREFIX=demo2 PORT=3002 curl -fsSL https://raw.githubusercontent.com/heybray-labs/bray-scenarios/main/bin/quickstart.sh | bash
-# Installs to ~/.bray-scenarios/demo2/ with Compose project bray-scenarios-demo2
-# Edit ~/.bray-scenarios/demo2/.env if APP_URL needs updating
+# Creates ./demo2/ with compose-env.sh, docker-compose.quickstart.yml, and .env
+# Compose project: bray-scenarios-demo2 — edit demo2/.env if APP_URL needs updating
 ```
 
 ### Second clone-docker instance
