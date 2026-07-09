@@ -20,8 +20,8 @@ import {
   scenarioRewardTiers,
   userScenarioTierRewards,
   pointTransactions,
-  DEFAULT_REWARD_TIERS,
   resolveRewardTierDisplay,
+  tierNameFromStarLevel,
 } from "../../shared/schemas/points.ts";
 import { createLogger } from "../utils/logger.ts";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
@@ -33,19 +33,25 @@ import {
   DEMO_SCENARIOS,
   DEMO_SCENARIO_TITLES,
   getBandForTargetScore,
-  pickScoreInBand,
 } from "./demo-data/scenarios.ts";
 import {
   ALL_DEMO_USERS,
   DEMO_PASSWORD,
   DEMO_USER_EMAILS,
 } from "./demo-data/users.ts";
+import {
+  intendedStarTier,
+  pickScenariosForLearner,
+  STAR_TIER_SCORE,
+} from "./demo-data/tier-progress.ts";
 import type { DemoScenario, ScoreBandId } from "./demo-data/types.ts";
+import { DEMO_COVER_SOURCES } from "./demo-data/cover-sources.ts";
 
 const log = createLogger("seed-demo");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COVERS_DIR = path.join(__dirname, "demo-data/covers");
+const REPO_ROOT = path.resolve(__dirname, "../..");
+const EXAMPLES_DIR = path.join(REPO_ROOT, "examples");
 const DEMO_COVER_PREFIX = "demo-cover-";
 
 /** Deterministic pseudo-random in [0, 1). */
@@ -125,14 +131,27 @@ async function wipeDemoData() {
   }
 }
 
+async function resolveCoverMediaId(slug: string): Promise<number | null> {
+  const source = DEMO_COVER_SOURCES[slug];
+  if (!source) return null;
+
+  const [exampleRoleplay] = await db
+    .select({ coverImageMediaId: roleplays.coverImageMediaId })
+    .from(roleplays)
+    .where(eq(roleplays.title, source.exampleTitle))
+    .limit(1);
+
+  return exampleRoleplay?.coverImageMediaId ?? null;
+}
+
 async function loadCoverImage(slug: string): Promise<Buffer> {
-  const jpgPath = path.join(COVERS_DIR, `${slug}.jpg`);
-  const webpPath = path.join(COVERS_DIR, `${slug}.webp`);
-  try {
-    return await fs.readFile(jpgPath);
-  } catch {
-    return fs.readFile(webpPath);
+  const source = DEMO_COVER_SOURCES[slug];
+  if (!source) {
+    throw new Error(`No cover source configured for demo scenario slug: ${slug}`);
   }
+
+  const coverPath = path.join(EXAMPLES_DIR, source.folder, "media/cover.jpg");
+  return fs.readFile(coverPath);
 }
 
 async function seedScenarios(adminUserId: number) {
@@ -143,11 +162,12 @@ async function seedScenarios(adminUserId: number) {
       .insert(roleplays)
       .values({
         title: scenario.title,
-        description: `${scenario.category} scenario: practice ${scenario.learnerObjective.toLowerCase()}`,
+        description: scenario.description,
         introduction: scenario.introduction,
         learnerRole: scenario.learnerRole,
         situationContext: scenario.situationContext,
         learnerObjective: scenario.learnerObjective,
+        playbook: scenario.playbook,
         status: "published",
         published: true,
         createdBy: adminUserId,
@@ -192,31 +212,38 @@ async function seedScenarios(adminUserId: number) {
       });
     }
 
-    for (let i = 0; i < DEFAULT_REWARD_TIERS.length; i++) {
-      const tier = DEFAULT_REWARD_TIERS[i];
+    for (let i = 0; i < scenario.rewardTiers.length; i++) {
+      const tier = scenario.rewardTiers[i];
       const display = resolveRewardTierDisplay(tier);
       await db.insert(scenarioRewardTiers).values({
         roleplayId: roleplay.id,
-        tierName: tier.tierName,
+        tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? i + 1),
         minScorePercent: tier.minScorePercent,
         rewardPoints: tier.rewardPoints,
-        orderIndex: i,
-        color: tier.color ?? display.color,
-        icon: tier.icon ?? display.icon,
+        orderIndex: tier.orderIndex ?? i,
+        starLevel: tier.starLevel ?? i + 1,
+        color: display.color,
+        icon: null,
       });
     }
 
-    const coverBuffer = await loadCoverImage(scenario.slug);
-    const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
-      originalFilename: `demo-cover-${scenario.slug}.jpg`,
-      mimeType: "image/jpeg",
-      createdBy: adminUserId,
-      storageKey: `${DEMO_COVER_PREFIX}${scenario.slug}.jpg`,
-    });
+    const existingCoverMediaId = await resolveCoverMediaId(scenario.slug);
+    let coverMediaId = existingCoverMediaId;
+
+    if (!coverMediaId) {
+      const coverBuffer = await loadCoverImage(scenario.slug);
+      const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
+        originalFilename: "cover.jpg",
+        mimeType: "image/jpeg",
+        createdBy: adminUserId,
+        storageKey: `${DEMO_COVER_PREFIX}${scenario.slug}.jpg`,
+      });
+      coverMediaId = coverAsset.id;
+    }
 
     await db
       .update(roleplays)
-      .set({ coverImageMediaId: coverAsset.id, updatedAt: new Date() })
+      .set({ coverImageMediaId: coverMediaId, updatedAt: new Date() })
       .where(eq(roleplays.id, roleplay.id));
 
     created.push({ scenario, roleplayId: roleplay.id });
@@ -295,16 +322,6 @@ function randomDateWithinDays(daysAgo: number, seed: number): Date {
   return new Date(now - offsetMs);
 }
 
-function pickScenariosForLearner(learnerIndex: number, allScenarios: DemoScenario[]): DemoScenario[] {
-  const count = 7 + Math.floor(seededRandom(learnerIndex * 17) * 4);
-  const shuffled = [...allScenarios].sort(
-    (a, b) =>
-      seededRandom(learnerIndex * 100 + a.title.length) -
-      seededRandom(learnerIndex * 100 + b.title.length),
-  );
-  return shuffled.slice(0, count);
-}
-
 async function seedAttempts(
   scenarios: { scenario: DemoScenario; roleplayId: number }[],
   learnerProfiles: LearnerProfile[],
@@ -332,7 +349,8 @@ async function seedAttempts(
     );
 
     for (const scenarioEntry of scenarios) {
-      if (!picked.some((p) => p.slug === scenarioEntry.scenario.slug)) continue;
+      const scenarioIndex = picked.findIndex((p) => p.slug === scenarioEntry.scenario.slug);
+      if (scenarioIndex < 0) continue;
 
       const { scenario, roleplayId } = scenarioEntry;
       const criteria = criterionMap.get(roleplayId) ?? [];
@@ -362,10 +380,8 @@ async function seedAttempts(
           continue;
         }
 
-        const bandShift = attemptNum === 2 ? "high" : learner.preferredBand;
-        const bandScenario =
-          scenario.scoreBands.find((b) => b.band === bandShift) ?? scenario.scoreBands[1];
-        const targetScore = pickScoreInBand(bandScenario!);
+        const starTier = intendedStarTier(learner.preferredBand, scenarioIndex, attemptNum);
+        const targetScore = STAR_TIER_SCORE[starTier];
         const bandContent = getBandForTargetScore(scenario, targetScore);
         const completedAt = new Date(startedAt.getTime() + timeSpent * 1000);
         const isPassed = targetScore >= 70;

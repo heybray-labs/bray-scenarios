@@ -5,6 +5,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import { AppErrorBoundary, PageNotFoundScreen } from "@/components/errors";
+import ScenarioSearchPage from "@/pages/ScenarioSearchPage";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
@@ -25,6 +26,11 @@ export default function App() {
             <Route path="/login/oidc/callback" component={OidcCallbackPage} />
             <Route path="/login/saml/callback" component={SamlCallbackPage} />
             <Route path="/register" component={RegisterPage} />
+            <Route path="/search">
+              <ProtectedRoute>
+                <ScenarioSearchPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/">
               <ProtectedRoute>
                 <HomePage />

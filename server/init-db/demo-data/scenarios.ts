@@ -1,9 +1,13 @@
 import { makeScoreBand } from "./score-band-helpers.ts";
+import { SCENARIO_BRIEFS } from "./scenario-briefs.ts";
 import type { DemoScenario, ScoreBandContent, ScoreBandId } from "./types.ts";
+import { DEFAULT_REWARD_TIERS } from "../../../shared/schemas/points.ts";
+
+type DemoScenarioBase = Omit<DemoScenario, "description" | "playbook" | "rewardTiers">;
 
 const angryCustomerCriteria = ["Empathy", "Problem Solving", "Professionalism"];
 
-const handlingAngryCustomer: DemoScenario = {
+const handlingAngryCustomer: DemoScenarioBase = {
   slug: "handling-angry-customer",
   title: "Handling an Angry Customer",
   category: "Customer Service",
@@ -62,7 +66,7 @@ const handlingAngryCustomer: DemoScenario = {
         learner: "I'll process a refund for you now. It should show up in a few business days.",
       },
     ], "You resolved the issue but missed early opportunities to acknowledge frustration. Tone improved once you focused on the refund."),
-    makeScoreBand("low", 45, 62, angryCustomerCriteria, [52, 48, 58], [
+    makeScoreBand("low", 50, 62, angryCustomerCriteria, [52, 48, 58], [
       {
         persona: "Your store sold me a broken blender. I want a refund.",
         learner: "Returns are handled at the desk. Did you read the warranty card?",
@@ -81,7 +85,7 @@ const handlingAngryCustomer: DemoScenario = {
 
 const negotiatingRaiseCriteria = ["Evidence & Impact", "Collaborative Tone", "Flexibility"];
 
-const negotiatingRaise: DemoScenario = {
+const negotiatingRaise: DemoScenarioBase = {
   slug: "negotiating-raise",
   title: "Negotiating a Raise",
   category: "Leadership",
@@ -140,7 +144,7 @@ const negotiatingRaise: DemoScenario = {
         learner: "Okay, thanks. Let me know.",
       },
     ], "You stated intent clearly but relied on general claims. Adding metrics and exploring alternatives would strengthen your case."),
-    makeScoreBand("low", 45, 62, negotiatingRaiseCriteria, [55, 50, 58], [
+    makeScoreBand("low", 50, 62, negotiatingRaiseCriteria, [55, 50, 58], [
       {
         persona: "What's the compensation topic you wanted to discuss?",
         learner: "I need a raise. Other companies are paying more and I'm underpaid.",
@@ -159,7 +163,7 @@ const negotiatingRaise: DemoScenario = {
 
 const badNewsCriteria = ["Clarity", "Empathy", "Forward Focus"];
 
-const deliveringBadNews: DemoScenario = {
+const deliveringBadNews: DemoScenarioBase = {
   slug: "delivering-bad-news",
   title: "Delivering Bad News to Your Team",
   category: "Management",
@@ -218,7 +222,7 @@ const deliveringBadNews: DemoScenario = {
         learner: "Leadership will share more details soon. Let's stay focused for now.",
       },
     ], "You communicated the decision but left timeline and individual impact vague. Add specific next steps and 1:1 offers."),
-    makeScoreBand("low", 45, 62, badNewsCriteria, [50, 48, 55], [
+    makeScoreBand("low", 50, 62, badNewsCriteria, [50, 48, 55], [
       {
         persona: "What's on the agenda today?",
         learner: "Atlas is done. Leadership pulled funding.",
@@ -237,7 +241,7 @@ const deliveringBadNews: DemoScenario = {
 
 const coldCallCriteria = ["Opening Hook", "Objection Handling", "Call to Action"];
 
-const coldCallSales: DemoScenario = {
+const coldCallSales: DemoScenarioBase = {
   slug: "cold-call-sales",
   title: "Cold Call Sales Pitch",
   category: "Sales",
@@ -296,7 +300,7 @@ const coldCallSales: DemoScenario = {
         learner: "Sure, I'll send something over. Thanks for your time.",
       },
     ], "Generic pitch without tying to her context. Objection handling was feature-led rather than curiosity-led."),
-    makeScoreBand("low", 45, 62, coldCallCriteria, [48, 52, 50], [
+    makeScoreBand("low", 50, 62, coldCallCriteria, [48, 52, 50], [
       {
         persona: "This is Diane.",
         learner: "Hi! Our platform is the best fleet tool on the market. Want a demo today?",
@@ -315,7 +319,7 @@ const coldCallSales: DemoScenario = {
 
 const medicalNewsCriteria = ["Compassion", "Clarity", "Support"];
 
-const breakingMedicalNews: DemoScenario = {
+const breakingMedicalNews: DemoScenarioBase = {
   slug: "breaking-medical-news",
   title: "Breaking Difficult Medical News",
   category: "Healthcare",
@@ -374,7 +378,7 @@ const breakingMedicalNews: DemoScenario = {
         learner: "The pharmacy will have instructions. Schedule a follow-up in a month.",
       },
     ], "Diagnosis was clear but emotional space was limited. Expand on daily impact and verify comprehension."),
-    makeScoreBand("low", 45, 62, medicalNewsCriteria, [50, 55, 48], [
+    makeScoreBand("low", 50, 62, medicalNewsCriteria, [50, 55, 48], [
       {
         persona: "I'm nervous about these results.",
         learner: "Labs confirm diabetes. You'll need to lose weight and take meds.",
@@ -393,7 +397,7 @@ const breakingMedicalNews: DemoScenario = {
 
 const performanceReviewCriteria = ["Balanced Feedback", "Specific Examples", "Actionable Plan"];
 
-const performanceReview: DemoScenario = {
+const performanceReview: DemoScenarioBase = {
   slug: "performance-review",
   title: "Conducting a Performance Review",
   category: "HR",
@@ -452,7 +456,7 @@ const performanceReview: DemoScenario = {
         learner: "Just try to communicate more. Overall you're meeting expectations.",
       },
     ], "Feedback lacked concrete examples and joint planning. Tie behaviors to specific incidents and co-create goals."),
-    makeScoreBand("low", 45, 62, performanceReviewCriteria, [55, 48, 52], [
+    makeScoreBand("low", 50, 62, performanceReviewCriteria, [55, 48, 52], [
       {
         persona: "I shipped three big features this year.",
         learner: "True, but your attitude holds the team back.",
@@ -471,7 +475,7 @@ const performanceReview: DemoScenario = {
 
 const mediationCriteria = ["Active Listening", "Neutrality", "Resolution Focus"];
 
-const workplaceConflict: DemoScenario = {
+const workplaceConflict: DemoScenarioBase = {
   slug: "workplace-conflict",
   title: "Mediating a Workplace Conflict",
   category: "HR",
@@ -530,7 +534,7 @@ const workplaceConflict: DemoScenario = {
         learner: "Let's try to get along better going forward.",
       },
     ], "Neutrality slipped toward advising Taylor to adapt. Focus on shared norms rather than individual adjustment."),
-    makeScoreBand("low", 45, 62, mediationCriteria, [50, 48, 55], [
+    makeScoreBand("low", 50, 62, mediationCriteria, [50, 48, 55], [
       {
         persona: "They were out of line in that meeting.",
         learner: "I've heard both sides. You're both somewhat at fault.",
@@ -549,7 +553,7 @@ const workplaceConflict: DemoScenario = {
 
 const upsellingCriteria = ["Needs Discovery", "Value Articulation", "Low Pressure"];
 
-const upsellingPremium: DemoScenario = {
+const upsellingPremium: DemoScenarioBase = {
   slug: "upselling-premium",
   title: "Upselling Premium Features",
   category: "Sales",
@@ -608,7 +612,7 @@ const upsellingPremium: DemoScenario = {
         learner: "I'll email pricing. Let me know if you want to upgrade.",
       },
     ], "Jumped to the pitch before quantifying pain. Tie features to Priya's workflow impact and timeline."),
-    makeScoreBand("low", 45, 62, upsellingCriteria, [48, 50, 52], [
+    makeScoreBand("low", 50, 62, upsellingCriteria, [48, 50, 52], [
       {
         persona: "Usage limits are becoming a problem.",
         learner: "Premium is on sale this week only — great time to upgrade!",
@@ -627,7 +631,7 @@ const upsellingPremium: DemoScenario = {
 
 const interviewCriteria = ["Honesty", "Culture Fit", "Engagement"];
 
-const skepticalCandidate: DemoScenario = {
+const skepticalCandidate: DemoScenarioBase = {
   slug: "skeptical-candidate",
   title: "Interviewing a Skeptical Candidate",
   category: "Recruitment",
@@ -686,7 +690,7 @@ const skepticalCandidate: DemoScenario = {
         learner: "Maybe later in the process.",
       },
     ], "Generic reassurance without specifics. Address workload patterns honestly and enable peer conversations."),
-    makeScoreBand("low", 45, 62, interviewCriteria, [50, 48, 55], [
+    makeScoreBand("low", 50, 62, interviewCriteria, [50, 48, 55], [
       {
         persona: "I've heard mixed things about management.",
         learner: "Reviews are often disgruntled employees. We're great.",
@@ -705,7 +709,7 @@ const skepticalCandidate: DemoScenario = {
 
 const productDelayCriteria = ["Accountability", "Transparency", "Mitigation"];
 
-const productDelay: DemoScenario = {
+const productDelay: DemoScenarioBase = {
   slug: "product-delay",
   title: "Explaining a Product Delay",
   category: "Customer Success",
@@ -764,7 +768,7 @@ const productDelay: DemoScenario = {
         learner: "I'll ask the team about workarounds and get back to you.",
       },
     ], "Timeline update was clear but mitigation was vague. Propose specific interim deliverables with dates."),
-    makeScoreBand("low", 45, 62, productDelayCriteria, [48, 52, 50], [
+    makeScoreBand("low", 50, 62, productDelayCriteria, [48, 52, 50], [
       {
         persona: "Status on the committed feature?",
         learner: "Third-party vendors slowed us down. These things happen.",
@@ -783,7 +787,7 @@ const productDelay: DemoScenario = {
 
 const newHireCriteria = ["Rapport Building", "Expectation Setting", "Support Offered"];
 
-const newHireCheckIn: DemoScenario = {
+const newHireCheckIn: DemoScenarioBase = {
   slug: "new-hire-check-in",
   title: "New Hire Check-in",
   category: "HR",
@@ -842,7 +846,7 @@ const newHireCheckIn: DemoScenario = {
         learner: "Keep at it. Let me know if issues come up.",
       },
     ], "Accepted surface-level answers. Probe deeper and offer structured onboarding support."),
-    makeScoreBand("low", 45, 62, newHireCriteria, [50, 48, 52], [
+    makeScoreBand("low", 50, 62, newHireCriteria, [50, 48, 52], [
       {
         persona: "I'm still learning the ropes.",
         learner: "We hired you to perform. Other new hires ramp faster.",
@@ -861,7 +865,7 @@ const newHireCheckIn: DemoScenario = {
 
 const renewalCriteria = ["Discovery", "Value Reinforcement", "Commitment Secured"];
 
-const atRiskRenewal: DemoScenario = {
+const atRiskRenewal: DemoScenarioBase = {
   slug: "at-risk-renewal",
   title: "Renewing an At-Risk Enterprise Contract",
   category: "Customer Success",
@@ -920,7 +924,7 @@ const atRiskRenewal: DemoScenario = {
         learner: "I'll pull usage stats and follow up next week.",
       },
     ], "Feature-led pitch without tying to Richard's cost/throughput goals. Lead with business outcomes and a joint plan."),
-    makeScoreBand("low", 45, 62, renewalCriteria, [48, 50, 52], [
+    makeScoreBand("low", 50, 62, renewalCriteria, [48, 50, 52], [
       {
         persona: "We're likely cutting this contract.",
         learner: "You can't — you're locked in until renewal anyway.",
@@ -937,7 +941,27 @@ const atRiskRenewal: DemoScenario = {
   ],
 };
 
-export const DEMO_SCENARIOS: DemoScenario[] = [
+function enrichScenario(
+  scenario: Omit<DemoScenario, "description" | "playbook" | "rewardTiers">,
+): DemoScenario {
+  const brief = SCENARIO_BRIEFS[scenario.slug];
+  if (!brief) {
+    throw new Error(`Missing scenario brief for slug: ${scenario.slug}`);
+  }
+  return {
+    ...scenario,
+    description: brief.description,
+    introduction: brief.introduction,
+    situationContext: brief.situationContext,
+    learnerObjective: brief.learnerObjective,
+    playbook: brief.playbook,
+    rewardTiers: brief.rewardTiers ?? DEFAULT_REWARD_TIERS,
+    persona: { ...scenario.persona, ...brief.persona },
+    criteria: brief.criteria,
+  };
+}
+
+const BASE_SCENARIOS: Omit<DemoScenario, "description" | "playbook" | "rewardTiers">[] = [
   handlingAngryCustomer,
   negotiatingRaise,
   deliveringBadNews,
@@ -951,6 +975,8 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
   newHireCheckIn,
   atRiskRenewal,
 ];
+
+export const DEMO_SCENARIOS: DemoScenario[] = BASE_SCENARIOS.map(enrichScenario);
 
 export const DEMO_SCENARIO_TITLES = DEMO_SCENARIOS.map((s) => s.title);
 

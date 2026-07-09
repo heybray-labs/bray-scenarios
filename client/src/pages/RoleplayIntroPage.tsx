@@ -14,15 +14,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ArrowLeft } from "lucide-react";
-import { ScenarioDetailHeader } from "@/components/roleplays/scenario-detail/ScenarioDetailHeader";
-import { ScenarioNarrative } from "@/components/roleplays/scenario-detail/ScenarioNarrative";
-import { ScenarioRubricPreview } from "@/components/roleplays/scenario-detail/ScenarioRubricPreview";
-import { ScenarioDetailRail } from "@/components/roleplays/scenario-detail/ScenarioDetailRail";
-import type { ScenarioAttempt } from "@/components/roleplays/scenario-detail/ScenarioAttemptsList";
-import type { ScenarioProgressData } from "@/components/roleplays/scenario-detail/ScenarioProgressPanel";
+import { ScenarioHeroBanner } from "@/components/roleplays/scenario-detail/ScenarioHeroBanner";
+import { ScenarioBriefing } from "@/components/roleplays/scenario-detail/ScenarioBriefing";
+import { ScenarioDossier } from "@/components/roleplays/scenario-detail/ScenarioDossier";
+import { ScenarioObjectives } from "@/components/roleplays/scenario-detail/ScenarioObjectives";
+import { ScenarioRewardsLadder } from "@/components/roleplays/scenario-detail/ScenarioRewardsLadder";
+import { ScenarioRuns } from "@/components/roleplays/scenario-detail/ScenarioRuns";
+import { ScenarioLeaderboard } from "@/components/roleplays/scenario-detail/ScenarioLeaderboard";
+import { ScenarioLaunchBar } from "@/components/roleplays/scenario-detail/ScenarioLaunchBar";
+import { FinalAttemptDialog } from "@/components/roleplays/scenario-detail/FinalAttemptDialog";
+import type {
+  ScenarioLeaderboardData,
+  ScenarioProgressData,
+  ScenarioRun,
+} from "@/components/roleplays/scenario-detail/scenario-progress-types";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function RoleplayIntroPage() {
@@ -33,11 +42,13 @@ export default function RoleplayIntroPage() {
   const roleplayId = params.id ? parseInt(params.id) : null;
   const [editId, setEditId] = useState<number | null>(null);
   const [duplicating, setDuplicating] = useState(false);
+  const [finalAttemptOpen, setFinalAttemptOpen] = useState(false);
   const [duplicateResult, setDuplicateResult] = useState<{
     id: number;
     title: string;
   } | null>(null);
   const canManage = hasPermission("roleplay:manage");
+  const featured = useFeaturedScenarioManage(canManage);
 
   const { data: roleplay, isLoading } = useQuery<any>({
     queryKey: [`/api/roleplays/${roleplayId}`],
@@ -58,24 +69,22 @@ export default function RoleplayIntroPage() {
     enabled: !!roleplayId,
   });
 
+  const { data: leaderboard, isLoading: leaderboardLoading } = useQuery<ScenarioLeaderboardData>({
+    queryKey: [`/api/roleplays/${roleplayId}/leaderboard`, { limit: 3 }],
+    queryFn: () => apiRequest("GET", `/api/roleplays/${roleplayId}/leaderboard?limit=3`),
+    enabled: !!roleplayId,
+  });
+
   const settings = roleplay?.settings ?? {};
   const persona = roleplay?.persona ?? {};
+  const criteria = roleplay?.criteria ?? [];
   const completedAttempts = myAttempts.filter((a) => a.status === "completed");
-  const bestAttempt = completedAttempts.length
-    ? completedAttempts.reduce((best, a) => {
-        const score = parseFloat(a.score || "0");
-        const bestScore = parseFloat(best.score || "0");
-        return score > bestScore ? a : best;
-      })
-    : null;
   const maxAttempts = settings.maxAttempts;
   const hasUnlimited = !maxAttempts || maxAttempts <= 0;
   const remaining = hasUnlimited ? null : Math.max(0, maxAttempts - myAttempts.length);
   const isOutOfAttempts = !hasUnlimited && remaining === 0;
   const maxTurns =
-    typeof settings.maxTurns === "number" && settings.maxTurns > 0
-      ? settings.maxTurns
-      : null;
+    typeof settings.maxTurns === "number" && settings.maxTurns > 0 ? settings.maxTurns : null;
   const timeLimitMinutes =
     typeof settings.timeLimitMinutes === "number" && settings.timeLimitMinutes > 0
       ? settings.timeLimitMinutes
@@ -83,17 +92,19 @@ export default function RoleplayIntroPage() {
   const liveCoaching = !!settings.liveCoaching;
   const bestScore = progress?.bestScore ?? null;
   const rewardTiers = roleplay?.rewardTiers ?? [];
+  const attemptCount = progress?.attemptCount ?? myAttempts.length;
 
-  const sortedAttempts: ScenarioAttempt[] = [...myAttempts]
+  const sortedAttempts: ScenarioRun[] = [...myAttempts]
     .sort((a, b) => (b.attemptNumber ?? 0) - (a.attemptNumber ?? 0))
     .map((a) => ({
       id: a.id,
       attemptNumber: a.attemptNumber,
       status: a.status,
       score: a.score,
+      isPassed: a.isPassed,
     }));
 
-  const handleAttemptClick = (attempt: ScenarioAttempt) => {
+  const handleAttemptClick = (attempt: ScenarioRun) => {
     if (attempt.status === "completed") {
       navigate(`/roleplays/${roleplayId}/results/${attempt.id}`);
     } else if (attempt.status === "in_progress") {
@@ -150,6 +161,8 @@ export default function RoleplayIntroPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}/my-progress`] });
       queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}/my-attempts`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}/leaderboard`] });
+      setFinalAttemptOpen(false);
       navigate(`/roleplays/${roleplayId}/take`);
     },
     onError: (err: Error) =>
@@ -159,17 +172,20 @@ export default function RoleplayIntroPage() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="w-full px-4 lg:px-6 py-6 space-y-6">
+        <div className="w-full max-w-6xl mx-auto px-4 lg:px-6 py-6 pb-24 space-y-6">
           <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-10 w-2/3 max-w-md" />
-          <Skeleton className="h-6 w-full max-w-xl" />
-          <Skeleton className="h-8 w-full max-w-lg" />
-          <div className="flex flex-col lg:flex-row gap-6">
-            <div className="flex-1 space-y-6">
-              <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-[260px] w-full rounded-xl" />
+          <div className="grid grid-cols-1 lg:grid-cols-[62%_38%] gap-6">
+            <div className="space-y-6">
               <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-40 w-full" />
             </div>
-            <Skeleton className="h-96 w-full lg:w-[30%] shrink-0" />
+            <div className="space-y-6">
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-36 w-full" />
+            </div>
           </div>
         </div>
       </MainLayout>
@@ -194,12 +210,28 @@ export default function RoleplayIntroPage() {
   const notConfigured = configNotReady || !hasRoleplayModels;
   const canStart = isPublished && !isOutOfAttempts && !notConfigured;
 
-  const maxAttemptsDisplay =
-    maxAttempts && maxAttempts > 0 ? maxAttempts : null;
+  const maxAttemptsDisplay = maxAttempts && maxAttempts > 0 ? maxAttempts : null;
+  const isFinalAttempt =
+    !hasUnlimited && remaining === 1 && maxAttemptsDisplay != null;
+
+  const handleStartClick = () => {
+    if (isFinalAttempt) {
+      setFinalAttemptOpen(true);
+    } else {
+      startMutation.mutate();
+    }
+  };
+
+  const tierContext =
+    progress?.currentTier && progress?.nextTier
+      ? `${progress.currentTier.tierName} is locked in — score ${progress.nextTier.minScorePercent}%+ to reach ${progress.nextTier.tierName} and earn +${progress.nextTier.rewardPoints} pts.`
+      : progress?.nextTier
+        ? `Score ${progress.nextTier.minScorePercent}%+ to reach ${progress.nextTier.tierName} and earn +${progress.nextTier.rewardPoints} pts.`
+        : null;
 
   return (
     <MainLayout>
-      <div className="w-full px-4 lg:px-6 py-6">
+      <div className="w-full max-w-6xl mx-auto px-4 lg:px-6 py-6 pb-24 flex flex-col min-h-0">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -207,71 +239,116 @@ export default function RoleplayIntroPage() {
           <ArrowLeft className="h-4 w-4" /> Back to scenarios
         </Link>
 
-        <ScenarioDetailHeader
+        <ScenarioHeroBanner
           title={roleplay.title}
           description={roleplay.description}
+          coverImageMediaId={roleplay.coverImageMediaId}
           difficulty={persona.difficulty}
           classifications={roleplay.classifications}
+          achievedTier={progress?.currentTier ?? null}
+          roleplayId={roleplayId!}
           canManage={canManage}
           isPublished={isPublished}
           publishPending={publishMutation.isPending}
           duplicating={duplicating}
+          isFeatured={roleplayId != null && featured.isFeatured(roleplayId)}
+          featuredPending={featured.pending}
+          featuredDisabled={!isPublished}
+          onFeaturedChange={
+            roleplayId != null && isPublished
+              ? (next) => void featured.setFeatured(roleplayId, next)
+              : undefined
+          }
           onPublishChange={(c) => publishMutation.mutate(c)}
           onEdit={() => setEditId(roleplayId)}
           onDuplicate={() => void handleDuplicate()}
           onDelete={() => deleteMutation.mutate()}
+          className="mb-6"
         />
 
-        <div className="flex flex-col-reverse lg:flex-row gap-6">
-          <div className="min-w-0 flex-1 lg:w-[70%]">
-            <ScenarioNarrative
-              learnerRole={roleplay.learnerRole}
-              situationContext={roleplay.situationContext}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 flex-1 min-h-0">
+          <div className="contents lg:flex lg:flex-col lg:gap-6 lg:min-w-0 lg:flex-1">
+            <ScenarioBriefing
               introduction={roleplay.introduction}
+              situationContext={roleplay.situationContext}
+              learnerRole={roleplay.learnerRole}
               learnerObjective={roleplay.learnerObjective}
-              personaName={persona.name}
-              personaRoleTitle={persona.roleTitle}
+              showLearnerObjective={criteria.length === 0}
+              className="order-1 lg:order-none"
             />
-            <ScenarioRubricPreview criteria={roleplay.criteria ?? []} className="mt-8" />
+
+            <ScenarioObjectives
+              criteria={criteria}
+              criterionBests={progress?.criterionBests}
+              hasCompletedAttempt={completedAttempts.length > 0}
+              className="order-2 lg:order-none"
+            />
+
+            <ScenarioLeaderboard
+              roleplayId={roleplayId!}
+              data={leaderboard}
+              isLoading={leaderboardLoading}
+              canManage={canManage}
+              className="order-3 lg:order-none"
+            />
           </div>
 
-          <ScenarioDetailRail
-            roleplayId={roleplayId!}
-            coverImageMediaId={roleplay.coverImageMediaId}
-            coverStatus={
-              bestAttempt
-                ? {
-                    score: parseFloat(bestAttempt.score || "0"),
-                    isPassed: bestAttempt.isPassed ?? null,
-                  }
-                : null
-            }
-            onCoverStatusClick={
-              bestAttempt
-                ? () => navigate(`/roleplays/${roleplayId}/results/${bestAttempt.id}`)
-                : undefined
-            }
-            progress={progress}
-            progressLoading={progressLoading}
-            rewardTiers={rewardTiers}
-            bestScore={bestScore}
-            attempts={sortedAttempts}
-            onAttemptClick={handleAttemptClick}
-            passThreshold={settings.passThreshold ?? 70}
-            maxTurns={maxTurns}
-            autoEndOnMaxTurns={settings.autoEndOnMaxTurns}
-            timeLimitMinutes={timeLimitMinutes}
-            liveCoaching={liveCoaching}
-            maxAttempts={maxAttemptsDisplay}
-            notConfigured={notConfigured}
-            configNotReady={!!configNotReady}
-            canStart={canStart}
-            startPending={startMutation.isPending}
-            onStart={() => startMutation.mutate()}
-            canManage={canManage}
-          />
+          <div className="contents lg:flex lg:flex-col lg:gap-6 lg:min-w-0 lg:w-[30%] lg:shrink-0">
+            <ScenarioDossier
+              name={persona.name}
+              roleTitle={persona.roleTitle}
+              personalityTraits={persona.personalityTraits}
+              hasHiddenObjective={persona.hasHiddenObjective}
+              className="order-4 lg:order-none"
+            />
+
+            {!progressLoading && (
+              <ScenarioRewardsLadder
+                tiers={rewardTiers}
+                bestScore={bestScore}
+                nextTier={progress?.nextTier ?? null}
+                className="order-5 lg:order-none"
+              />
+            )}
+
+            <ScenarioRuns
+              attempts={sortedAttempts}
+              lastTopImprovement={progress?.lastTopImprovement}
+              onAttemptClick={handleAttemptClick}
+              className="order-6 lg:order-none"
+            />
+          </div>
         </div>
       </div>
+
+      <ScenarioLaunchBar
+        maxTurns={maxTurns}
+        autoEndOnMaxTurns={settings.autoEndOnMaxTurns}
+        timeLimitMinutes={timeLimitMinutes}
+        liveCoaching={liveCoaching}
+        maxAttempts={maxAttemptsDisplay}
+        attemptCount={attemptCount}
+        isOutOfAttempts={isOutOfAttempts}
+        canStart={canStart}
+        startPending={startMutation.isPending}
+        notConfigured={notConfigured}
+        configNotReady={!!configNotReady}
+        onStartClick={handleStartClick}
+      />
+
+      {isFinalAttempt && maxAttemptsDisplay != null && (
+        <FinalAttemptDialog
+          open={finalAttemptOpen}
+          onOpenChange={setFinalAttemptOpen}
+          attemptNumber={attemptCount + 1}
+          maxAttempts={maxAttemptsDisplay}
+          usedCount={attemptCount}
+          bestScore={bestScore}
+          tierContext={tierContext}
+          startPending={startMutation.isPending}
+          onConfirm={() => startMutation.mutate()}
+        />
+      )}
 
       {editId && (
         <EditRoleplayDialog

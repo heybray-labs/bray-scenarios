@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
 import { CoverImagePicker } from "@/components/roleplays/CoverImagePicker";
@@ -40,9 +41,9 @@ import {
 } from "lucide-react";
 import {
   DEFAULT_REWARD_TIERS as SHARED_DEFAULT_REWARD_TIERS,
-  REWARD_TIER_ICON_OPTIONS,
-  resolveRewardTierDisplay,
+  tierNameFromStarLevel,
 } from "@shared/schemas/points";
+import { TierStars } from "@/components/points/TierStars";
 
 interface RoleplayBuilderDialogProps {
   roleplayId: number | null;
@@ -61,19 +62,18 @@ interface CriterionDraft {
 
 interface RewardTierDraft {
   id?: number;
+  starLevel: number;
   tierName: string;
   minScorePercent: number;
   rewardPoints: number;
-  color: string;
-  icon: string;
 }
 
 const DEFAULT_REWARD_TIERS: RewardTierDraft[] = SHARED_DEFAULT_REWARD_TIERS.map((tier) => ({
-  tierName: tier.tierName,
+  id: tier.id,
+  starLevel: tier.starLevel ?? 1,
+  tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? 1),
   minScorePercent: tier.minScorePercent,
   rewardPoints: tier.rewardPoints,
-  color: tier.color ?? resolveRewardTierDisplay(tier).color,
-  icon: tier.icon ?? resolveRewardTierDisplay(tier).icon,
 }));
 
 const DEFAULT_CRITERIA: CriterionDraft[] = [
@@ -132,6 +132,7 @@ export default function RoleplayBuilderDialog({
   const [graderModelKey, setGraderModelKey] = useState("");
 
   const [criteria, setCriteria] = useState<CriterionDraft[]>(DEFAULT_CRITERIA);
+  const [rewardsEnabled, setRewardsEnabled] = useState(true);
   const [rewardTiers, setRewardTiers] = useState<RewardTierDraft[]>(DEFAULT_REWARD_TIERS);
   const [exporting, setExporting] = useState(false);
 
@@ -189,6 +190,9 @@ export default function RoleplayBuilderDialog({
     queryKey: ["/api/roleplay-classifications"],
     enabled: open,
   });
+
+  const featured = useFeaturedScenarioManage(isEdit && open && status === "published");
+  const isFeatured = roleplayId != null && featured.isFeatured(roleplayId);
 
   const dimensionOptions = (slug: string) =>
     taxonomy?.dimensions.find((d) => d.slug === slug)?.options ?? [];
@@ -307,26 +311,23 @@ export default function RoleplayBuilderDialog({
     }
 
     if (Array.isArray(existing.rewardTiers) && existing.rewardTiers.length) {
+      setRewardsEnabled(true);
       setRewardTiers(
-        sortRewardTiers(
-          existing.rewardTiers.map((t: any) => {
-            const resolved = resolveRewardTierDisplay({
-              tierName: t.tierName ?? "",
-              color: t.color,
-              icon: t.icon,
-            });
-            return {
-              id: t.id,
-              tierName: t.tierName ?? "",
-              minScorePercent: t.minScorePercent ?? 0,
-              rewardPoints: t.rewardPoints ?? 0,
-              color: resolved.color,
-              icon: resolved.icon,
-            };
-          }),
-        ),
+        DEFAULT_REWARD_TIERS.map((def, index) => {
+          const existingTier = existing.rewardTiers.find(
+            (t: any) => (t.starLevel ?? index + 1) === def.starLevel,
+          ) ?? existing.rewardTiers[index];
+          return {
+            id: existingTier?.id,
+            starLevel: def.starLevel,
+            tierName: tierNameFromStarLevel(def.starLevel),
+            minScorePercent: existingTier?.minScorePercent ?? def.minScorePercent,
+            rewardPoints: existingTier?.rewardPoints ?? def.rewardPoints,
+          };
+        }),
       );
     } else {
+      setRewardsEnabled(false);
       setRewardTiers(DEFAULT_REWARD_TIERS);
     }
   }, [existing]);
@@ -383,15 +384,16 @@ export default function RoleplayBuilderDialog({
       weight: c.weight,
       maxScore: c.maxScore,
     })),
-    rewardTiers: rewardTiers.map((t, index) => ({
-      id: t.id,
-      tierName: t.tierName,
-      minScorePercent: Number(t.minScorePercent),
-      rewardPoints: Number(t.rewardPoints),
-      orderIndex: index,
-      color: t.color,
-      icon: t.icon,
-    })),
+    rewardTiers: rewardsEnabled
+      ? rewardTiers.map((t, index) => ({
+          id: t.id,
+          starLevel: t.starLevel,
+          tierName: tierNameFromStarLevel(t.starLevel),
+          minScorePercent: Number(t.minScorePercent),
+          rewardPoints: Number(t.rewardPoints),
+          orderIndex: index,
+        }))
+      : [],
     classifications: {
       category: categorySlug || null,
       audienceLevel: audienceLevelSlug || null,
@@ -748,79 +750,32 @@ export default function RoleplayBuilderDialog({
               </TabsContent>
 
               {/* Rewards */}
-              <TabsContent value="rewards" className="space-y-2 mt-0">
+              <TabsContent value="rewards" className="space-y-3 mt-0">
+                <ToggleRow
+                  label="Enable point rewards"
+                  checked={rewardsEnabled}
+                  onChange={setRewardsEnabled}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Score thresholds and point rewards. Retakes only award the incremental
+                  Fixed Bronze / Silver / Gold tiers. Retakes only award the incremental
                   difference vs. a previous best tier.
                 </p>
-                <div className="rounded-md border overflow-hidden text-sm">
-                  <div className="grid grid-cols-[2rem_5.5rem_minmax(0,1fr)_3.75rem_3.75rem_2rem] gap-x-2 items-center px-2 py-1.5 bg-muted/40 border-b text-[11px] font-medium text-muted-foreground">
-                    <span aria-hidden />
-                    <span>Icon</span>
-                    <span>Name</span>
-                    <span>Min %</span>
-                    <span>Pts</span>
-                    <span aria-hidden />
-                  </div>
-                  {rewardTiers.map((tier, idx) => {
-                    const TierIcon = resolveLucideIcon(tier.icon);
-                    return (
+                {rewardsEnabled && (
+                  <div className="rounded-md border overflow-hidden text-sm">
+                    <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-x-2 items-center px-3 py-1.5 bg-muted/40 border-b text-[11px] font-medium text-muted-foreground">
+                      <span>Tier</span>
+                      <span>Min %</span>
+                      <span>Pts</span>
+                    </div>
+                    {rewardTiers.map((tier, idx) => (
                       <div
-                        key={idx}
-                        className="grid grid-cols-[2rem_5.5rem_minmax(0,1fr)_3.75rem_3.75rem_2rem] gap-x-2 items-center px-2 py-1.5 border-b last:border-b-0"
+                        key={tier.starLevel}
+                        className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-x-2 items-center px-3 py-2 border-b last:border-b-0"
                       >
-                        <Input
-                          type="color"
-                          value={tier.color}
-                          onChange={(e) =>
-                            updateRewardTier(setRewardTiers, idx, { color: e.target.value })
-                          }
-                          className="h-7 w-7 p-0.5 cursor-pointer border-0 shadow-none"
-                          title="Tier color"
-                        />
-                        <Select
-                          value={tier.icon}
-                          onValueChange={(value) => updateRewardTier(setRewardTiers, idx, { icon: value })}
-                        >
-                          <SelectTrigger className="h-8 px-2" title={tier.icon}>
-                            <SelectValue>
-                              <span className="flex items-center gap-1.5">
-                                <TierIcon
-                                  className="h-3.5 w-3.5 shrink-0"
-                                  style={{ color: tier.color }}
-                                />
-                                <span className="truncate capitalize text-xs">{tier.icon}</span>
-                              </span>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent className="max-h-52">
-                            {REWARD_TIER_ICON_OPTIONS.map((iconName) => {
-                              const ItemIcon = resolveLucideIcon(iconName);
-                              return (
-                                <SelectItem key={iconName} value={iconName}>
-                                  <span className="flex items-center gap-2">
-                                    <ItemIcon className="h-4 w-4" />
-                                    <span className="capitalize">{iconName}</span>
-                                  </span>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          value={tier.tierName}
-                          onChange={(e) => {
-                            const tierName = e.target.value;
-                            const preset = resolveRewardTierDisplay({ tierName });
-                            updateRewardTier(setRewardTiers, idx, {
-                              tierName,
-                              color: preset.color,
-                              icon: preset.icon,
-                            });
-                          }}
-                          placeholder="Gold"
-                          className="h-8"
-                        />
+                        <span className="inline-flex items-center gap-2 font-medium">
+                          <TierStars level={tier.starLevel as 1 | 2 | 3} size="sm" />
+                          {tier.tierName}
+                        </span>
                         <Input
                           type="number"
                           min={0}
@@ -844,39 +799,10 @@ export default function RoleplayBuilderDialog({
                           }
                           className="h-8 px-2"
                         />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => removeAt(setRewardTiers, idx)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  onClick={() =>
-                    setRewardTiers((prev) =>
-                      sortRewardTiers([
-                        ...prev,
-                        {
-                          tierName: "",
-                          minScorePercent: 0,
-                          rewardPoints: 0,
-                          color: resolveRewardTierDisplay({ tierName: "" }).color,
-                          icon: resolveRewardTierDisplay({ tierName: "" }).icon,
-                        },
-                      ]),
-                    )
-                  }
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Add tier
-                </Button>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               {/* Settings */}
@@ -928,6 +854,14 @@ export default function RoleplayBuilderDialog({
                   </Field>
                   <ToggleRow label="Show leaderboard" checked={showLeaderboard} onChange={setShowLeaderboard} />
                   <ToggleRow label="Anonymous leaderboard" checked={anonymousLeaderboard} onChange={setAnonymousLeaderboard} />
+                  {isEdit && status === "published" && roleplayId != null && (
+                    <ToggleRow
+                      label="Feature on homepage hero"
+                      checked={isFeatured}
+                      onChange={(next) => void featured.setFeatured(roleplayId, next)}
+                      disabled={featured.pending}
+                    />
+                  )}
                 </div>
               </TabsContent>
             </div>
@@ -987,17 +921,23 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between">
       <Label className="font-normal">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
   );
-}
-
-function sortRewardTiers(tiers: RewardTierDraft[]): RewardTierDraft[] {
-  return [...tiers].sort((a, b) => a.minScorePercent - b.minScorePercent);
 }
 
 function updateRewardTier(
@@ -1005,10 +945,7 @@ function updateRewardTier(
   idx: number,
   patch: Partial<RewardTierDraft>,
 ) {
-  setter((prev) => {
-    const next = prev.map((item, i) => (i === idx ? { ...item, ...patch } : item));
-    return patch.minScorePercent !== undefined ? sortRewardTiers(next) : next;
-  });
+  setter((prev) => prev.map((item, i) => (i === idx ? { ...item, ...patch } : item)));
 }
 
 function updateCriterion<T>(

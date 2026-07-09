@@ -3,6 +3,7 @@ import { ClassificationChip } from "@/components/classifications/ClassificationC
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
 import { overlayPillStyle } from "@/lib/classification-display";
 import { cn } from "@/lib/utils";
+import { CAROUSEL_COVER_HEIGHT_CLASS } from "@/components/roleplays/browse/carousel-card-layout";
 
 export type ScenarioCoverStatus = {
   score: number;
@@ -18,6 +19,8 @@ export type ScenarioCoverClassification = {
 type ScenarioCoverProps = {
   mediaId?: number | null;
   className?: string;
+  /** Use a fixed height instead of aspect-ratio (carousel cards). */
+  fixedHeight?: boolean;
   /** Compact pass/score pill overlaid top-right (cards). */
   status?: ScenarioCoverStatus | null;
   /** Difficulty pill overlaid bottom-right (cards). */
@@ -60,6 +63,7 @@ function statusPillColor(status: ScenarioCoverStatus): string {
 export function ScenarioCover({
   mediaId,
   className,
+  fixedHeight = false,
   status,
   difficulty,
   category,
@@ -79,7 +83,8 @@ export function ScenarioCover({
   return (
     <div
       className={cn(
-        "relative aspect-video w-full overflow-hidden bg-muted",
+        "relative w-full max-w-full shrink-0 overflow-hidden bg-muted",
+        fixedHeight ? CAROUSEL_COVER_HEIGHT_CLASS : "aspect-video",
         className,
       )}
     >
@@ -87,7 +92,8 @@ export function ScenarioCover({
         <img
           src={src}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full max-h-full max-w-full object-cover object-center"
+          draggable={false}
         />
       ) : (
         <div

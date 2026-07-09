@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeRewardTiers, tierNameFromStarLevel } from "./points.ts";
 
 export const ROLEPLAY_TRANSFER_FORMAT = "bray-scenarios";
 export const ROLEPLAY_TRANSFER_VERSION = 2;
@@ -75,7 +76,8 @@ const portableCriterionSchema = z
 
 const portableRewardTierSchema = z
   .object({
-    tierName: z.string().min(1),
+    tierName: z.string().min(1).optional(),
+    starLevel: z.number().int().min(1).max(3).optional(),
     minScorePercent: z.number().int().min(0).max(100),
     rewardPoints: z.number().int().min(0),
     orderIndex: z.number().optional(),
@@ -196,18 +198,26 @@ export function stripForExport(
   });
 
   const rewardTierList = Array.isArray(full.rewardTiers) ? full.rewardTiers : [];
-  const rewardTiers = rewardTierList.map((t, index) => {
-    const stripped = omitKeys(t as Record<string, unknown>, REWARD_TIER_STRIP_KEYS) ?? {};
-    return {
-      tierName: String(stripped.tierName ?? ""),
-      minScorePercent: Number(stripped.minScorePercent ?? 0),
-      rewardPoints: Number(stripped.rewardPoints ?? 0),
-      orderIndex:
-        stripped.orderIndex != null ? Number(stripped.orderIndex) : index,
-      color: stripped.color != null ? String(stripped.color) : undefined,
-      icon: stripped.icon != null ? String(stripped.icon) : undefined,
-    };
-  });
+  const rewardTiers = normalizeRewardTiers(
+    rewardTierList.map((t, index) => {
+      const stripped = omitKeys(t as Record<string, unknown>, REWARD_TIER_STRIP_KEYS) ?? {};
+      return {
+        tierName: String(stripped.tierName ?? ""),
+        starLevel:
+          stripped.starLevel != null ? Number(stripped.starLevel) : undefined,
+        minScorePercent: Number(stripped.minScorePercent ?? 0),
+        rewardPoints: Number(stripped.rewardPoints ?? 0),
+        orderIndex:
+          stripped.orderIndex != null ? Number(stripped.orderIndex) : index,
+      };
+    }),
+  ).map((tier) => ({
+    starLevel: tier.starLevel,
+    tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? 1),
+    minScorePercent: tier.minScorePercent,
+    rewardPoints: tier.rewardPoints,
+    orderIndex: tier.orderIndex,
+  }));
 
   return transferScenarioSchema.parse({
     roleplay,
@@ -305,18 +315,26 @@ export function prepareScenarioForImport(scenario: TransferScenario): TransferSc
     };
   });
 
-  const rewardTiers = (scenario.rewardTiers ?? []).map((t, index) => {
-    const stripped = omitKeys(t as Record<string, unknown>, REWARD_TIER_STRIP_KEYS) ?? {};
-    return {
-      tierName: String(stripped.tierName ?? ""),
-      minScorePercent: Number(stripped.minScorePercent ?? 0),
-      rewardPoints: Number(stripped.rewardPoints ?? 0),
-      orderIndex:
-        stripped.orderIndex != null ? Number(stripped.orderIndex) : index,
-      color: stripped.color != null ? String(stripped.color) : undefined,
-      icon: stripped.icon != null ? String(stripped.icon) : undefined,
-    };
-  });
+  const rewardTiers = normalizeRewardTiers(
+    (scenario.rewardTiers ?? []).map((t, index) => {
+      const stripped = omitKeys(t as Record<string, unknown>, REWARD_TIER_STRIP_KEYS) ?? {};
+      return {
+        tierName: String(stripped.tierName ?? ""),
+        starLevel:
+          stripped.starLevel != null ? Number(stripped.starLevel) : undefined,
+        minScorePercent: Number(stripped.minScorePercent ?? 0),
+        rewardPoints: Number(stripped.rewardPoints ?? 0),
+        orderIndex:
+          stripped.orderIndex != null ? Number(stripped.orderIndex) : index,
+      };
+    }),
+  ).map((tier) => ({
+    starLevel: tier.starLevel,
+    tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? 1),
+    minScorePercent: tier.minScorePercent,
+    rewardPoints: tier.rewardPoints,
+    orderIndex: tier.orderIndex,
+  }));
 
   return {
     roleplay: {

@@ -68,6 +68,27 @@ describe("Roleplays API", () => {
     expectNotServerError(res.status);
   });
 
+  it("GET /api/roleplays includes myPointsEarned and myInProgressAttempt", async () => {
+    const res = await api()
+      .get("/api/roleplays")
+      .set(authHeader(learner.token))
+      .expect(200);
+
+    expect(res.body.items.length).toBeGreaterThan(0);
+    const item = res.body.items[0];
+    expect(item).toHaveProperty("myPointsEarned");
+    expect(item).toHaveProperty("myInProgressAttempt");
+  });
+
+  it("GET /api/roleplays?myStatus=passed filters results", async () => {
+    const res = await api()
+      .get("/api/roleplays?myStatus=passed")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expectNotServerError(res.status);
+  });
+
   it("POST /api/roleplays", async () => {
     const id = await createMinimalRoleplay(admin.token);
     expect(id).toBeGreaterThan(0);
@@ -91,6 +112,63 @@ describe("Roleplays API", () => {
       })
       .expect(200);
     expect(res.body.title).toBe("Updated Smoke Test");
+  });
+
+  it("PUT /api/roleplays/:id saves canonical star tiers", async () => {
+    await api()
+      .put(`/api/roleplays/${roleplayId}`)
+      .set(authHeader(admin.token))
+      .send({
+        ...MINIMAL_ROLEPLAY_PAYLOAD,
+        rewardTiers: [
+          { starLevel: 1, tierName: "Bronze", minScorePercent: 55, rewardPoints: 10, orderIndex: 0 },
+          { starLevel: 2, tierName: "Silver", minScorePercent: 75, rewardPoints: 25, orderIndex: 1 },
+          { starLevel: 3, tierName: "Gold", minScorePercent: 92, rewardPoints: 50, orderIndex: 2 },
+        ],
+      })
+      .expect(200);
+
+    const getRes = await api()
+      .get(`/api/roleplays/${roleplayId}`)
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(getRes.body.rewardTiers).toHaveLength(3);
+    expect(getRes.body.rewardTiers.map((t: { starLevel: number }) => t.starLevel)).toEqual([1, 2, 3]);
+    expect(getRes.body.rewardTiers[0].tierName).toBe("Bronze");
+  });
+
+  it("POST /api/roleplays/import pads legacy two-tier packs to three", async () => {
+    const res = await api()
+      .post("/api/roleplays/import")
+      .set(authHeader(admin.token))
+      .send({
+        scenarios: [
+          {
+            roleplay: {
+              ...MINIMAL_ROLEPLAY_PAYLOAD.roleplay,
+              title: "Legacy Two Tier Import",
+            },
+            settings: MINIMAL_ROLEPLAY_PAYLOAD.settings,
+            persona: MINIMAL_ROLEPLAY_PAYLOAD.persona,
+            criteria: MINIMAL_ROLEPLAY_PAYLOAD.criteria,
+            rewardTiers: [
+              { tierName: "Bronze", minScorePercent: 60, rewardPoints: 15, orderIndex: 0 },
+              { tierName: "Silver", minScorePercent: 80, rewardPoints: 30, orderIndex: 1 },
+            ],
+          },
+        ],
+      })
+      .expect(201);
+
+    const importedId = res.body.created[0].id as number;
+    const getRes = await api()
+      .get(`/api/roleplays/${importedId}`)
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(getRes.body.rewardTiers).toHaveLength(3);
+    expect(getRes.body.rewardTiers[2].tierName).toBe("Gold");
   });
 
   it("GET /api/roleplays/:id/stats", async () => {
@@ -310,5 +388,166 @@ describe("Roleplays API", () => {
       .set(authHeader(admin.token))
       .expect(200);
     expect(res.body).toHaveProperty("message");
+  });
+
+  it("GET /api/roleplays/continue returns continue items", async () => {
+    const res = await api()
+      .get("/api/roleplays/continue")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expect(Array.isArray(res.body.items)).toBe(true);
+    if (res.body.items.length > 0) {
+      expect(res.body.items[0]).toHaveProperty("id");
+      expect(res.body.items[0]).toHaveProperty("title");
+    }
+    expectNotServerError(res.status);
+  });
+
+  it("GET /api/roleplays/featured returns featured hero items", async () => {
+    const res = await api()
+      .get("/api/roleplays/featured")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expectNotServerError(res.status);
+  });
+
+  it("GET /api/roleplays/popular returns browse items", async () => {
+    const res = await api()
+      .get("/api/roleplays/popular")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expectNotServerError(res.status);
+  });
+
+  it("GET /api/roleplays/recommended returns browse items", async () => {
+    const res = await api()
+      .get("/api/roleplays/recommended")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expectNotServerError(res.status);
+  });
+
+  it("GET /api/roleplays/room-for-improvement returns browse items", async () => {
+    const res = await api()
+      .get("/api/roleplays/room-for-improvement")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(res.body).toHaveProperty("items");
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expectNotServerError(res.status);
+  });
+
+  it("GET /api/roleplays/featured/manage requires manage permission", async () => {
+    await api()
+      .get("/api/roleplays/featured/manage")
+      .set(authHeader(learner.token))
+      .expect(403);
+  });
+
+  it("PUT /api/roleplays/featured/manage updates featured lineup", async () => {
+    const listRes = await api()
+      .get("/api/roleplays")
+      .set(authHeader(admin.token))
+      .expect(200);
+    const publishedId = listRes.body.items.find(
+      (item: { status: string }) => item.status === "published",
+    )?.id;
+    expect(publishedId).toBeTruthy();
+
+    const putRes = await api()
+      .put("/api/roleplays/featured/manage")
+      .set(authHeader(admin.token))
+      .send({ roleplayIds: [publishedId] })
+      .expect(200);
+    expect(Array.isArray(putRes.body.items)).toBe(true);
+    expect(putRes.body.items[0].roleplayId).toBe(publishedId);
+
+    const featuredRes = await api()
+      .get("/api/roleplays/featured")
+      .set(authHeader(learner.token))
+      .expect(200);
+    expect(featuredRes.body.items.some((item: { id: number }) => item.id === publishedId)).toBe(
+      true,
+    );
+  });
+
+  it("GET /api/roleplays/:id/my-progress returns criterion bests and last improvement", async () => {
+    const res = await api()
+      .get(`/api/roleplays/${roleplayId}/my-progress`)
+      .set(authHeader(learner.token))
+      .expect(200);
+
+    expect(res.body).toHaveProperty("criterionBests");
+    expect(Array.isArray(res.body.criterionBests)).toBe(true);
+    expect(res.body).toHaveProperty("lastTopImprovement");
+    if (res.body.criterionBests.length > 0) {
+      expect(res.body.criterionBests[0]).toMatchObject({
+        criterionId: expect.any(Number),
+        name: expect.any(String),
+        bestScore: expect.any(Number),
+      });
+    }
+  });
+
+  it("GET /api/roleplays/:id hides hiddenObjective for learners", async () => {
+    await api()
+      .put(`/api/roleplays/${roleplayId}`)
+      .set(authHeader(admin.token))
+      .send({
+        ...MINIMAL_ROLEPLAY_PAYLOAD,
+        persona: {
+          ...MINIMAL_ROLEPLAY_PAYLOAD.persona,
+          hiddenObjective: "Secret learner-only objective text",
+        },
+      })
+      .expect(200);
+
+    const learnerRes = await api()
+      .get(`/api/roleplays/${roleplayId}`)
+      .set(authHeader(learner.token))
+      .expect(200);
+
+    expect(learnerRes.body.persona).not.toHaveProperty("hiddenObjective");
+    expect(learnerRes.body.persona.hasHiddenObjective).toBe(true);
+    expect(learnerRes.body.persona.personalityTraits).toBe("friendly");
+
+    const adminRes = await api()
+      .get(`/api/roleplays/${roleplayId}`)
+      .set(authHeader(admin.token))
+      .expect(200);
+
+    expect(adminRes.body.persona.hiddenObjective).toBe("Secret learner-only objective text");
+  });
+
+  it("GET /api/roleplays/:id/leaderboard ranks by best score", async () => {
+    const res = await api()
+      .get(`/api/roleplays/${roleplayId}/leaderboard?limit=3`)
+      .set(authHeader(learner.token))
+      .expect(200);
+
+    expect(res.body).toHaveProperty("entries");
+    expect(Array.isArray(res.body.entries)).toBe(true);
+    expect(res.body).toHaveProperty("currentUser");
+
+    if (res.body.entries.length > 0) {
+      expect(res.body.entries[0]).toMatchObject({
+        userId: expect.any(Number),
+        name: expect.any(String),
+        bestScore: expect.any(Number),
+        rank: 1,
+      });
+      expect(res.body.currentUser).toMatchObject({
+        userId: learner.id,
+        rank: expect.any(Number),
+        bestScore: expect.any(Number),
+      });
+    }
   });
 });

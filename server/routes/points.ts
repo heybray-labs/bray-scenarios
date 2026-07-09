@@ -19,6 +19,16 @@ router.get("/me", async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get("/me/stats", async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await pointsController.getUserProgressStats(req.user!.id);
+    res.json(stats);
+  } catch (error) {
+    log.error("get progress stats error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get progress stats" });
+  }
+});
+
 router.get("/me/history", async (req: AuthRequest, res: Response) => {
   try {
     const page = req.query.page ? parseInt(String(req.query.page), 10) : 1;
@@ -28,6 +38,20 @@ router.get("/me/history", async (req: AuthRequest, res: Response) => {
   } catch (error) {
     log.error("get points history error", error instanceof Error ? error : undefined);
     res.status(500).json({ error: "Failed to get points history" });
+  }
+});
+
+router.get("/recent-stars", async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 15;
+    const result = await pointsController.getRecentStarAchievements({
+      limit,
+      currentUserId: req.user!.id,
+    });
+    res.json(result);
+  } catch (error) {
+    log.error("get recent stars error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get recent star achievements" });
   }
 });
 

@@ -1,5 +1,5 @@
 import { db } from "../db.ts";
-import { and, eq, desc, sql, inArray, or, ilike, count } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, or, ilike, count, gte } from "drizzle-orm";
 import {
   AIMessage,
   HumanMessage,
@@ -14,6 +14,7 @@ import {
   roleplayAttempts,
   roleplayMessages,
   roleplayCriterionScores,
+  homepageFeaturedScenarios,
   type Roleplay,
 } from "../../shared/schemas/roleplay-core.ts";
 import {
@@ -63,12 +64,20 @@ import type {
 } from "../../shared/schemas/roleplay-classifications.ts";
 import {
   IMPORT_PROMPT_DIMENSIONS,
+  classificationDimensions,
+  classificationOptions,
+  roleplayClassificationLinks,
 } from "../../shared/schemas/roleplay-classifications.ts";
 import {
   scenarioRewardTiers,
+  userScenarioTierRewards,
+  pointTransactions,
+  resolveRewardTierDisplay,
+  normalizeRewardTiers,
+  tierNameFromStarLevel,
+  deriveStarLevel,
+  type RewardTierInput,
 } from "../../shared/schemas/points.ts";
-import type { RewardTierInput } from "../../shared/schemas/points.ts";
-import { resolveRewardTierDisplay } from "../../shared/schemas/points.ts";
 import { pointsController } from "./points.controller.ts";
 
 const log = createLogger("roleplay");
@@ -111,6 +120,11 @@ export interface RoleplayListOptions {
   durations?: string[];
   tags?: string[];
   difficulties?: string[];
+  userId?: number;
+  myStatus?: string;
+  sort?: "createdAt" | "publishedAt";
+  publishedSince?: Date;
+  roleplayIds?: number[];
 }
 
 export interface RoleplayListResult {
@@ -197,7 +211,114 @@ export class RoleplaySystemController {
       addClassificationInFilter("tags", tagSlugs);
     }
 
+    const userId = options?.userId;
+    const myStatus = options?.myStatus?.trim();
+    if (userId && myStatus) {
+      switch (myStatus) {
+        case "not_started":
+          filters.push(sql`NOT EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id} AND ra.user_id = ${userId}
+          )`);
+          break;
+        case "in_progress":
+          filters.push(sql`EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id}
+              AND ra.user_id = ${userId}
+              AND ra.status = 'in_progress'
+          )`);
+          break;
+        case "passed":
+          filters.push(sql`EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id}
+              AND ra.user_id = ${userId}
+              AND ra.status = 'completed'
+              AND ra.is_passed = true
+              AND CAST(ra.score AS numeric) = (
+                SELECT MAX(CAST(ra2.score AS numeric))
+                FROM roleplay_attempts ra2
+                WHERE ra2.roleplay_id = ${roleplays.id}
+                  AND ra2.user_id = ${userId}
+                  AND ra2.status = 'completed'
+              )
+          )`);
+          break;
+        case "attempted":
+          filters.push(sql`EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id}
+              AND ra.user_id = ${userId}
+              AND ra.status = 'completed'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id}
+              AND ra.user_id = ${userId}
+              AND ra.status = 'completed'
+              AND ra.is_passed = true
+              AND CAST(ra.score AS numeric) = (
+                SELECT MAX(CAST(ra2.score AS numeric))
+                FROM roleplay_attempts ra2
+                WHERE ra2.roleplay_id = ${roleplays.id}
+                  AND ra2.user_id = ${userId}
+                  AND ra2.status = 'completed'
+              )
+          )`);
+          break;
+        case "bronze":
+        case "silver":
+        case "gold": {
+          const starLevel = myStatus === "bronze" ? 1 : myStatus === "silver" ? 2 : 3;
+          filters.push(sql`EXISTS (
+            SELECT 1 FROM user_scenario_tier_rewards ustr
+            INNER JOIN scenario_reward_tiers srt ON srt.id = ustr.highest_tier_id
+            WHERE ustr.user_id = ${userId}
+              AND ustr.roleplay_id = ${roleplays.id}
+              AND srt.star_level = ${starLevel}
+          )`);
+          break;
+        }
+        case "not_passed":
+          filters.push(sql`NOT EXISTS (
+            SELECT 1 FROM roleplay_attempts ra
+            WHERE ra.roleplay_id = ${roleplays.id}
+              AND ra.user_id = ${userId}
+              AND ra.status = 'completed'
+              AND ra.is_passed = true
+              AND CAST(ra.score AS numeric) = (
+                SELECT MAX(CAST(ra2.score AS numeric))
+                FROM roleplay_attempts ra2
+                WHERE ra2.roleplay_id = ${roleplays.id}
+                  AND ra2.user_id = ${userId}
+                  AND ra2.status = 'completed'
+              )
+          )`);
+          break;
+        case "below_gold":
+          filters.push(sql`NOT EXISTS (
+            SELECT 1 FROM user_scenario_tier_rewards ustr
+            INNER JOIN scenario_reward_tiers srt ON srt.id = ustr.highest_tier_id
+            WHERE ustr.user_id = ${userId}
+              AND ustr.roleplay_id = ${roleplays.id}
+              AND srt.star_level = 3
+          )`);
+          break;
+      }
+    }
+
+    if (options?.roleplayIds?.length) {
+      filters.push(inArray(roleplays.id, options.roleplayIds));
+    }
+
+    if (options?.publishedSince) {
+      filters.push(sql`${roleplays.publishedAt} >= ${options.publishedSince}`);
+    }
+
     const whereClause = filters.length ? and(...filters) : undefined;
+
+    const orderColumn =
+      options?.sort === "publishedAt" ? roleplays.publishedAt : roleplays.createdAt;
 
     const [countRow] = await db
       .select({ total: count() })
@@ -213,7 +334,7 @@ export class RoleplaySystemController {
       .from(roleplays)
       .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
       .where(whereClause)
-      .orderBy(desc(roleplays.createdAt))
+      .orderBy(desc(orderColumn))
       .limit(limit)
       .offset(offset);
 
@@ -408,42 +529,54 @@ export class RoleplaySystemController {
       }
 
       // Reward tiers (reconcile: upsert provided, delete missing)
-      if (payload.rewardTiers) {
-        const existingTiers = await tx
-          .select()
-          .from(scenarioRewardTiers)
-          .where(eq(scenarioRewardTiers.roleplayId, rid));
-        const keptTierIds: number[] = [];
-        let tierOrderIndex = 0;
-        for (const tier of payload.rewardTiers) {
-          const display = resolveRewardTierDisplay(tier);
-          const data = {
-            roleplayId: rid,
-            tierName: tier.tierName,
-            minScorePercent: tier.minScorePercent,
-            rewardPoints: tier.rewardPoints,
-            orderIndex: tier.orderIndex ?? tierOrderIndex++,
-            color: tier.color ?? display.color,
-            icon: tier.icon ?? display.icon,
-          };
-          if (tier.id) {
-            await tx
-              .update(scenarioRewardTiers)
-              .set(data)
-              .where(eq(scenarioRewardTiers.id, tier.id));
-            keptTierIds.push(tier.id);
-          } else {
-            const [ins] = await tx.insert(scenarioRewardTiers).values(data).returning();
-            keptTierIds.push(ins.id);
-          }
-        }
-        const tiersToDelete = existingTiers
-          .filter((e) => !keptTierIds.includes(e.id))
-          .map((e) => e.id);
-        if (tiersToDelete.length) {
+      if (payload.rewardTiers !== undefined) {
+        if (!payload.rewardTiers.length) {
           await tx
             .delete(scenarioRewardTiers)
-            .where(inArray(scenarioRewardTiers.id, tiersToDelete));
+            .where(eq(scenarioRewardTiers.roleplayId, rid));
+        } else {
+          const normalizedTiers = normalizeRewardTiers(payload.rewardTiers);
+          const existingTiers = await tx
+            .select()
+            .from(scenarioRewardTiers)
+            .where(eq(scenarioRewardTiers.roleplayId, rid));
+          const keptTierIds: number[] = [];
+          let tierOrderIndex = 0;
+          for (const tier of normalizedTiers) {
+            const starLevel = tier.starLevel ?? tierOrderIndex + 1;
+            const display = resolveRewardTierDisplay({ starLevel });
+            const data = {
+              roleplayId: rid,
+              tierName: tierNameFromStarLevel(starLevel),
+              minScorePercent: tier.minScorePercent,
+              rewardPoints: tier.rewardPoints,
+              orderIndex: tier.orderIndex ?? tierOrderIndex++,
+              starLevel,
+              color: display.color,
+              icon: null,
+            };
+            const existingMatch = tier.id
+              ? existingTiers.find((e) => e.id === tier.id)
+              : existingTiers.find((e) => e.starLevel === starLevel);
+            if (existingMatch) {
+              await tx
+                .update(scenarioRewardTiers)
+                .set(data)
+                .where(eq(scenarioRewardTiers.id, existingMatch.id));
+              keptTierIds.push(existingMatch.id);
+            } else {
+              const [ins] = await tx.insert(scenarioRewardTiers).values(data).returning();
+              keptTierIds.push(ins.id);
+            }
+          }
+          const tiersToDelete = existingTiers
+            .filter((e) => !keptTierIds.includes(e.id))
+            .map((e) => e.id);
+          if (tiersToDelete.length) {
+            await tx
+              .delete(scenarioRewardTiers)
+              .where(inArray(scenarioRewardTiers.id, tiersToDelete));
+          }
         }
       }
 
@@ -510,12 +643,11 @@ export class RoleplaySystemController {
       persona: stripRelationIds(persona ?? undefined),
       criteria: (criteria ?? []).map((c) => stripRelationIds(c)!),
       rewardTiers: (rewardTiers ?? []).map((t) => ({
+        starLevel: Number(t.starLevel ?? 0) || undefined,
         tierName: String(t.tierName ?? ""),
         minScorePercent: Number(t.minScorePercent ?? 0),
         rewardPoints: Number(t.rewardPoints ?? 0),
         orderIndex: Number(t.orderIndex ?? 0),
-        color: t.color != null ? String(t.color) : undefined,
-        icon: t.icon != null ? String(t.icon) : undefined,
       })),
       classifications: classifications
         ? {
@@ -976,9 +1108,20 @@ export class RoleplaySystemController {
   }
 
   async publishRoleplay(roleplayId: number) {
+    const [existing] = await db
+      .select({ publishedAt: roleplays.publishedAt })
+      .from(roleplays)
+      .where(eq(roleplays.id, roleplayId))
+      .limit(1);
+
     const [updated] = await db
       .update(roleplays)
-      .set({ status: "published", published: true, updatedAt: new Date() })
+      .set({
+        status: "published",
+        published: true,
+        updatedAt: new Date(),
+        ...(existing?.publishedAt ? {} : { publishedAt: new Date() }),
+      })
       .where(eq(roleplays.id, roleplayId))
       .returning();
     return updated ?? null;
@@ -1100,6 +1243,537 @@ export class RoleplaySystemController {
       }
     }
     return bestByRoleplay;
+  }
+
+  async getUserPointsEarnedByRoleplay(userId: number) {
+    const rows = await db
+      .select({
+        roleplayId: userScenarioTierRewards.roleplayId,
+        totalPointsAwarded: userScenarioTierRewards.totalPointsAwarded,
+      })
+      .from(userScenarioTierRewards)
+      .where(eq(userScenarioTierRewards.userId, userId));
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      map.set(row.roleplayId, row.totalPointsAwarded);
+    }
+    return map;
+  }
+
+  async getUserInProgressAttemptsByRoleplay(userId: number) {
+    const rows = await db
+      .select({
+        id: roleplayAttempts.id,
+        roleplayId: roleplayAttempts.roleplayId,
+        turnCount: roleplayAttempts.turnCount,
+        maxTurns: roleplaySettings.maxTurns,
+      })
+      .from(roleplayAttempts)
+      .leftJoin(roleplaySettings, eq(roleplaySettings.roleplayId, roleplayAttempts.roleplayId))
+      .where(
+        and(
+          eq(roleplayAttempts.userId, userId),
+          eq(roleplayAttempts.status, "in_progress"),
+        ),
+      );
+
+    const map = new Map<
+      number,
+      { id: number; currentTurn: number; maxTurns: number | null }
+    >();
+    for (const row of rows) {
+      map.set(row.roleplayId, {
+        id: row.id,
+        currentTurn: row.turnCount,
+        maxTurns: row.maxTurns,
+      });
+    }
+    return map;
+  }
+
+  async enrichBrowseItemsForUser(
+    userId: number,
+    roleplayIds: number[],
+    publishedOnly = true,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (!roleplayIds.length) return [];
+    const uniqueIds = [...new Set(roleplayIds)];
+    const [bestAttempts, pointsEarned, inProgressAttempts, listResult] = await Promise.all([
+      this.getUserBestAttemptsByRoleplay(userId),
+      this.getUserPointsEarnedByRoleplay(userId),
+      this.getUserInProgressAttemptsByRoleplay(userId),
+      this.getRoleplays({
+        publishedOnly,
+        roleplayIds: uniqueIds,
+        limit: uniqueIds.length,
+        page: 1,
+        userId,
+      }),
+    ]);
+    const byId = new Map(
+      listResult.items.map((item) => [(item as { id: number }).id, item]),
+    );
+    return roleplayIds
+      .map((id) => byId.get(id))
+      .filter((item): item is Record<string, unknown> => !!item)
+      .map((roleplay) => {
+        const id = (roleplay as { id: number }).id;
+        return {
+          ...roleplay,
+          myBestAttempt: bestAttempts.get(id) ?? null,
+          myPointsEarned: pointsEarned.get(id) ?? 0,
+          myInProgressAttempt: inProgressAttempts.get(id) ?? null,
+        };
+      });
+  }
+
+  async getFeaturedHeroItems(publishedOnly = true) {
+    const rows = await db
+      .select({
+        roleplay: roleplays,
+        difficulty: roleplayPersonas.difficulty,
+      })
+      .from(homepageFeaturedScenarios)
+      .innerJoin(roleplays, eq(roleplays.id, homepageFeaturedScenarios.roleplayId))
+      .leftJoin(roleplayPersonas, eq(roleplayPersonas.roleplayId, roleplays.id))
+      .where(publishedOnly ? eq(roleplays.status, "published") : undefined)
+      .orderBy(asc(homepageFeaturedScenarios.sortOrder));
+
+    const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
+    const classificationMap =
+      await classificationService.getClassificationsForRoleplays(roleplayIds);
+
+    return rows.map(({ roleplay, difficulty }) => {
+      const classifications = classificationMap.get(roleplay.id);
+      return withCoverImageUrl({
+        id: roleplay.id,
+        title: roleplay.title,
+        description: roleplay.description,
+        coverImageMediaId: roleplay.coverImageMediaId,
+        difficulty: difficulty ?? null,
+        classifications: classifications
+          ? {
+              category: classifications.category,
+              audienceLevel: classifications.audienceLevel,
+            }
+          : { category: null, audienceLevel: null },
+      });
+    });
+  }
+
+  async getFeaturedManageList() {
+    const rows = await db
+      .select({
+        roleplayId: homepageFeaturedScenarios.roleplayId,
+        sortOrder: homepageFeaturedScenarios.sortOrder,
+        title: roleplays.title,
+        status: roleplays.status,
+        coverImageMediaId: roleplays.coverImageMediaId,
+      })
+      .from(homepageFeaturedScenarios)
+      .innerJoin(roleplays, eq(roleplays.id, homepageFeaturedScenarios.roleplayId))
+      .orderBy(asc(homepageFeaturedScenarios.sortOrder));
+
+    return rows.map((row) =>
+      withCoverImageUrl({
+        roleplayId: row.roleplayId,
+        sortOrder: row.sortOrder,
+        title: row.title,
+        status: row.status,
+        coverImageMediaId: row.coverImageMediaId,
+      }),
+    );
+  }
+
+  async setFeaturedManageList(roleplayIds: number[]) {
+    const uniqueIds = [...new Set(roleplayIds)];
+    await db.transaction(async (tx) => {
+      await tx.delete(homepageFeaturedScenarios);
+      if (uniqueIds.length) {
+        await tx.insert(homepageFeaturedScenarios).values(
+          uniqueIds.map((roleplayId, index) => ({
+            roleplayId,
+            sortOrder: index,
+          })),
+        );
+      }
+    });
+  }
+
+  async isRoleplayFeatured(roleplayId: number): Promise<boolean> {
+    const [row] = await db
+      .select({ roleplayId: homepageFeaturedScenarios.roleplayId })
+      .from(homepageFeaturedScenarios)
+      .where(eq(homepageFeaturedScenarios.roleplayId, roleplayId))
+      .limit(1);
+    return !!row;
+  }
+
+  async getPopularRoleplayIds(limit = 20): Promise<number[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const rows = await db
+      .select({
+        roleplayId: pointTransactions.roleplayId,
+      })
+      .from(pointTransactions)
+      .innerJoin(roleplays, eq(roleplays.id, pointTransactions.roleplayId))
+      .where(
+        and(
+          eq(roleplays.status, "published"),
+          gte(pointTransactions.createdAt, since),
+          sql`${pointTransactions.roleplayId} IS NOT NULL`,
+        ),
+      )
+      .groupBy(pointTransactions.roleplayId)
+      .orderBy(desc(sql`SUM(${pointTransactions.amount})`))
+      .limit(limit);
+
+    return rows
+      .map((row) => row.roleplayId)
+      .filter((id): id is number => id != null);
+  }
+
+  async getRecommendedRoleplayIds(userId: number, limit = 20): Promise<number[]> {
+    const mastery = await pointsController.getCategoryMasteryRankings(userId);
+    const topCategory = mastery[0];
+    if (!topCategory) return [];
+
+    const result = await this.getRoleplays({
+      publishedOnly: true,
+      categories: [topCategory.slug],
+      myStatus: "not_passed",
+      userId,
+      limit,
+      page: 1,
+      sort: "publishedAt",
+    });
+    return result.items.map((item) => (item as { id: number }).id);
+  }
+
+  /**
+   * "Room for Improvement" — scenarios from themes where the learner has
+   * poor scores and/or the lowest % of scenarios completed, preferring
+   * below-gold work (retries first, then unattempted gaps).
+   */
+  async getRoomForImprovementRoleplayIds(userId: number, limit = 20): Promise<number[]> {
+    const mastery = await pointsController.getCategoryMasteryRankings(userId);
+    if (!mastery.length) return [];
+
+    const engagementRows = await db
+      .select({
+        categorySlug: classificationOptions.slug,
+        attemptCount: sql<number>`count(*)::int`,
+        completedScenarios: sql<number>`count(DISTINCT ${roleplayAttempts.roleplayId})::int`,
+      })
+      .from(roleplayAttempts)
+      .innerJoin(roleplays, eq(roleplays.id, roleplayAttempts.roleplayId))
+      .innerJoin(
+        roleplayClassificationLinks,
+        eq(roleplayClassificationLinks.roleplayId, roleplays.id),
+      )
+      .innerJoin(
+        classificationOptions,
+        eq(classificationOptions.id, roleplayClassificationLinks.optionId),
+      )
+      .innerJoin(
+        classificationDimensions,
+        eq(classificationDimensions.id, classificationOptions.dimensionId),
+      )
+      .where(
+        and(
+          eq(roleplayAttempts.userId, userId),
+          eq(roleplayAttempts.status, "completed"),
+          eq(roleplays.status, "published"),
+          eq(classificationDimensions.slug, "category"),
+        ),
+      )
+      .groupBy(classificationOptions.slug);
+
+    const attemptCountByCategory = new Map(
+      engagementRows.map((row) => [row.categorySlug, Number(row.attemptCount) || 0]),
+    );
+    const completedByCategory = new Map(
+      engagementRows.map((row) => [
+        row.categorySlug,
+        Number(row.completedScenarios) || 0,
+      ]),
+    );
+
+    type FocusCategory = {
+      slug: string;
+      attemptCount: number;
+      completionRatio: number;
+      masteryRatio: number;
+      fromPoorScores: boolean;
+      fromLowCompletion: boolean;
+    };
+
+    const scored: FocusCategory[] = [];
+    for (const category of mastery) {
+      if (category.total <= 0) continue;
+      const attemptCount = attemptCountByCategory.get(category.slug) ?? 0;
+      const completed = completedByCategory.get(category.slug) ?? 0;
+      const completionRatio = completed / category.total;
+      const starred =
+        category.starCounts.gold +
+        category.starCounts.silver +
+        category.starCounts.bronze;
+      const masteryRatio = starred / category.total;
+      scored.push({
+        slug: category.slug,
+        attemptCount,
+        completionRatio,
+        masteryRatio,
+        fromPoorScores: false,
+        fromLowCompletion: false,
+      });
+    }
+
+    if (!scored.length) return [];
+
+    // Poor scores: practiced themes with weak star coverage.
+    for (const category of scored) {
+      if (category.attemptCount > 0 && category.masteryRatio < 0.5) {
+        category.fromPoorScores = true;
+      }
+    }
+
+    // Lowest completion %: incomplete themes, worst coverage first.
+    // Take the bottom half (at least 1) among categories not already fully done.
+    const incomplete = scored
+      .filter((c) => c.completionRatio < 1)
+      .sort(
+        (a, b) =>
+          a.completionRatio - b.completionRatio ||
+          b.attemptCount - a.attemptCount ||
+          a.slug.localeCompare(b.slug),
+      );
+    const lowCompletionTake = Math.max(1, Math.ceil(incomplete.length / 2));
+    for (const category of incomplete.slice(0, lowCompletionTake)) {
+      category.fromLowCompletion = true;
+    }
+
+    const focusCategories = scored.filter(
+      (c) => c.fromPoorScores || c.fromLowCompletion,
+    );
+    if (!focusCategories.length) return [];
+
+    // Prefer low completion, then weak mastery, then heavy engagement.
+    focusCategories.sort(
+      (a, b) =>
+        a.completionRatio - b.completionRatio ||
+        a.masteryRatio - b.masteryRatio ||
+        b.attemptCount - a.attemptCount ||
+        a.slug.localeCompare(b.slug),
+    );
+
+    const focusSlugs = focusCategories.map((c) => c.slug);
+    const overfetch = Math.min(60, Math.max(limit * 3, limit));
+    const result = await this.getRoleplays({
+      publishedOnly: true,
+      categories: focusSlugs,
+      myStatus: "below_gold",
+      userId,
+      limit: overfetch,
+      page: 1,
+      sort: "publishedAt",
+    });
+
+    const candidates = result.items as Array<{
+      id: number;
+      publishedAt?: string | Date | null;
+      classifications?: { category?: { slug?: string } | null };
+      rewardTiers?: Array<{ minScorePercent: number; starLevel?: number | null }>;
+    }>;
+    if (!candidates.length) return [];
+
+    const bestAttempts = await this.getUserBestAttemptsByRoleplay(userId);
+    const focusRank = new Map(focusSlugs.map((slug, index) => [slug, index]));
+    const focusBySlug = new Map(focusCategories.map((c) => [c.slug, c]));
+
+    const ranked = candidates
+      .map((item) => {
+        const best = bestAttempts.get(item.id);
+        const bestScore =
+          best != null ? parseFloat(String(best.score ?? "0")) : null;
+        const starLevel = deriveStarLevel(bestScore, item.rewardTiers ?? []);
+        const categorySlug = item.classifications?.category?.slug ?? null;
+        const categoryRank =
+          categorySlug != null ? (focusRank.get(categorySlug) ?? 999) : 999;
+        const focus = categorySlug != null ? focusBySlug.get(categorySlug) : undefined;
+        const publishedAt = item.publishedAt
+          ? new Date(item.publishedAt).getTime()
+          : 0;
+        return {
+          id: item.id,
+          attempted: best != null,
+          starLevel,
+          bestScore: bestScore ?? Number.POSITIVE_INFINITY,
+          categoryRank,
+          completionRatio: focus?.completionRatio ?? 1,
+          publishedAt,
+        };
+      })
+      // Weak runs = attempted with 0 stars only; keep unattempted gaps too.
+      .filter((item) => !item.attempted || item.starLevel === 0);
+
+    ranked.sort((a, b) => {
+      // 0-star retries first, then unattempted gaps in low-completion themes.
+      if (a.attempted !== b.attempted) return a.attempted ? -1 : 1;
+      if (a.bestScore !== b.bestScore) return a.bestScore - b.bestScore;
+      if (a.completionRatio !== b.completionRatio) {
+        return a.completionRatio - b.completionRatio;
+      }
+      if (a.categoryRank !== b.categoryRank) return a.categoryRank - b.categoryRank;
+      return b.publishedAt - a.publishedAt;
+    });
+
+    return ranked.slice(0, limit).map((item) => item.id);
+  }
+
+  async getContinueScenarios(userId: number, limit = 10) {
+    const inProgressRows = await db
+      .select({
+        roleplayId: roleplayAttempts.roleplayId,
+        title: roleplays.title,
+        coverImageMediaId: roleplays.coverImageMediaId,
+        attemptId: roleplayAttempts.id,
+        turnCount: roleplayAttempts.turnCount,
+        maxTurns: roleplaySettings.maxTurns,
+        startedAt: roleplayAttempts.startedAt,
+      })
+      .from(roleplayAttempts)
+      .innerJoin(roleplays, eq(roleplays.id, roleplayAttempts.roleplayId))
+      .leftJoin(roleplaySettings, eq(roleplaySettings.roleplayId, roleplays.id))
+      .where(
+        and(
+          eq(roleplayAttempts.userId, userId),
+          eq(roleplayAttempts.status, "in_progress"),
+          eq(roleplays.status, "published"),
+        ),
+      )
+      .orderBy(desc(roleplayAttempts.startedAt));
+
+    const bestAttempts = await this.getUserBestAttemptsByRoleplay(userId);
+    const inProgressIds = new Set(inProgressRows.map((r) => r.roleplayId));
+
+    const retryCandidates: Array<{
+      roleplayId: number;
+      title: string;
+      coverImageMediaId: number | null;
+      bestScore: number;
+      lastActivity: Date;
+    }> = [];
+
+    for (const [roleplayId, attempt] of bestAttempts) {
+      if (inProgressIds.has(roleplayId)) continue;
+      const score = parseFloat(String(attempt.score ?? "0"));
+      const tiers = await pointsController.getRewardTiersForRoleplay(roleplayId);
+      if (!tiers.length) continue;
+      const starLevel = deriveStarLevel(score, tiers);
+      if (starLevel >= 3) continue;
+      const [roleplay] = await db
+        .select({
+          title: roleplays.title,
+          coverImageMediaId: roleplays.coverImageMediaId,
+          status: roleplays.status,
+        })
+        .from(roleplays)
+        .where(eq(roleplays.id, roleplayId))
+        .limit(1);
+      if (!roleplay || roleplay.status !== "published") continue;
+      retryCandidates.push({
+        roleplayId,
+        title: roleplay.title,
+        coverImageMediaId: roleplay.coverImageMediaId,
+        bestScore: score,
+        lastActivity: attempt.completedAt ? new Date(attempt.completedAt) : new Date(0),
+      });
+    }
+
+    retryCandidates.sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
+
+    type ContinueItem = {
+      roleplayId: number;
+      title: string;
+      coverImageMediaId: number | null;
+      status: "in_progress" | "retry";
+      bestScore: number | null;
+      starLevel: number;
+      nextTier: {
+        name: string;
+        minScorePercent: number;
+        rewardPoints: number;
+        starLevel: number;
+      } | null;
+      inProgressAttempt: { id: number; currentTurn: number; maxTurns: number | null } | null;
+    };
+
+    const items: ContinueItem[] = [];
+
+    for (const row of inProgressRows) {
+      if (items.length >= limit) break;
+      const tiers = await pointsController.getRewardTiersForRoleplay(row.roleplayId);
+      const best = bestAttempts.get(row.roleplayId);
+      const bestScore = best ? parseFloat(String(best.score ?? "0")) : null;
+      const starLevel = deriveStarLevel(bestScore, tiers);
+      const sortedAsc = [...tiers].sort((a, b) => a.starLevel - b.starLevel);
+      const nextTierRow =
+        bestScore != null
+          ? sortedAsc.find((t) => t.minScorePercent > bestScore)
+          : sortedAsc[0];
+      items.push({
+        roleplayId: row.roleplayId,
+        title: row.title,
+        coverImageMediaId: row.coverImageMediaId,
+        status: "in_progress",
+        bestScore,
+        starLevel,
+        nextTier: nextTierRow
+          ? {
+              name: nextTierRow.tierName,
+              minScorePercent: nextTierRow.minScorePercent,
+              rewardPoints: nextTierRow.rewardPoints,
+              starLevel: nextTierRow.starLevel,
+            }
+          : null,
+        inProgressAttempt: {
+          id: row.attemptId,
+          currentTurn: row.turnCount,
+          maxTurns: row.maxTurns,
+        },
+      });
+    }
+
+    for (const candidate of retryCandidates) {
+      if (items.length >= limit) break;
+      const tiers = await pointsController.getRewardTiersForRoleplay(candidate.roleplayId);
+      const starLevel = deriveStarLevel(candidate.bestScore, tiers);
+      const sortedAsc = [...tiers].sort((a, b) => a.starLevel - b.starLevel);
+      const nextTierRow = sortedAsc.find((t) => t.minScorePercent > candidate.bestScore) ?? null;
+      items.push({
+        roleplayId: candidate.roleplayId,
+        title: candidate.title,
+        coverImageMediaId: candidate.coverImageMediaId,
+        status: "retry",
+        bestScore: candidate.bestScore,
+        starLevel,
+        nextTier: nextTierRow
+          ? {
+              name: nextTierRow.tierName,
+              minScorePercent: nextTierRow.minScorePercent,
+              rewardPoints: nextTierRow.rewardPoints,
+              starLevel: nextTierRow.starLevel,
+            }
+          : null,
+        inProgressAttempt: null,
+      });
+    }
+
+    return items;
   }
 
   /** Resolve persona/grader models from attempt snapshot or live roleplay config. */
@@ -1693,6 +2367,51 @@ export class RoleplaySystemController {
       .where(eq(roleplayAttempts.id, updated.attemptId!));
 
     return { criterionScore: updated, overallScore: overall };
+  }
+
+  async getScenarioLeaderboard(
+    roleplayId: number,
+    currentUserId: number,
+    limit = 3,
+  ): Promise<{
+    entries: Array<{ userId: number; name: string; bestScore: number; rank: number }>;
+    currentUser: { userId: number; name: string; bestScore: number; rank: number } | null;
+  }> {
+    const safeLimit = Math.min(50, Math.max(1, limit));
+
+    const rows = await db
+      .select({
+        userId: roleplayAttempts.userId,
+        bestScore: sql<number>`MAX(CAST(${roleplayAttempts.score} AS numeric))`,
+        firstName: users.firstName,
+        email: users.email,
+      })
+      .from(roleplayAttempts)
+      .innerJoin(users, eq(roleplayAttempts.userId, users.id))
+      .where(
+        and(
+          eq(roleplayAttempts.roleplayId, roleplayId),
+          eq(roleplayAttempts.status, "completed"),
+        ),
+      )
+      .groupBy(roleplayAttempts.userId, users.firstName, users.email)
+      .orderBy(desc(sql`MAX(CAST(${roleplayAttempts.score} AS numeric))`));
+
+    const ranked = rows.map((row, index) => ({
+      userId: row.userId,
+      name: row.firstName?.trim() || row.email,
+      bestScore: Number(row.bestScore),
+      rank: index + 1,
+    }));
+
+    const entries = ranked.slice(0, safeLimit);
+
+    const currentRow = ranked.find((r) => r.userId === currentUserId) ?? null;
+
+    return {
+      entries,
+      currentUser: currentRow,
+    };
   }
 }
 

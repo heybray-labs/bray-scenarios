@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
+import { overlayClassificationChipStyle } from "@/lib/classification-display";
 import {
   Trophy,
   Globe,
@@ -25,6 +26,10 @@ import {
 } from "lucide-react";
 
 const GLOBAL_LEADERBOARD_VALUE = "global";
+const LEADERBOARD_LIMIT = 20;
+const TABLE_BODY_MAX_ROWS = LEADERBOARD_LIMIT - 3;
+
+const YOU_ROW_COLOR = "hsl(330, 65%, 55%)";
 
 type LeaderboardEntry = {
   userId: number;
@@ -54,31 +59,37 @@ function initialsFromName(name: string) {
   return name.slice(0, 2).toUpperCase() || "?";
 }
 
-const CURRENT_USER_ROW =
-  "bg-primary/15 ring-1 ring-inset ring-primary/30 font-semibold";
+const CURRENT_USER_ROW = "font-semibold";
+
+function currentUserRowStyle(isCurrentUser: boolean) {
+  return isCurrentUser ? overlayClassificationChipStyle(YOU_ROW_COLOR) : undefined;
+}
 
 const PODIUM_CONFIG = {
   1: {
-    crownClass: "text-amber-400 fill-amber-400",
-    ringClass: "ring-amber-400/70",
+    crownClass: "text-[#ca8a04] fill-[#ca8a04]",
+    ringClass: "ring-[#ca8a04]",
+    badgeClass: "bg-[#ca8a04] text-white",
     size: "h-[4.5rem] w-[4.5rem]",
-    textClass: "text-amber-600",
+    textClass: "text-[#ca8a04]",
     order: "order-2",
     pedestal: "h-14",
   },
   2: {
-    crownClass: "text-slate-400 fill-slate-300",
-    ringClass: "ring-slate-400/60",
+    crownClass: "text-[#64748b] fill-[#64748b]",
+    ringClass: "ring-[#64748b]",
+    badgeClass: "bg-[#64748b] text-white",
     size: "h-16 w-16",
-    textClass: "text-slate-600",
+    textClass: "text-[#64748b]",
     order: "order-1",
     pedestal: "h-10",
   },
   3: {
-    crownClass: "text-orange-600 fill-orange-500",
-    ringClass: "ring-orange-500/60",
+    crownClass: "text-[#b45309] fill-[#b45309]",
+    ringClass: "ring-[#b45309]",
+    badgeClass: "bg-[#b45309] text-white",
     size: "h-16 w-16",
-    textClass: "text-orange-700",
+    textClass: "text-[#b45309]",
     order: "order-3",
     pedestal: "h-8",
   },
@@ -100,7 +111,7 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
             config.size,
             "ring-[3px] shadow-lg",
             config.ringClass,
-            entry.isCurrentUser && "ring-primary ring-offset-2 ring-offset-amber-50/80",
+            entry.isCurrentUser && "ring-primary ring-offset-2 ring-offset-card",
           )}
         >
           <AvatarFallback
@@ -114,8 +125,8 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
         </Avatar>
         <span
           className={cn(
-            "absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white shadow",
-            entry.rank === 1 ? "bg-amber-500" : entry.rank === 2 ? "bg-slate-500" : "bg-orange-600",
+            "absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold shadow-sm",
+            config.badgeClass,
           )}
         >
           #{entry.rank}
@@ -134,7 +145,7 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
       </p>
       <div
         className={cn(
-          "mt-2 w-full rounded-t-lg bg-gradient-to-t from-amber-200/50 to-amber-100/20",
+          "mt-2 w-full rounded-t-lg bg-muted",
           config.pedestal,
         )}
         aria-hidden
@@ -164,43 +175,48 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
   if (entries.length === 0) return null;
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-xs text-muted-foreground">
-          <th className="py-1.5 pr-2 text-left font-medium w-8">#</th>
-          <th className="py-1.5 pr-2 text-left font-medium">Player</th>
-          <th className="py-1.5 text-right font-medium">Pts</th>
-        </tr>
-      </thead>
-      <tbody>
-        {entries.map((entry) => (
-          <tr
-            key={entry.userId}
-            className={cn(
-              "rounded-md",
-              entry.isCurrentUser ? CURRENT_USER_ROW : "hover:bg-muted/40",
-            )}
-          >
-            <td className="py-2 pr-2 text-muted-foreground tabular-nums rounded-l-md">
-              {entry.rank}
-            </td>
-            <td className="py-2 pr-2 truncate max-w-[8rem]">
-              <span className="inline-flex items-center gap-1.5">
-                {entry.name}
-                {entry.isCurrentUser && (
-                  <Badge variant="default" className="h-4 px-1 text-[9px] uppercase">
-                    You
-                  </Badge>
-                )}
-              </span>
-            </td>
-            <td className="py-2 text-right font-semibold tabular-nums rounded-r-md">
-              {entry.points.toLocaleString()}
-            </td>
+    <div
+      className="overflow-y-auto"
+      style={{ maxHeight: `calc(${TABLE_BODY_MAX_ROWS} * 2.25rem + 2rem)` }}
+    >
+      <table className="w-full text-sm">
+        <thead className="sticky top-0 z-[1] bg-card">
+          <tr className="text-xs text-muted-foreground">
+            <th className="py-1.5 pr-2 text-left font-medium w-8">#</th>
+            <th className="py-1.5 pr-2 text-left font-medium">Player</th>
+            <th className="py-1.5 text-right font-medium">Pts</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <tr
+              key={entry.userId}
+              className={cn(
+                entry.isCurrentUser ? CURRENT_USER_ROW : "hover:bg-muted/40",
+              )}
+              style={currentUserRowStyle(entry.isCurrentUser)}
+            >
+              <td className="py-2 pr-2 text-muted-foreground tabular-nums rounded-l-md">
+                {entry.rank}
+              </td>
+              <td className="py-2 pr-2 truncate max-w-[8rem]">
+                <span className="inline-flex items-center gap-1.5">
+                  {entry.name}
+                  {entry.isCurrentUser && (
+                    <Badge variant="default" className="h-4 px-1 text-[9px] uppercase">
+                      You
+                    </Badge>
+                  )}
+                </span>
+              </td>
+              <td className="py-2 text-right font-semibold tabular-nums rounded-r-md">
+                {entry.points.toLocaleString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -208,9 +224,9 @@ function CurrentUserRankBar({ entry }: { entry: LeaderboardEntry }) {
   return (
     <div
       className={cn(
-        "shrink-0 flex items-center justify-between gap-2 px-3 py-2.5",
-        "bg-primary/10 border-t border-primary/20 text-sm",
+        "shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 text-sm border-t",
       )}
+      style={overlayClassificationChipStyle(YOU_ROW_COLOR)}
     >
       <span className="font-medium truncate">
         Your rank
@@ -251,7 +267,7 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
       const params = new URLSearchParams();
       params.set("scope", scopeTab);
       params.set("period", period);
-      params.set("limit", "15");
+      params.set("limit", String(LEADERBOARD_LIMIT));
       if (scopeTab === "category" && effectiveCategory) {
         params.set("category", effectiveCategory);
       }
@@ -271,33 +287,32 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
   return (
     <section
       className={cn(
-        "flex flex-col h-full min-h-0 overflow-hidden rounded-2xl",
-        "bg-gradient-to-b from-amber-50/90 via-background to-background",
-        "shadow-[0_8px_30px_rgba(251,191,36,0.12)]",
+        "rounded-2xl border bg-card p-4 shadow-sm",
         className,
       )}
     >
-      <header className="shrink-0 px-4 pt-5 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-400/20">
-            <Trophy className="h-5 w-5 text-amber-600" />
+      <header className="shrink-0 mb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <Trophy className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground leading-none">
-              Leaderboard
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1">Top performers by points</p>
+            <p className="font-semibold leading-tight">Leaderboard</p>
+            <p className="text-xs text-muted-foreground">Top performers by points</p>
           </div>
         </div>
       </header>
 
-      <div className="shrink-0 px-4 pb-3 space-y-2.5">
-        <div className="flex rounded-full bg-muted/60 p-0.5">
+      <div className="shrink-0 space-y-2.5 mb-3">
+        <div className="flex rounded-full bg-muted p-0.5">
           <Button
             type="button"
-            variant={period === "month" ? "secondary" : "ghost"}
+            variant="ghost"
             size="sm"
-            className="flex-1 h-8 gap-1.5 rounded-full"
+            className={cn(
+              "flex-1 h-8 gap-1.5 rounded-full",
+              period === "month" && "bg-primary/10 text-primary font-semibold shadow-sm",
+            )}
             onClick={() => setPeriod("month")}
           >
             <CalendarDays className="h-3.5 w-3.5" />
@@ -305,9 +320,12 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
           </Button>
           <Button
             type="button"
-            variant={period === "all_time" ? "secondary" : "ghost"}
+            variant="ghost"
             size="sm"
-            className="flex-1 h-8 gap-1.5 rounded-full"
+            className={cn(
+              "flex-1 h-8 gap-1.5 rounded-full",
+              period === "all_time" && "bg-primary/10 text-primary font-semibold shadow-sm",
+            )}
             onClick={() => setPeriod("all_time")}
           >
             <CalendarRange className="h-3.5 w-3.5" />
@@ -316,7 +334,7 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
         </div>
 
         <Select value={selection} onValueChange={setSelection}>
-          <SelectTrigger className="h-9 bg-background/70 border-amber-100/80">
+          <SelectTrigger className="h-9">
             <SelectValue placeholder="Select leaderboard">
               {selection === GLOBAL_LEADERBOARD_VALUE ? (
                 <span className="inline-flex items-center gap-2 font-semibold">
@@ -364,7 +382,7 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
         </Select>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2">
+      <div className="shrink-0 pb-2">
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
         ) : entries.length === 0 ? (

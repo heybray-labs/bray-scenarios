@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ChevronLeft, ChevronRight, SquareArrowOutUpRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";
+import { starLevelFromTierName } from "@shared/schemas/points";
 
 type PointsHistoryDialogProps = {
   open: boolean;
@@ -23,7 +24,7 @@ type HistoryItem = {
   amount: number;
   tierName: string | null;
   tierColor: string | null;
-  tierIcon: string | null;
+  tierStarLevel: number | null;
   description: string | null;
   createdAt: string;
   roleplayId: number | null;
@@ -123,8 +124,8 @@ export function PointsHistoryDialog({ open, onOpenChange }: PointsHistoryDialogP
                         <RewardTierLabel
                           compact
                           tierName={item.tierName}
+                          starLevel={item.tierStarLevel ?? starLevelFromTierName(item.tierName)}
                           color={item.tierColor}
-                          icon={item.tierIcon}
                         />
                       ) : (
                         <span className="text-muted-foreground">—</span>

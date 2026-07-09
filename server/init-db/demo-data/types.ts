@@ -1,3 +1,5 @@
+import type { RewardTierInput } from "../../../shared/schemas/points.ts";
+
 export type ScoreBandId = "high" | "mid" | "low";
 
 export type TranscriptTurn = {
@@ -41,6 +43,7 @@ export type DemoCriterion = {
 export type DemoScenario = {
   slug: string;
   title: string;
+  description: string;
   category: string;
   audienceLevel: string;
   duration: string;
@@ -49,6 +52,8 @@ export type DemoScenario = {
   situationContext: string;
   learnerObjective: string;
   introduction: string;
+  playbook: string;
+  rewardTiers: RewardTierInput[];
   persona: DemoPersona;
   criteria: DemoCriterion[];
   scoreBands: ScoreBandContent[];

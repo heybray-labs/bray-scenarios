@@ -13,6 +13,7 @@ import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { UsersManagementPanel } from "@/components/UsersManagementPanel";
 import { MediaManagementPanel } from "@/components/MediaManagementPanel";
 import { ClassificationManagementPanel } from "@/components/ClassificationManagementPanel";
+import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
 import { AboutPanel } from "@/components/AboutPanel";
 import { useAuth } from "@/hooks/use-auth";
 import { Settings } from "lucide-react";
@@ -53,6 +54,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <TabsTrigger value="users">Users</TabsTrigger>
             {canManage && <TabsTrigger value="media">Media</TabsTrigger>}
             {canManage && <TabsTrigger value="classifications">Classifications</TabsTrigger>}
+            {canManage && <TabsTrigger value="homepage">Homepage</TabsTrigger>}
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
@@ -77,6 +79,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {canManage && (
               <TabsContent value="classifications" className="mt-0 h-full overflow-y-auto pr-1">
                 <ClassificationManagementPanel />
+              </TabsContent>
+            )}
+
+            {canManage && (
+              <TabsContent value="homepage" className="mt-0 h-full overflow-y-auto pr-1">
+                <FeaturedScenariosPanel />
               </TabsContent>
             )}
 

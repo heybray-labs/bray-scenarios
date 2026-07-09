@@ -10,6 +10,7 @@ import {
   roleplayAttempts,
   roleplayMessages,
   roleplayCriterionScores,
+  homepageFeaturedScenarios,
 } from "../shared/schemas/roleplay-core.ts";
 import {
   classificationDimensions,
@@ -41,6 +42,7 @@ const schema = {
   roleplayAttempts,
   roleplayMessages,
   roleplayCriterionScores,
+  homepageFeaturedScenarios,
   classificationDimensions,
   classificationOptions,
   roleplayClassificationLinks,

@@ -52,8 +52,8 @@ compose() {
 
 echo "Checking app logs..."
 LOGS="$(compose logs app --tail 80 2>/dev/null || true)"
-if echo "$LOGS" | grep -q "Migrations complete"; then
-  echo "  OK: migrations complete"
+if echo "$LOGS" | grep -qE "No migrations pending|Applied migration "; then
+  echo "  OK: migrations checked"
 elif echo "$LOGS" | grep -q "Server listening"; then
   echo "  OK: server listening (migrations may have run earlier)"
 else

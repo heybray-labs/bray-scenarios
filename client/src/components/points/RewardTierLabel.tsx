@@ -1,9 +1,13 @@
-import { resolveLucideIcon } from "@/lib/classification-display";
 import { cn } from "@/lib/utils";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import {
+  resolveRewardTierDisplay,
+  resolveStarLevelFromTier,
+} from "@shared/schemas/points";
+import { TierStars } from "./TierStars";
 
 type RewardTierLabelProps = {
   tierName: string;
+  starLevel?: number | null;
   color?: string | null;
   icon?: string | null;
   compact?: boolean;
@@ -12,22 +16,26 @@ type RewardTierLabelProps = {
 
 export function RewardTierLabel({
   tierName,
+  starLevel,
   color,
   icon,
   compact = false,
   className,
 }: RewardTierLabelProps) {
-  const display = resolveRewardTierDisplay({ tierName, color, icon });
-  const Icon = resolveLucideIcon(display.icon);
+  const resolvedLevel = resolveStarLevelFromTier({ starLevel, tierName });
+  const display = resolveRewardTierDisplay({ starLevel: resolvedLevel, tierName, color, icon });
+  const level = (display.starLevel || resolvedLevel) as 0 | 1 | 2 | 3;
 
   return (
-    <span className={cn("inline-flex items-center", compact ? "gap-1.5 text-xs" : "gap-2", className)}>
-      <Icon
-        className={cn("shrink-0", compact ? "h-3.5 w-3.5" : "h-4 w-4")}
-        style={{ color: display.color }}
-        aria-hidden
-      />
-      <span className="truncate">{tierName}</span>
+    <span
+      className={cn(
+        "inline-flex items-center",
+        compact ? "gap-1.5 text-xs" : "gap-2",
+        className,
+      )}
+    >
+      <TierStars level={level} size={compact ? "sm" : "md"} />
+      <span className="truncate">{display.name}</span>
     </span>
   );
 }

@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { ClockFading } from "@/components/icons/roleplay-field-icons";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
+import { TierStars } from "@/components/points/TierStars";
+import { starLevelFromTierName } from "@shared/schemas/points";
 
 const STAGES = [
   {
@@ -335,8 +337,15 @@ export default function RoleplayResults() {
         )}
 
         {pointsAwarded > 0 && !gradingFailed && (
-          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 flex items-center gap-2">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-100 flex items-center gap-2">
+            {tierName ? (
+              <TierStars
+                level={starLevelFromTierName(tierName) as 0 | 1 | 2 | 3}
+                size="sm"
+              />
+            ) : (
+              <Star className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
+            )}
             <span>
               <span className="font-semibold">+{pointsAwarded} points earned</span>
               {tierName ? ` — reached ${tierName}` : ""}

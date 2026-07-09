@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Star } from "lucide-react";
+import { LogOut, Settings, Star, Search } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
@@ -20,6 +20,7 @@ import logo from "@assets/logo.png";
 
 export function Navbar() {
   const { user, logout, hasRole } = useAuth();
+  const [, navigate] = useLocation();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pointsHistoryOpen, setPointsHistoryOpen] = useState(false);
   const isAdmin = hasRole("admin");
@@ -56,6 +57,16 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user && (
             <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => navigate("/search")}
+                aria-label="Search scenarios"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+
               <button
                 type="button"
                 onClick={() => setPointsHistoryOpen(true)}
