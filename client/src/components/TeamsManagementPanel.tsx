@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@heybray/ui/components/dropdown-menu";
-import { FilterMultiSelect } from "@/components/classifications/FilterMultiSelect";
+import { FilterMultiSelect } from "@heybray/react/classifications/FilterMultiSelect";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import type { UserSummary } from "@heybray/identity/schema";

@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
+import { ClassificationOptionLabel } from "./ClassificationOptionLabel.tsx";
 import { Button } from "@heybray/ui/components/button";
 import {
   DropdownMenu,

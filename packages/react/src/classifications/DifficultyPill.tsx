@@ -3,7 +3,7 @@ import {
   formatDifficulty,
   getDifficultyColor,
   overlayPillStyle,
-} from "@heybray/react/lib/classification-display";
+} from "../lib/classification-display.ts";
 import { cn } from "@heybray/ui/utils";
 
 const variantClasses = {

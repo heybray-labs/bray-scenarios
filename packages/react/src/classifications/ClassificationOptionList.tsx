@@ -17,7 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@heybray/ui/components/button";
 import { Badge } from "@heybray/ui/components/badge";
-import { ClassificationChip } from "@/components/classifications/ClassificationChip";
+import { ClassificationChip } from "./ClassificationChip.tsx";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@heybray/ui/utils";
 

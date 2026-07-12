@@ -29,11 +29,11 @@ import {
 import {
   ClassificationOptionList,
   type ClassificationOptionRow,
-} from "@/components/classifications/ClassificationOptionList";
+} from "@heybray/react/classifications/ClassificationOptionList";
 import {
   OptionDisplayFields,
   defaultDisplayForDimension,
-} from "@/components/classifications/OptionDisplayFields";
+} from "@heybray/react/classifications/OptionDisplayFields";
 
 type ClassificationOption = ClassificationOptionRow;
 

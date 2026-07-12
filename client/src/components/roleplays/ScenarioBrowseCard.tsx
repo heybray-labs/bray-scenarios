@@ -10,7 +10,7 @@ import {
 } from "@heybray/ui/components/dropdown-menu";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { CardRibbon } from "@/components/roleplays/CardRibbon";
-import { ClassificationChip } from "@/components/classifications/ClassificationChip";
+import { ClassificationChip } from "@heybray/react/classifications/ClassificationChip";
 import { TierStars } from "@/components/points/TierStars";
 import { cn } from "@heybray/ui/utils";
 import {
