@@ -6,9 +6,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@heybray/ui/components/dialog";
+import { Button } from "@heybray/ui/components/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@heybray/ui/components/tabs";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { UsersManagementPanel } from "@/components/UsersManagementPanel";
 import { MediaManagementPanel } from "@/components/MediaManagementPanel";

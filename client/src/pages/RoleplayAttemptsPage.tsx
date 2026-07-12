@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@heybray/ui/components/card";
+import { Button } from "@heybray/ui/components/button";
+import { Input } from "@heybray/ui/components/input";
 import { ArrowLeft } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 
 export default function RoleplayAttemptsPage() {
   const params = useParams();

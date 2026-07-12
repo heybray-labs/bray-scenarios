@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@heybray/ui/components/collapsible";
 import { apiRequest } from "@/lib/queryClient";
 import {
   CategoryMasteryBar,
@@ -14,7 +14,7 @@ import {
 } from "@/components/points/CategoryMasteryBar";
 import { ScenarioListRow } from "@/components/roleplays/ScenarioListRow";
 import { drawerPink } from "@/components/teams/drawer-pink-styles";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { ChevronDown, Loader2, X } from "lucide-react";
 
 type MemberScenarioHistory = {

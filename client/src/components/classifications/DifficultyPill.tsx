@@ -4,7 +4,7 @@ import {
   getDifficultyColor,
   overlayPillStyle,
 } from "@/lib/classification-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 const variantClasses = {
   inline: "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shadow-sm",

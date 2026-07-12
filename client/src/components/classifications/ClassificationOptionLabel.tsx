@@ -1,5 +1,5 @@
 import { resolveLucideIcon } from "@/lib/classification-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type ClassificationOptionLabelProps = {
   label: string;

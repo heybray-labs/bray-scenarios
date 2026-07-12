@@ -9,12 +9,12 @@ import {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+} from "@heybray/ui/components/select";
+import { Button } from "@heybray/ui/components/button";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
+import { Badge } from "@heybray/ui/components/badge";
 import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
 import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
 import { initialsFromName } from "@/lib/user-display";

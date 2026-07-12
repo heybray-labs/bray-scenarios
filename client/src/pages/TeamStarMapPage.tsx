@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
-import { Button } from "@/components/ui/button";
+import { Button } from "@heybray/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@heybray/ui/components/dropdown-menu";
 import { MemberProgressDrawer } from "@/components/teams/TeamStarMapComponents";
 import { StarMapSummaryCards } from "@/components/teams/StarMapSummaryCards";
 import { StarMapTable } from "@/components/teams/StarMapTable";

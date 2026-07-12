@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@heybray/ui/components/button";
+import { Input } from "@heybray/ui/components/input";
+import { Label } from "@heybray/ui/components/label";
+import { Badge } from "@heybray/ui/components/badge";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +11,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@heybray/ui/components/dialog";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { useToast } from "@/hooks/use-toast";
+} from "@heybray/ui/components/collapsible";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { HttpError } from "@/lib/http-error";
 import {

@@ -14,7 +14,7 @@ import type {
   SetupAdminCredentials,
   ChangePasswordCredentials,
 } from "@heybray/identity/schema";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 
 type AuthContextValue = {
   user: UserWithRole | null;

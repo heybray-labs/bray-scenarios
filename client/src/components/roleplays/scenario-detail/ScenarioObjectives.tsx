@@ -1,8 +1,8 @@
 import { Target } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@heybray/ui/components/progress";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { overlayClassificationChipStyle } from "@/lib/classification-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import type { CriterionBest } from "./scenario-progress-types";
 
 const WARNING_CHIP_COLOR = "hsl(35, 100%, 58%)";

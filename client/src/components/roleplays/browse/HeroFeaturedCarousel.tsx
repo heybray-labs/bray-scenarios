@@ -4,13 +4,13 @@ import { useLocation } from "wouter";
 import { PlayCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
-import { Button } from "@/components/ui/button";
+import { Button } from "@heybray/ui/components/button";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { DifficultyPill } from "@/components/classifications/DifficultyPill";
 import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ScenarioCarouselRow } from "./ScenarioCarouselRow";
 import { HERO_CINEMA_SLOT_CLASS } from "./carousel-card-layout";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type FeaturedItem = {
   id: number;

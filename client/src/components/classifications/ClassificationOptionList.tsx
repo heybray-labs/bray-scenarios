@@ -15,11 +15,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@heybray/ui/components/button";
+import { Badge } from "@heybray/ui/components/badge";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 export type ClassificationOptionRow = {
   id: number;

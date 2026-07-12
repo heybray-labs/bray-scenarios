@@ -1,13 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
-import { Button } from "@/components/ui/button";
+import { Button } from "@heybray/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from "@heybray/ui/components/dropdown-menu";
+import { cn } from "@heybray/ui/utils";
 
 export type ClassificationSelectOption = {
   slug: string;

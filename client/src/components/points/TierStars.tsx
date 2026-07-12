@@ -1,5 +1,5 @@
 import { Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { resolveRewardTierDisplay } from "@shared/schemas/points";
 
 type TierStarsProps = {

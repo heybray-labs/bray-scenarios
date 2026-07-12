@@ -1,6 +1,6 @@
 import { FaUser } from "react-icons/fa";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
+import { cn } from "@heybray/ui/utils";
 import type { ReactNode } from "react";
 
 type TranscriptMessageProps = {

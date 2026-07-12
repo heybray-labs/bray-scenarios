@@ -2,7 +2,7 @@ import {
   CategoryMasteryBar,
   categoryStarred,
 } from "@/components/points/CategoryMasteryBar";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type CategoryMasteryRowProps = {
   label: React.ReactNode;

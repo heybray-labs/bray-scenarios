@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
@@ -10,7 +10,7 @@ import {
 } from "@/components/points/CategoryMasteryBar";
 import { CategoryMasteryRow as CategoryMasteryRowLayout } from "@/components/points/CategoryMasteryRow";
 import { initialsFromName } from "@/lib/user-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { Flame } from "lucide-react";
 
 export { ALL_CATEGORIES_SLUG } from "@/components/points/CategoryMasteryBar";

@@ -1,8 +1,8 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
+import { Input } from "@heybray/ui/components/input";
 import { CategoryMasteryBar } from "@/components/points/CategoryMasteryBar";
 import { TierLegend } from "@/components/teams/TeamStarMapComponents";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { ChevronRight, ChevronsUpDown, Search } from "lucide-react";
 import type { DrawerSelection, SortColumn, SortDirection, StarMapData, StarMapMember } from "./star-map-types";
 import { formatRelativeDate } from "./star-map-utils";

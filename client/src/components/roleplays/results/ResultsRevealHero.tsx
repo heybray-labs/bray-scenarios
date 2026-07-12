@@ -2,7 +2,7 @@ import { CheckCircle2, TrendingUp, XCircle } from "lucide-react";
 import { TierStars } from "@/components/points/TierStars";
 import { ScenarioNextTierStrip } from "@/components/roleplays/scenario-detail/ScenarioNextTierStrip";
 import type { RewardTierRow } from "@/components/roleplays/scenario-detail/scenario-progress-types";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { starLevelFromTierName } from "@shared/schemas/points";
 import { useAnimatedValue } from "./reveal-hooks";
 

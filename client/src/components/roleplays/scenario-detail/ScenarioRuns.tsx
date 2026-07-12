@@ -1,8 +1,8 @@
 import { History, Lightbulb } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@heybray/ui/components/badge";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { overlayClassificationChipStyle } from "@/lib/classification-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import type { ScenarioRun } from "./scenario-progress-types";
 
 const MUTED_CHIP_COLOR = "hsl(215, 13%, 44%)";

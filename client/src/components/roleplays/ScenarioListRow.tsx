@@ -6,7 +6,7 @@ import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
 import { TierStars } from "@/components/points/TierStars";
 import { drawerPink } from "@/components/teams/drawer-pink-styles";
 import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 export type ScenarioListRowItem = {
   roleplayId: number;

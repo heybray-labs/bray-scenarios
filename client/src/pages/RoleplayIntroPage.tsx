@@ -3,8 +3,8 @@ import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/MainLayout";
 import { NotFoundScreen } from "@/components/errors";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@heybray/ui/components/button";
+import { Skeleton } from "@heybray/ui/components/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@heybray/ui/components/dialog";
 import { ArrowLeft } from "lucide-react";
 import { ScenarioHeroBanner } from "@/components/roleplays/scenario-detail/ScenarioHeroBanner";
 import { ScenarioBriefing } from "@/components/roleplays/scenario-detail/ScenarioBriefing";
@@ -29,7 +29,7 @@ import type {
   ScenarioRun,
 } from "@/components/roleplays/scenario-detail/scenario-progress-types";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@/lib/queryClient";

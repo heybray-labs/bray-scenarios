@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@heybray/ui/components/button";
+import { Input } from "@heybray/ui/components/input";
 import {
   Dialog,
   DialogContent,
@@ -11,14 +11,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@heybray/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@heybray/ui/components/dropdown-menu";
 import {
   Plus,
   MoreHorizontal,
@@ -38,8 +38,8 @@ import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import ImportRoleplaysDialog from "@/components/roleplays/import-roleplays-dialog";
 import { ClassificationMultiSelect } from "@/components/classifications/ClassificationMultiSelect";
 import { FilterMultiSelect } from "@/components/classifications/FilterMultiSelect";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@heybray/ui/hooks/use-debounced-value";
+import { cn } from "@heybray/ui/utils";
 import { ScenarioBrowseCard } from "@/components/roleplays/ScenarioBrowseCard";
 import { useScenarioAdminActions } from "@/hooks/use-scenario-admin-actions";
 

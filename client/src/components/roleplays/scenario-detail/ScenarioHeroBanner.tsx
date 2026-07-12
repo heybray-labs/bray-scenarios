@@ -1,15 +1,15 @@
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@heybray/ui/components/button";
+import { Switch } from "@heybray/ui/components/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@heybray/ui/components/dropdown-menu";
 import { ScenarioMetadataChips } from "@/components/roleplays/scenario-detail/ScenarioMetadataChips";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { Copy, MoreVertical, Pencil, Star, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import type { ScenarioClassifications } from "./types";

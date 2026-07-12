@@ -1,18 +1,18 @@
 import { PlayCircle, Copy, Download, Pencil, Trash2, MoreVertical, Star } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@heybray/ui/components/card";
+import { Button } from "@heybray/ui/components/button";
+import { Badge } from "@heybray/ui/components/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@heybray/ui/components/dropdown-menu";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { TierStars } from "@/components/points/TierStars";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import {
   computePointsAvailable,
   computeStarLevel,

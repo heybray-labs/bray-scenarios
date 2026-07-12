@@ -7,8 +7,8 @@ import {
 } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@heybray/ui/components/button";
+import { cn } from "@heybray/ui/utils";
 
 type ScenarioCarouselRowProps = {
   title?: string;

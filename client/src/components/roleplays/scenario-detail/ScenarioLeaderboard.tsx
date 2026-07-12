@@ -1,8 +1,8 @@
 import { Link } from "wouter";
 import { Trophy } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
 import { initialsFromName } from "@/lib/user-display";
 import type { ScenarioLeaderboardData } from "./scenario-progress-types";

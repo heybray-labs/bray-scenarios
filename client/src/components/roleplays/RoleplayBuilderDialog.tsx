@@ -6,21 +6,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+} from "@heybray/ui/components/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@heybray/ui/components/tabs";
+import { Input } from "@heybray/ui/components/input";
+import { Textarea } from "@heybray/ui/components/textarea";
+import { Label } from "@heybray/ui/components/label";
+import { Button } from "@heybray/ui/components/button";
+import { Switch } from "@heybray/ui/components/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+} from "@heybray/ui/components/select";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";

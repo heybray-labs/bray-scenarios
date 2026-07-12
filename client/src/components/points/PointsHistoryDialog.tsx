@@ -6,11 +6,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@heybray/ui/components/dialog";
+import { Button } from "@heybray/ui/components/button";
 import { apiRequest } from "@/lib/queryClient";
 import { ChevronLeft, ChevronRight, SquareArrowOutUpRight, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";
 import { starLevelFromTierName } from "@shared/schemas/points";
 

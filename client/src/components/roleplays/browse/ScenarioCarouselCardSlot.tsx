@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import {
   CAROUSEL_CARD_INNER_CLASS,
   CAROUSEL_CARD_SLOT_CLASS,

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "wouter";
 import { Navbar } from "@/components/MainLayout";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@heybray/ui/components/button";
+import { cn } from "@heybray/ui/utils";
 
 export type BrandedErrorScreenAction = {
   label: string;

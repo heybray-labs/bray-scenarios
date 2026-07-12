@@ -5,8 +5,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@heybray/ui/components/dialog";
+import { Button } from "@heybray/ui/components/button";
 import { AlertTriangle, PlayCircle } from "lucide-react";
 import { AttemptPips } from "./AttemptPips";
 

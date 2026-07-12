@@ -4,9 +4,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+} from "@heybray/ui/components/select";
+import { Label } from "@heybray/ui/components/label";
+import { Input } from "@heybray/ui/components/input";
 import { resolveLucideIcon } from "@/lib/classification-display";
 import {
   CLASSIFICATION_ICON_OPTIONS,

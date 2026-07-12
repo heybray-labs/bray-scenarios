@@ -5,12 +5,12 @@ import {
   MessageSquare,
   PlayCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@heybray/ui/components/button";
+import { Badge } from "@heybray/ui/components/badge";
 import { AttemptPips } from "./AttemptPips";
 import { getStartAttemptLabel } from "@/lib/attempt-display";
-import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { cn } from "@/lib/utils";
+import { NoticeBanner } from "@heybray/ui/components/NoticeBanner";
+import { cn } from "@heybray/ui/utils";
 
 type ScenarioLaunchBarProps = {
   maxTurns: number | null;

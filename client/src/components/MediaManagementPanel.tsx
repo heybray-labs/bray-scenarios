@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+import { Button } from "@heybray/ui/components/button";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import {
   formatBytes,
@@ -8,7 +8,7 @@ import {
   uploadMediaFile,
 } from "@/lib/media";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 export function MediaManagementPanel() {

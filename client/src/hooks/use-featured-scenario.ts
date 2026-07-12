@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
 type FeaturedManageItem = {

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type AttemptPipsProps = {
   maxAttempts: number;

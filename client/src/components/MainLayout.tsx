@@ -2,19 +2,19 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@heybray/ui/components/button";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@heybray/ui/components/dropdown-menu";
 import { LogOut, Settings, Star, Search, LayoutGrid } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
-import { NoticeBannerButton, noticeLabelClassName } from "@/components/ui/NoticeBanner";
+import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
 import { initialsFromUser } from "@/lib/user-display";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { apiRequest } from "@/lib/queryClient";

@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
+import { Badge } from "@heybray/ui/components/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { TierStars } from "@/components/points/TierStars";
 import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
 import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
 import { initialsFromName } from "@/lib/user-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { Star } from "lucide-react";
 
 const RECENT_STARS_LIMIT = 15;

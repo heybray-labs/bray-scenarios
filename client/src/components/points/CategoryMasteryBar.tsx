@@ -1,5 +1,5 @@
 import { resolveRewardTierDisplay } from "@shared/schemas/points";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 export const ALL_CATEGORIES_SLUG = "__all__";
 

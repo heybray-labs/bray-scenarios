@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from './components/avatar.tsx';
+import { Badge } from './components/badge.tsx';
 import { format } from 'date-fns';
 import { LucideIcon } from 'lucide-react';
 

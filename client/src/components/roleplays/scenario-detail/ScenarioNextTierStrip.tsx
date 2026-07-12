@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { resolveRewardTierDisplay } from "@shared/schemas/points";
 import type { RewardTierRow } from "./scenario-progress-types";
 

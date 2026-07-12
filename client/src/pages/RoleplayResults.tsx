@@ -1,22 +1,22 @@
 import { useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@heybray/ui/components/button";
+import { Progress } from "@heybray/ui/components/progress";
+import { Skeleton } from "@heybray/ui/components/skeleton";
+import { Input } from "@heybray/ui/components/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@heybray/ui/components/tabs";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@heybray/ui/components/collapsible";
 import { MainLayout } from "@/components/MainLayout";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { initialsFromUser } from "@/lib/user-display";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import {
   ThumbsUp,
   ArrowUpCircle,

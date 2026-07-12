@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
-import { Button } from "@/components/ui/button";
+import { Button } from "@heybray/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@heybray/ui/components/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { LeaderboardPanel } from "@/components/points/LeaderboardPanel";
 import { RecentStarsPanel } from "@/components/points/RecentStarsPanel";

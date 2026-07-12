@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type ScenarioBriefingProps = {
   introduction?: string | null;

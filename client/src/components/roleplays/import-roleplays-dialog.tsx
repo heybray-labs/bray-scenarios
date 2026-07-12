@@ -7,11 +7,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
+} from "@heybray/ui/components/dialog";
+import { Button } from "@heybray/ui/components/button";
+import { Alert, AlertDescription } from "@heybray/ui/components/alert";
+import { ScrollArea } from "@heybray/ui/components/scroll-area";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import {
   importScenariosZips,

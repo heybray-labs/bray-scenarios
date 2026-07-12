@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@heybray/ui/components/card";
+import { Button } from "@heybray/ui/components/button";
+import { Textarea } from "@heybray/ui/components/textarea";
+import { Skeleton } from "@heybray/ui/components/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -12,20 +12,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@heybray/ui/components/dialog";
 import { Loader2, Send, Flag, Lightbulb, Drama, Clock, MessageSquare } from "lucide-react";
 import logo from "@assets/logo.png";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
 import { TranscriptThread } from "@/components/roleplays/transcript/TranscriptThread";
-import { NoticeBanner } from "@/components/ui/NoticeBanner";
-import { useToast } from "@/hooks/use-toast";
+import { NoticeBanner } from "@heybray/ui/components/NoticeBanner";
+import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { initialsFromUser } from "@/lib/user-display";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { MainLayout } from "@/components/MainLayout";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 import { isCheatModeMessage } from "@/lib/cheat-mode";
 
 interface ChatMessage {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Redirect, Link } from "wouter";
 import { AuthService } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@heybray/ui/components/button";
+import { Input } from "@heybray/ui/components/input";
+import { Label } from "@heybray/ui/components/label";
 import logo from "@assets/logo.png";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
 import { AuthHeroPanel } from "@/components/AuthHeroPanel";

@@ -1,6 +1,6 @@
 import { Lock, User } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
+import { Badge } from "@heybray/ui/components/badge";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { initialsFromName } from "@/lib/user-display";
 

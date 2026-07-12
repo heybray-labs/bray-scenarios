@@ -4,7 +4,7 @@ import {
   overlayClassificationChipStyle,
   solidClassificationChipStyle,
 } from "@/lib/classification-display";
-import { cn } from "@/lib/utils";
+import { cn } from "@heybray/ui/utils";
 
 type ClassificationChipProps = {
   label: string;
