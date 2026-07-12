@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@heybray/ui/components/alert";
 import { Eye, EyeOff, Info } from "lucide-react";
 import logo from "@assets/logo.png";
 import { getOidcProviderIcon } from "@/lib/oidc-provider-icon";
-import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import { AuthHeroPanel } from "@/components/AuthHeroPanel";
 import { AuthUnavailableScreen } from "@/components/errors";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";

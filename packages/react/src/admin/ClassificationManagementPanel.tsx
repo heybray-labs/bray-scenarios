@@ -18,8 +18,8 @@ import {
   CollapsibleTrigger,
 } from "@heybray/ui/components/collapsible";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
-import { HttpError } from "@heybray/react/lib/http-error";
+import { apiRequest, queryClient } from "../lib/queryClient.ts";
+import { HttpError } from "../lib/http-error.ts";
 import {
   ChevronDown,
   Loader2,
@@ -29,11 +29,11 @@ import {
 import {
   ClassificationOptionList,
   type ClassificationOptionRow,
-} from "@heybray/react/classifications/ClassificationOptionList";
+} from "../classifications/ClassificationOptionList.tsx";
 import {
   OptionDisplayFields,
   defaultDisplayForDimension,
-} from "@heybray/react/classifications/OptionDisplayFields";
+} from "../classifications/OptionDisplayFields.tsx";
 
 type ClassificationOption = ClassificationOptionRow;
 

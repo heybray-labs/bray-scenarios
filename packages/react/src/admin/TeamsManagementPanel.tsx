@@ -24,12 +24,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@heybray/ui/components/dropdown-menu";
-import { FilterMultiSelect } from "@heybray/react/classifications/FilterMultiSelect";
+import { FilterMultiSelect } from "../classifications/FilterMultiSelect.tsx";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { apiRequest, queryClient } from "../lib/queryClient.ts";
 import type { UserSummary } from "@heybray/identity/schema";
 import { Loader2, MoreVertical, Plus, Users } from "lucide-react";
-import { HttpError } from "@heybray/react/lib/http-error";
+import { HttpError } from "../lib/http-error.ts";
 
 type TeamRow = {
   id: number;

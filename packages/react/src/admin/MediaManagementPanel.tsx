@@ -1,17 +1,21 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@heybray/ui/components/button";
-import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import {
   formatBytes,
   type MediaAssetDto,
   uploadMediaFile,
-} from "@heybray/react/lib/media";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+} from "../lib/media.ts";
+import { apiRequest, queryClient } from "../lib/queryClient.ts";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
-export function MediaManagementPanel() {
+interface MediaManagementPanelProps {
+  /** Render an app-specific cover preview for a media asset (e.g. ScenarioCover). */
+  renderCover: (mediaId: number) => ReactNode;
+}
+
+export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -115,7 +119,7 @@ export function MediaManagementPanel() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-lg border overflow-hidden">
-              <ScenarioCover mediaId={asset.id} />
+              {renderCover(asset.id)}
               <div className="p-2 space-y-2">
                 <div>
                   <p className="text-xs font-medium truncate" title={asset.originalFilename}>

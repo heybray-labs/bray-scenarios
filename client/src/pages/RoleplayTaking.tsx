@@ -15,7 +15,7 @@ import {
 } from "@heybray/ui/components/dialog";
 import { Loader2, Send, Flag, Lightbulb, Drama, Clock, MessageSquare } from "lucide-react";
 import logo from "@assets/logo.png";
-import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import { TranscriptThread } from "@/components/roleplays/transcript/TranscriptThread";
 import { NoticeBanner } from "@heybray/ui/components/NoticeBanner";
 import { useToast } from "@heybray/ui/hooks/use-toast";

@@ -5,7 +5,7 @@ import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import { Label } from "@heybray/ui/components/label";
 import logo from "@assets/logo.png";
-import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import { AuthHeroPanel } from "@/components/AuthHeroPanel";
 import { AuthUnavailableScreen } from "@/components/errors";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";

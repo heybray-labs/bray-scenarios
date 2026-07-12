@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
-import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import {
   APPLICATION_DISPLAY_NAME,
   APPLICATION_TAGLINE,

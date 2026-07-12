@@ -13,7 +13,7 @@ import {
 import { LogOut, Settings, Star, Search, LayoutGrid } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
-import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
 import { initialsFromUser } from "@heybray/react/lib/user-display";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";

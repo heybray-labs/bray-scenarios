@@ -10,12 +10,13 @@ import {
 import { Button } from "@heybray/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@heybray/ui/components/tabs";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
-import { UsersManagementPanel } from "@/components/UsersManagementPanel";
-import { MediaManagementPanel } from "@/components/MediaManagementPanel";
-import { ClassificationManagementPanel } from "@/components/ClassificationManagementPanel";
+import { UsersManagementPanel } from "@heybray/react/admin/UsersManagementPanel";
+import { MediaManagementPanel } from "@heybray/react/admin/MediaManagementPanel";
+import { ClassificationManagementPanel } from "@heybray/react/admin/ClassificationManagementPanel";
 import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
-import { TeamsManagementPanel } from "@/components/TeamsManagementPanel";
+import { TeamsManagementPanel } from "@heybray/react/admin/TeamsManagementPanel";
 import { AboutPanel } from "@/components/AboutPanel";
+import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { Settings } from "lucide-react";
 
@@ -78,7 +79,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
             {canManage && (
               <TabsContent value="media" className="mt-0 h-full overflow-y-auto pr-1">
-                <MediaManagementPanel />
+                <MediaManagementPanel renderCover={(id) => <ScenarioCover mediaId={id} />} />
               </TabsContent>
             )}
 
