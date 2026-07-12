@@ -8,9 +8,10 @@ import {
 import { roleplaySettings } from "../../shared/schemas/roleplay-core.ts";
 import { encryptSecret, decryptSecret } from "@heybray/server-kit";
 import { platformLogger } from "@heybray/server-kit";
+import { LlmNotConfiguredError, type LlmProvider } from "@heybray/llm";
 import { eq } from "drizzle-orm";
 
-export type RoleplayProvider = "openai" | "anthropic" | "google";
+export type RoleplayProvider = LlmProvider;
 export type RoleplayModelPurpose = "persona" | "grader";
 
 export interface RoleplayModelRef {
@@ -258,12 +259,12 @@ export class RoleplayConfigService {
       .limit(1);
 
     if (!settings?.personaProvider || !settings?.personaModel) {
-      throw new RoleplayNotConfiguredError(
+      throw new LlmNotConfiguredError(
         "This roleplay does not have a persona model configured.",
       );
     }
     if (!settings?.graderProvider || !settings?.graderModel) {
-      throw new RoleplayNotConfiguredError(
+      throw new LlmNotConfiguredError(
         "This roleplay does not have a grader model configured.",
       );
     }
@@ -469,12 +470,7 @@ export class RoleplayConfigService {
   }
 }
 
-/** Re-export for convenience in model-factory */
-export class RoleplayNotConfiguredError extends Error {
-  constructor(message = "Roleplay AI is not configured.") {
-    super(message);
-    this.name = "RoleplayNotConfiguredError";
-  }
-}
+/** App-facing alias for the platform LLM error. */
+export { LlmNotConfiguredError as RoleplayNotConfiguredError };
 
 export const roleplayConfigService = new RoleplayConfigService();
