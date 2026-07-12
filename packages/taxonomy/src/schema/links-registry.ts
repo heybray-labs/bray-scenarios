@@ -7,6 +7,10 @@ import { classificationOptions } from "./classifications.ts";
  * renamed/generalized in a later phase). This default definition serves as the
  * type anchor and standalone fallback; the app injects its concrete table via
  * setClassificationLinks() at startup so the service issues queries against it.
+ *
+ * PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The fallback
+ * table and ClassificationLinksTable type are still roleplay-shaped
+ * (roleplay_id / "roleplay_classification_links").
  */
 const defaultClassificationLinks = pgTable(
   "roleplay_classification_links",

@@ -184,6 +184,10 @@ export function ClassificationManagementPanel() {
 
   const dimensions = data?.dimensions ?? [];
 
+  // PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The
+  // "/api/roleplay-classifications" query key and the "scenario" copy in this
+  // panel are roleplay-specific; move them behind an app-supplied endpoint/copy
+  // adapter.
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">

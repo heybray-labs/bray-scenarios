@@ -28,6 +28,10 @@ export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps)
     mutationFn: (id: number) => apiRequest("DELETE", `/api/media/${id}`),
     onSuccess: (result: { detachedFromScenarios?: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/media"] });
+      // PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The
+      // "/api/roleplays" invalidation key and the "scenario" copy throughout
+      // this panel are roleplay-specific; move them behind an app-supplied
+      // endpoint/copy adapter.
       queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
       const n = result?.detachedFromScenarios ?? 0;
       toast({

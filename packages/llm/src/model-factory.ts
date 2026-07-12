@@ -162,6 +162,9 @@ export function describeModelError(
   }
 
   if (lower.includes("temperature") && lower.includes("does not support")) {
+    // PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The
+    // "Roleplay will omit…" wording is app-specific user-facing copy; inject
+    // it via an app-supplied error-copy hook.
     return `${providerLabel} model${model ? ` "${model}"` : ""} only supports the default temperature. Roleplay will omit custom temperature for this model automatically — retry the attempt. If this persists, choose a chat model such as gpt-4o-mini for more control.`;
   }
 

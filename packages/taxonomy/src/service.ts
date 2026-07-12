@@ -22,6 +22,10 @@ import {
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+// PHASE-2: generalize — see docs/platform-architecture.md §3/§7.
+// emptyClassifications() and mapLinksToClassifications() below hardcode the
+// roleplay dimension set (category / audience_level / duration / tags) and the
+// switch silently drops any unknown dimension.
 function emptyClassifications(): RoleplayClassifications {
   return { category: null, audienceLevel: null, duration: null, tags: [] };
 }
