@@ -26,8 +26,8 @@ function ErrorContent({
 }: Omit<BrandedErrorScreenProps, "layout">) {
   return (
     <div className="w-full max-w-lg text-center">
-      <h1 className="text-4xl font-bold text-gray-800">Uh oh!</h1>
-      <h2 className="mt-4 text-2xl font-medium text-gray-700">{subtitle}</h2>
+      <h1 className="text-4xl font-bold text-foreground">Uh oh!</h1>
+      <h2 className="mt-4 text-2xl font-medium text-muted-foreground">{subtitle}</h2>
       <p className="mt-4 text-base text-muted-foreground">{description}</p>
       {children}
       {action && (

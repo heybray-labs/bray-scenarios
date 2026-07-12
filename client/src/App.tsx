@@ -5,6 +5,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import { AppErrorBoundary, PageNotFoundScreen } from "@/components/errors";
+import ScenarioSearchPage from "@/pages/ScenarioSearchPage";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
@@ -14,6 +15,7 @@ import RoleplayIntroPage from "@/pages/RoleplayIntroPage";
 import RoleplayTaking from "@/pages/RoleplayTaking";
 import RoleplayResults from "@/pages/RoleplayResults";
 import RoleplayAttemptsPage from "@/pages/RoleplayAttemptsPage";
+import TeamStarMapPage from "@/pages/TeamStarMapPage";
 
 export default function App() {
   return (
@@ -25,6 +27,11 @@ export default function App() {
             <Route path="/login/oidc/callback" component={OidcCallbackPage} />
             <Route path="/login/saml/callback" component={SamlCallbackPage} />
             <Route path="/register" component={RegisterPage} />
+            <Route path="/search">
+              <ProtectedRoute>
+                <ScenarioSearchPage />
+              </ProtectedRoute>
+            </Route>
             <Route path="/">
               <ProtectedRoute>
                 <HomePage />
@@ -43,6 +50,11 @@ export default function App() {
             <Route path="/roleplays/:id/results/:attemptId">
               <ProtectedRoute>
                 <RoleplayResults />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/team-star-map">
+              <ProtectedRoute>
+                <TeamStarMapPage />
               </ProtectedRoute>
             </Route>
             <Route path="/roleplays/:id/attempts">

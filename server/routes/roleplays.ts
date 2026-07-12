@@ -1,6 +1,12 @@
 import { Router, Response } from "express";
+import { isCheatModeEnabled } from "../config/cheat-mode.ts";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "../db.ts";
+import { roleplayAttempts } from "../../shared/schemas/roleplay-core.ts";
 import { roleplaySystemController } from "../controllers/roleplay-system.controller.ts";
+import { pointsController } from "../controllers/points.controller.ts";
+import { canViewMemberAttempt } from "../controllers/team.controller.ts";
 import { roleplayConfigService } from "../services/roleplay-config.service.ts";
 import { RoleplayNotConfiguredError, describeRoleplayModelError } from "../roleplay/model-factory.ts";
 import {
@@ -20,6 +26,20 @@ const bulkRoleplayPayloadSchema = z.object({
   settings: z.object({}).passthrough().optional(),
   persona: z.object({}).passthrough().optional(),
   criteria: z.array(z.object({}).passthrough()).optional(),
+  rewardTiers: z
+    .array(
+      z.object({
+        id: z.number().optional(),
+        starLevel: z.number().optional(),
+        tierName: z.string(),
+        minScorePercent: z.number(),
+        rewardPoints: z.number(),
+        orderIndex: z.number().optional(),
+        color: z.string().nullable().optional(),
+        icon: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
   classifications: z
     .object({
       category: z.string().nullable().optional(),
@@ -73,7 +93,7 @@ router.use(requirePasswordChanged);
 router.get("/config-status", async (_req: AuthRequest, res: Response) => {
   try {
     const isReady = await roleplayConfigService.isConfigReady();
-    res.json({ isReady });
+    res.json({ isReady, cheatModeEnabled: isCheatModeEnabled() });
   } catch (error) {
     platformLogger.error("config-status error", error instanceof Error ? error : undefined);
     res.status(500).json({ error: "Failed to get config status" });
@@ -101,8 +121,15 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const durations = parseQueryStringList(req.query.duration);
     const difficulties = parseQueryStringList(req.query.difficulty);
     const tags = parseQueryStringList(req.query.tag);
+    const myStatus =
+      typeof req.query.myStatus === "string" ? req.query.myStatus : undefined;
+    const sort =
+      req.query.sort === "publishedAt" ? "publishedAt" : "createdAt";
+    const publishedSinceRaw =
+      typeof req.query.publishedSince === "string" ? req.query.publishedSince : undefined;
+    const publishedSince = publishedSinceRaw ? new Date(publishedSinceRaw) : undefined;
 
-    const [listResult, bestAttempts] = await Promise.all([
+    const [listResult, bestAttempts, pointsEarned, inProgressAttempts] = await Promise.all([
       roleplaySystemController.getRoleplays({
         publishedOnly: !canManageRoleplays(req.user),
         page,
@@ -113,14 +140,26 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         durations,
         tags,
         difficulties,
+        userId,
+        myStatus,
+        sort,
+        publishedSince:
+          publishedSince && !Number.isNaN(publishedSince.getTime())
+            ? publishedSince
+            : undefined,
       }),
       roleplaySystemController.getUserBestAttemptsByRoleplay(userId),
+      roleplaySystemController.getUserPointsEarnedByRoleplay(userId),
+      roleplaySystemController.getUserInProgressAttemptsByRoleplay(userId),
     ]);
 
     res.json({
       items: listResult.items.map((roleplay) => ({
         ...roleplay,
         myBestAttempt: bestAttempts.get((roleplay as { id: number }).id) ?? null,
+        myPointsEarned: pointsEarned.get((roleplay as { id: number }).id) ?? 0,
+        myInProgressAttempt:
+          inProgressAttempts.get((roleplay as { id: number }).id) ?? null,
       })),
       total: listResult.total,
       page: listResult.page,
@@ -254,11 +293,133 @@ router.post("/", requirePermission("roleplay:manage"), async (req: AuthRequest, 
   }
 });
 
+router.get("/featured", async (req: AuthRequest, res: Response) => {
+  try {
+    const items = await roleplaySystemController.getFeaturedHeroItems(
+      !canManageRoleplays(req.user),
+    );
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("featured roleplays error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get featured scenarios" });
+  }
+});
+
+router.get("/featured/manage", requirePermission("roleplay:manage"), async (_req: AuthRequest, res: Response) => {
+  try {
+    const items = await roleplaySystemController.getFeaturedManageList();
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("featured manage list error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get featured manage list" });
+  }
+});
+
+router.put("/featured/manage", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = z.object({ roleplayIds: z.array(z.number().int().positive()) }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid payload", details: parsed.error.errors });
+    }
+    await roleplaySystemController.setFeaturedManageList(parsed.data.roleplayIds);
+    const items = await roleplaySystemController.getFeaturedManageList();
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("featured manage update error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to update featured scenarios" });
+  }
+});
+
+router.get("/popular", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 20;
+    const ids = await roleplaySystemController.getPopularRoleplayIds(limit);
+    const items = await roleplaySystemController.enrichBrowseItemsForUser(
+      userId,
+      ids,
+      !canManageRoleplays(req.user),
+    );
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("popular roleplays error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get popular scenarios" });
+  }
+});
+
+router.get("/recommended", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 20;
+    const ids = await roleplaySystemController.getRecommendedRoleplayIds(userId, limit);
+    const items = await roleplaySystemController.enrichBrowseItemsForUser(
+      userId,
+      ids,
+      !canManageRoleplays(req.user),
+    );
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("recommended roleplays error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get recommended scenarios" });
+  }
+});
+
+router.get("/room-for-improvement", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 20;
+    const roleplayIds =
+      await roleplaySystemController.getRoomForImprovementRoleplayIds(userId, limit);
+    const items = await roleplaySystemController.enrichBrowseItemsForUser(
+      userId,
+      roleplayIds,
+      !canManageRoleplays(req.user),
+    );
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error(
+      "room-for-improvement roleplays error",
+      error instanceof Error ? error : undefined,
+    );
+    res.status(500).json({ error: "Failed to get room-for-improvement scenarios" });
+  }
+});
+
+router.get("/continue", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 10;
+    const continueItems = await roleplaySystemController.getContinueScenarios(userId, limit);
+    const ids = continueItems.map((item) => item.roleplayId);
+    const items = await roleplaySystemController.enrichBrowseItemsForUser(
+      userId,
+      ids,
+      !canManageRoleplays(req.user),
+    );
+    res.json({ items });
+  } catch (error) {
+    platformLogger.error("continue roleplays error", error instanceof Error ? error : undefined);
+    res.status(500).json({ error: "Failed to get continue scenarios" });
+  }
+});
+
 router.get("/:id", async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
     const roleplay = await getRoleplayForUser(req, res, roleplayId);
     if (!roleplay) return;
+
+    if (!canManageRoleplays(req.user) && roleplay.persona) {
+      const { hiddenObjective, ...personaRest } = roleplay.persona;
+      return res.json({
+        ...roleplay,
+        persona: {
+          ...personaRest,
+          hasHiddenObjective: !!String(hiddenObjective ?? "").trim(),
+        },
+      });
+    }
+
     res.json(roleplay);
   } catch (error) {
     platformLogger.error("get roleplay error", error instanceof Error ? error : undefined);
@@ -353,6 +514,33 @@ router.get("/:id/stats", async (req: AuthRequest, res: Response) => {
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: "Failed to get stats" });
+  }
+});
+
+router.get("/:id/my-progress", async (req: AuthRequest, res: Response) => {
+  try {
+    const roleplayId = parseInt(req.params.id);
+    if (!(await getRoleplayForUser(req, res, roleplayId))) return;
+    const progress = await pointsController.getScenarioProgress(req.user!.id, roleplayId);
+    res.json(progress);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get progress" });
+  }
+});
+
+router.get("/:id/leaderboard", async (req: AuthRequest, res: Response) => {
+  try {
+    const roleplayId = parseInt(req.params.id);
+    if (!(await getRoleplayForUser(req, res, roleplayId))) return;
+    const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 3;
+    const leaderboard = await roleplaySystemController.getScenarioLeaderboard(
+      roleplayId,
+      req.user!.id,
+      Number.isNaN(limit) ? 3 : limit,
+    );
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get leaderboard" });
   }
 });
 
@@ -459,7 +647,18 @@ router.post("/:id/attempts/:attemptId/submit", async (req: AuthRequest, res: Res
 router.get("/:id/attempts/:attemptId/results", async (req: AuthRequest, res: Response) => {
   try {
     const attemptId = parseInt(req.params.attemptId);
-    const results = await roleplaySystemController.getResults(attemptId, req.user!.id);
+    let results = await roleplaySystemController.getResults(attemptId, req.user!.id);
+    if (!results) {
+      const [attempt] = await db
+        .select({ userId: roleplayAttempts.userId })
+        .from(roleplayAttempts)
+        .where(eq(roleplayAttempts.id, attemptId))
+        .limit(1);
+      if (!attempt) return res.status(404).json({ error: "Results not found" });
+      const allowed = await canViewMemberAttempt(req.user!, attempt.userId);
+      if (!allowed) return res.status(404).json({ error: "Results not found" });
+      results = await roleplaySystemController.getResults(attemptId, attempt.userId);
+    }
     if (!results) return res.status(404).json({ error: "Results not found" });
     res.json(results);
   } catch (error) {

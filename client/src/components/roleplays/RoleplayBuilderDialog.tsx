@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
 import { CoverImagePicker } from "@/components/roleplays/CoverImagePicker";
@@ -36,7 +37,13 @@ import {
   UserRound,
   ListChecks,
   Settings2,
+  Trophy,
 } from "lucide-react";
+import {
+  DEFAULT_REWARD_TIERS as SHARED_DEFAULT_REWARD_TIERS,
+  tierNameFromStarLevel,
+} from "@shared/schemas/points";
+import { TierStars } from "@/components/points/TierStars";
 
 interface RoleplayBuilderDialogProps {
   roleplayId: number | null;
@@ -52,6 +59,22 @@ interface CriterionDraft {
   weight: number;
   maxScore: number;
 }
+
+interface RewardTierDraft {
+  id?: number;
+  starLevel: number;
+  tierName: string;
+  minScorePercent: number;
+  rewardPoints: number;
+}
+
+const DEFAULT_REWARD_TIERS: RewardTierDraft[] = SHARED_DEFAULT_REWARD_TIERS.map((tier) => ({
+  id: tier.id,
+  starLevel: tier.starLevel ?? 1,
+  tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? 1),
+  minScorePercent: tier.minScorePercent,
+  rewardPoints: tier.rewardPoints,
+}));
 
 const DEFAULT_CRITERIA: CriterionDraft[] = [
   { name: "Empathy", description: "Acknowledged feelings and built rapport.", weight: 1, maxScore: 100 },
@@ -109,6 +132,8 @@ export default function RoleplayBuilderDialog({
   const [graderModelKey, setGraderModelKey] = useState("");
 
   const [criteria, setCriteria] = useState<CriterionDraft[]>(DEFAULT_CRITERIA);
+  const [rewardsEnabled, setRewardsEnabled] = useState(true);
+  const [rewardTiers, setRewardTiers] = useState<RewardTierDraft[]>(DEFAULT_REWARD_TIERS);
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -165,6 +190,9 @@ export default function RoleplayBuilderDialog({
     queryKey: ["/api/roleplay-classifications"],
     enabled: open,
   });
+
+  const featured = useFeaturedScenarioManage(isEdit && open && status === "published");
+  const isFeatured = roleplayId != null && featured.isFeatured(roleplayId);
 
   const dimensionOptions = (slug: string) =>
     taxonomy?.dimensions.find((d) => d.slug === slug)?.options ?? [];
@@ -224,6 +252,7 @@ export default function RoleplayBuilderDialog({
     setPersonaModelKey("");
     setGraderModelKey("");
     setCriteria(DEFAULT_CRITERIA);
+    setRewardTiers(DEFAULT_REWARD_TIERS);
   }, [open, isEdit]);
 
   useEffect(() => {
@@ -280,6 +309,27 @@ export default function RoleplayBuilderDialog({
         })),
       );
     }
+
+    if (Array.isArray(existing.rewardTiers) && existing.rewardTiers.length) {
+      setRewardsEnabled(true);
+      setRewardTiers(
+        DEFAULT_REWARD_TIERS.map((def, index) => {
+          const existingTier = existing.rewardTiers.find(
+            (t: any) => (t.starLevel ?? index + 1) === def.starLevel,
+          ) ?? existing.rewardTiers[index];
+          return {
+            id: existingTier?.id,
+            starLevel: def.starLevel,
+            tierName: tierNameFromStarLevel(def.starLevel),
+            minScorePercent: existingTier?.minScorePercent ?? def.minScorePercent,
+            rewardPoints: existingTier?.rewardPoints ?? def.rewardPoints,
+          };
+        }),
+      );
+    } else {
+      setRewardsEnabled(false);
+      setRewardTiers(DEFAULT_REWARD_TIERS);
+    }
   }, [existing]);
 
   const buildPayload = (nextStatus?: string) => ({
@@ -334,6 +384,16 @@ export default function RoleplayBuilderDialog({
       weight: c.weight,
       maxScore: c.maxScore,
     })),
+    rewardTiers: rewardsEnabled
+      ? rewardTiers.map((t, index) => ({
+          id: t.id,
+          starLevel: t.starLevel,
+          tierName: tierNameFromStarLevel(t.starLevel),
+          minScorePercent: Number(t.minScorePercent),
+          rewardPoints: Number(t.rewardPoints),
+          orderIndex: index,
+        }))
+      : [],
     classifications: {
       category: categorySlug || null,
       audienceLevel: audienceLevelSlug || null,
@@ -406,7 +466,7 @@ export default function RoleplayBuilderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden gap-4">
+      <DialogContent className="max-w-3xl h-[60vh] max-h-[60vh] flex flex-col overflow-hidden gap-4">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Drama className="h-5 w-5" />
@@ -415,12 +475,12 @@ export default function RoleplayBuilderDialog({
         </DialogHeader>
 
         {isEdit && isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex flex-1 items-center justify-center min-h-0">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <Tabs defaultValue="scenario" className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-4 w-full shrink-0">
+            <TabsList className="grid grid-cols-5 w-full shrink-0">
               <TabsTrigger value="scenario" className="gap-1.5">
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate">Scenario</span>
@@ -432,6 +492,10 @@ export default function RoleplayBuilderDialog({
               <TabsTrigger value="rubric" className="gap-1.5">
                 <ListChecks className="h-4 w-4 shrink-0" />
                 <span className="truncate">Rubric</span>
+              </TabsTrigger>
+              <TabsTrigger value="rewards" className="gap-1.5">
+                <Trophy className="h-4 w-4 shrink-0" />
+                <span className="truncate">Rewards</span>
               </TabsTrigger>
               <TabsTrigger value="settings" className="gap-1.5">
                 <Settings2 className="h-4 w-4 shrink-0" />
@@ -685,6 +749,62 @@ export default function RoleplayBuilderDialog({
                 </Button>
               </TabsContent>
 
+              {/* Rewards */}
+              <TabsContent value="rewards" className="space-y-3 mt-0">
+                <ToggleRow
+                  label="Enable point rewards"
+                  checked={rewardsEnabled}
+                  onChange={setRewardsEnabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Fixed Bronze / Silver / Gold tiers. Retakes only award the incremental
+                  difference vs. a previous best tier.
+                </p>
+                {rewardsEnabled && (
+                  <div className="rounded-md border overflow-hidden text-sm">
+                    <div className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-x-2 items-center px-3 py-1.5 bg-muted/40 border-b text-[11px] font-medium text-muted-foreground">
+                      <span>Tier</span>
+                      <span>Min %</span>
+                      <span>Pts</span>
+                    </div>
+                    {rewardTiers.map((tier, idx) => (
+                      <div
+                        key={tier.starLevel}
+                        className="grid grid-cols-[minmax(0,1fr)_4rem_4rem] gap-x-2 items-center px-3 py-2 border-b last:border-b-0"
+                      >
+                        <span className="inline-flex items-center gap-2 font-medium">
+                          <TierStars level={tier.starLevel as 1 | 2 | 3} size="sm" />
+                          {tier.tierName}
+                        </span>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={tier.minScorePercent}
+                          onChange={(e) =>
+                            updateRewardTier(setRewardTiers, idx, {
+                              minScorePercent: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-8 px-2"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          value={tier.rewardPoints}
+                          onChange={(e) =>
+                            updateRewardTier(setRewardTiers, idx, {
+                              rewardPoints: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="h-8 px-2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
               {/* Settings */}
               <TabsContent value="settings" className="space-y-4 mt-0">
                 <div className="grid grid-cols-2 gap-4">
@@ -734,6 +854,14 @@ export default function RoleplayBuilderDialog({
                   </Field>
                   <ToggleRow label="Show leaderboard" checked={showLeaderboard} onChange={setShowLeaderboard} />
                   <ToggleRow label="Anonymous leaderboard" checked={anonymousLeaderboard} onChange={setAnonymousLeaderboard} />
+                  {isEdit && status === "published" && roleplayId != null && (
+                    <ToggleRow
+                      label="Feature on homepage hero"
+                      checked={isFeatured}
+                      onChange={(next) => void featured.setFeatured(roleplayId, next)}
+                      disabled={featured.pending}
+                    />
+                  )}
                 </div>
               </TabsContent>
             </div>
@@ -793,13 +921,31 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between">
       <Label className="font-normal">{label}</Label>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
   );
+}
+
+function updateRewardTier(
+  setter: React.Dispatch<React.SetStateAction<RewardTierDraft[]>>,
+  idx: number,
+  patch: Partial<RewardTierDraft>,
+) {
+  setter((prev) => prev.map((item, i) => (i === idx ? { ...item, ...patch } : item)));
 }
 
 function updateCriterion<T>(

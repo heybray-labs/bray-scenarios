@@ -17,6 +17,7 @@ const TABLES_TO_TRUNCATE = [
   "roleplay_app_config",
   "auth_exchange_codes",
   "user_identities",
+  "teams",
   "users",
 ];
 

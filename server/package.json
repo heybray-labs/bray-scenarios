@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push --config=drizzle.config.ts --force",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "db:init": "tsx --env-file=../.env init-db/init-db.ts"
+    "db:init": "tsx --env-file=../.env init-db/init-db.ts",
+    "db:seed-demo": "tsx --env-file=../.env init-db/seed-demo.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.1",

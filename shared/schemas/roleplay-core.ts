@@ -21,9 +21,17 @@ export const roleplays = pgTable("roleplays", {
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  publishedAt: timestamp("published_at"),
   published: boolean("published").notNull().default(false),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+});
+
+export const homepageFeaturedScenarios = pgTable("homepage_featured_scenarios", {
+  roleplayId: integer("roleplay_id")
+    .primaryKey()
+    .references(() => roleplays.id, { onDelete: "cascade" }),
+  sortOrder: integer("sort_order").notNull(),
 });
 
 export const roleplaySettings = pgTable("roleplay_settings", {
@@ -127,6 +135,7 @@ export const insertRoleplaySchema = createInsertSchema(roleplays).omit({
 });
 
 export type Roleplay = typeof roleplays.$inferSelect;
+export type HomepageFeaturedScenario = typeof homepageFeaturedScenarios.$inferSelect;
 export type RoleplaySettings = typeof roleplaySettings.$inferSelect;
 export type RoleplayPersona = typeof roleplayPersonas.$inferSelect;
 export type RoleplayCriterion = typeof roleplayCriteria.$inferSelect;

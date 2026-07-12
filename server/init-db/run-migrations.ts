@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -11,6 +12,47 @@ const log = createLogger("migrations");
 
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsFolder = path.join(serverRoot, "drizzle");
+
+type JournalEntry = { tag: string; when: number };
+
+function readJournalEntries(): JournalEntry[] {
+  const journalPath = path.join(migrationsFolder, "meta", "_journal.json");
+  const journal = JSON.parse(fs.readFileSync(journalPath, "utf8")) as {
+    entries: Array<{ tag: string; when: number }>;
+  };
+  return journal.entries.map((entry) => ({ tag: entry.tag, when: entry.when }));
+}
+
+async function getLastAppliedCreatedAt(): Promise<number | null> {
+  const tableExists = await db.execute<{ exists: boolean }>(sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'
+    ) AS exists
+  `);
+  if (!tableExists.rows[0]?.exists) {
+    return null;
+  }
+
+  const result = await db.execute<{ created_at: string }>(sql`
+    SELECT created_at::text AS created_at
+    FROM drizzle.__drizzle_migrations
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+  const createdAt = result.rows[0]?.created_at;
+  return createdAt == null ? null : Number(createdAt);
+}
+
+async function getPendingMigrations(): Promise<JournalEntry[]> {
+  const entries = readJournalEntries();
+  const lastApplied = await getLastAppliedCreatedAt();
+  if (lastApplied == null) {
+    return entries;
+  }
+  return entries.filter((entry) => entry.when > lastApplied);
+}
 
 /**
  * Databases created with drizzle-kit push have the schema but no migration history.
@@ -63,8 +105,18 @@ async function stampBaselineIfLegacyDatabase() {
 export async function runMigrations() {
   await stampBaselineIfLegacyDatabase();
 
+  log.info("Checking for migrations");
+
+  const pending = await getPendingMigrations();
+  if (pending.length === 0) {
+    log.info("No migrations pending");
+    return;
+  }
+
   const migrationDb = drizzle(pool);
   await migrate(migrationDb, { migrationsFolder });
 
-  log.info("Migrations complete");
+  for (const migration of pending) {
+    log.info(`Applied migration ${migration.tag}`);
+  }
 }

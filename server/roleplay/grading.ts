@@ -25,6 +25,7 @@ export interface GradingContext {
   personaName?: string | null;
   criteria: GradingCriterionInput[];
   transcript: TranscriptTurn[];
+  cheatDirective?: string | null;
 }
 
 const CriterionScoreSchema = z.object({
@@ -41,6 +42,58 @@ export const GradingResultSchema = z.object({
 });
 
 export type GradingResult = z.infer<typeof GradingResultSchema>;
+
+function buildCheatGradingSystemPrompt(ctx: GradingContext, directive: string): string {
+  const lines: string[] = [];
+  lines.push(
+    "You are a conversation-skills assessor running in CHEAT MODE (development/testing only).",
+  );
+  lines.push(
+    "Do NOT perform a full transcript analysis. The learner entered a CHEAT MODE directive in the conversation.",
+  );
+  lines.push("");
+  lines.push(`Scenario: ${ctx.roleplayTitle}`);
+  if (ctx.learnerRole) lines.push(`Learner's role: ${ctx.learnerRole}`);
+  if (ctx.learnerObjective)
+    lines.push(`Learner's objective: ${ctx.learnerObjective}`);
+  if (ctx.situationContext) lines.push(`Situation: ${ctx.situationContext}`);
+  if (ctx.personaName) lines.push(`The persona played: ${ctx.personaName}`);
+
+  lines.push("");
+  lines.push("# Cheat directive from learner message (authoritative — produce this outcome)");
+  lines.push(directive);
+  lines.push("");
+  lines.push(
+    "Interpret the directive as the target end result: overall score band, pass/fail feel, tier reached, and the tone of feedback.",
+  );
+  lines.push(
+    "Assign per-criterion integer scores (0..max) that plausibly combine to that outcome via the rubric weights.",
+  );
+  lines.push(
+    "Write brief, realistic feedback per criterion plus an overall summary matching the directive.",
+  );
+  lines.push("Return one entry per criterion using the exact criterion id provided.");
+
+  lines.push("");
+  lines.push("# Rubric criteria");
+  for (const c of ctx.criteria) {
+    lines.push(
+      `- [id ${c.id}] ${c.name} (score 0..${c.maxScore})${c.description ? `: ${c.description}` : ""}`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function buildCheatTranscriptHint(ctx: GradingContext): string {
+  const learnerTurns = ctx.transcript.filter((t) => t.role === "learner").length;
+  const personaTurns = ctx.transcript.filter((t) => t.role === "persona").length;
+  return [
+    "# Transcript (cheat mode — do not grade message-by-message)",
+    `The learner exchanged ${learnerTurns} learner turn(s) and ${personaTurns} persona turn(s).`,
+    "Use the cheat directive above instead of evaluating individual messages.",
+  ].join("\n");
+}
 
 function buildGradingSystemPrompt(ctx: GradingContext): string {
   const lines: string[] = [];
@@ -170,6 +223,37 @@ async function invokeJsonFallback(
 }
 
 /**
+ * Cheat-mode grading: skip deep transcript analysis and fabricate rubric scores
+ * matching the scenario author's CHEAT MODE directive.
+ */
+export async function gradeTranscriptCheat(
+  model: BaseChatModel,
+  ctx: GradingContext,
+  directive: string,
+): Promise<GradingResult> {
+  const messages: BaseMessage[] = [
+    new SystemMessage(buildCheatGradingSystemPrompt(ctx, directive)),
+    new HumanMessage(buildCheatTranscriptHint(ctx)),
+  ];
+
+  const maxAttempts = 2;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await invokeStructured(model, messages);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  try {
+    return await invokeJsonFallback(model, messages);
+  } catch (fallbackError) {
+    throw lastError ?? fallbackError;
+  }
+}
+
+/**
  * Grade a roleplay transcript against the rubric using structured output,
  * with a JSON fallback for providers that truncate tool calls.
  */
@@ -177,6 +261,10 @@ export async function gradeTranscript(
   model: BaseChatModel,
   ctx: GradingContext,
 ): Promise<GradingResult> {
+  if (ctx.cheatDirective?.trim()) {
+    return gradeTranscriptCheat(model, ctx, ctx.cheatDirective.trim());
+  }
+
   const messages: BaseMessage[] = [
     new SystemMessage(buildGradingSystemPrompt(ctx)),
     new HumanMessage(buildTranscriptText(ctx)),

@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { FaUser } from "react-icons/fa";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +16,17 @@ import {
 import { Loader2, Send, Flag, Lightbulb, Drama, Clock, MessageSquare } from "lucide-react";
 import logo from "@assets/logo.png";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { TranscriptThread } from "@/components/roleplays/transcript/TranscriptThread";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { initialsFromUser } from "@/lib/user-display";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { MainLayout } from "@/components/MainLayout";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { cn } from "@/lib/utils";
+import { isCheatModeMessage } from "@/lib/cheat-mode";
 
 interface ChatMessage {
   id: number | string;
@@ -66,6 +68,10 @@ export default function RoleplayTaking() {
     queryKey: [`/api/roleplays/${roleplayId}`],
     enabled: !!roleplayId,
   });
+  const { data: configStatus } = useQuery<{ isReady?: boolean; cheatModeEnabled?: boolean }>({
+    queryKey: [`/api/roleplays/config-status`],
+  });
+  const cheatModeEnabled = !!configStatus?.cheatModeEnabled;
   const settings = roleplay?.settings ?? {};
   const persona = roleplay?.persona ?? {};
 
@@ -89,13 +95,7 @@ export default function RoleplayTaking() {
   const timeUrgent = remainingMs != null && remainingMs <= 60_000;
   const turnsUrgent = turnsRemaining != null && turnsRemaining <= 1;
 
-  const userInitials =
-    [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
-      .filter(Boolean)
-      .join("")
-      .toUpperCase() ||
-    user?.email?.[0]?.toUpperCase() ||
-    "?";
+  const userInitials = initialsFromUser(user);
 
   // Initialize: resume in-progress attempt or start a new one
   useEffect(() => {
@@ -163,6 +163,9 @@ export default function RoleplayTaking() {
         queryKey: [`/api/roleplays/${roleplayId}/my-attempts`],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/me/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/points/leaderboard"] });
       navigate(`/roleplays/${roleplayId}/results/${attemptId}`);
     } catch (err) {
       toast({
@@ -188,12 +191,15 @@ export default function RoleplayTaking() {
     const text = input.trim();
     if (!text || !roleplayId || !attemptId || isStreaming || timeExpired || reachedMaxTurns) return;
 
+    const cheatMessage = cheatModeEnabled && isCheatModeMessage(text);
     setInput("");
     setCoachHint(null);
     setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "learner", content: text }]);
 
-    const personaMsgId = `streaming-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: personaMsgId, role: "persona", content: "" }]);
+    const personaMsgId = cheatMessage ? null : `streaming-${Date.now()}`;
+    if (personaMsgId) {
+      setMessages((prev) => [...prev, { id: personaMsgId, role: "persona", content: "" }]);
+    }
     setIsStreaming(true);
 
     let shouldEnd = false;
@@ -207,7 +213,7 @@ export default function RoleplayTaking() {
       );
 
       await streamRun(roleplayId, runId, (event) => {
-        if (event.type === "token") {
+        if (event.type === "token" && personaMsgId) {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === personaMsgId ? { ...m, content: m.content + event.content } : m,
@@ -218,12 +224,18 @@ export default function RoleplayTaking() {
         } else if (event.type === "ended") {
           shouldEnd = true;
           endReason = event.reason;
+          if (personaMsgId) {
+            setMessages((prev) => prev.filter((m) => m.id !== personaMsgId || m.content.trim()));
+          }
           setMessages((prev) => [
             ...prev,
             {
               id: `ended-${Date.now()}`,
               role: "ended",
-              content: "This roleplay scenario has ended.",
+              content:
+                event.reason === "cheat_mode"
+                  ? "Cheat mode — submitting for grading…"
+                  : "This roleplay scenario has ended.",
             },
           ]);
         } else if (event.type === "error") {
@@ -289,28 +301,25 @@ export default function RoleplayTaking() {
       {(maxTurns != null || (timeLimitMinutes != null && showTimer)) && !submitting && (
         <div className="mb-3 flex flex-wrap gap-2">
           {timeLimitMinutes != null && showTimer && remainingMs != null && (
-            <div
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold tabular-nums shadow-sm",
-                timeUrgent
-                  ? "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
-                  : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200",
-              )}
+            <NoticeBanner
+              variant={timeUrgent ? "urgent" : "timer"}
+              layout="inline"
+              className={cn("tabular-nums", timeUrgent && "[&_svg]:animate-pulse")}
               aria-live="polite"
               aria-label={`${formatCountdown(remainingMs)} remaining`}
             >
-              <Clock className={cn("h-4 w-4", timeUrgent && "animate-pulse")} />
+              <Clock className="h-4 w-4" />
               <span>{formatCountdown(remainingMs)}</span>
               <span className="font-medium opacity-80">remaining</span>
-            </div>
+            </NoticeBanner>
           )}
           {maxTurns != null && turnsRemaining != null && (
-            <div
+            <NoticeBanner
+              variant={turnsUrgent ? "urgent" : undefined}
+              layout="inline"
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold shadow-sm",
-                turnsUrgent
-                  ? "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
-                  : "border-primary/30 bg-primary/10 text-primary",
+                !turnsUrgent &&
+                  "border-primary/30 bg-primary/10 text-primary shadow-sm",
               )}
               aria-live="polite"
               aria-label={
@@ -328,70 +337,30 @@ export default function RoleplayTaking() {
               <span className="font-medium opacity-70">
                 ({Math.min(learnerTurns, maxTurns)}/{maxTurns})
               </span>
-            </div>
+            </NoticeBanner>
           )}
         </div>
       )}
 
       <Card className="flex-1 overflow-hidden flex flex-col">
         <CardContent className="flex-1 overflow-y-auto p-4 space-y-3" ref={scrollRef as any}>
-          {messages.map((m) => {
-            if (m.role === "ended") {
-              return (
-                <div key={m.id} className="flex items-center gap-3 py-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Flag className="h-3.5 w-3.5" />
-                    {m.content}
-                  </span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-              );
-            }
-            if (m.role !== "persona" && m.role !== "learner") return null;
-            const isLearner = m.role === "learner";
-            return (
-              <div
-                key={m.id}
-                className={cn("flex items-end gap-2", isLearner ? "justify-end" : "justify-start")}
-              >
-                {!isLearner && (
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-muted text-muted-foreground">
-                      <FaUser className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap",
-                    isLearner
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-muted rounded-bl-sm",
-                  )}
-                >
-                  {m.content || (isStreaming && !isLearner ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : "")}
-                </div>
-                {isLearner && (
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            );
-          })}
+          <TranscriptThread
+            messages={messages}
+            learnerInitials={userInitials}
+            className="space-y-3"
+            emptyMessage={null}
+            renderEmptyPersonaContent={() => (
+              isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : null
+            )}
+          />
         </CardContent>
       </Card>
 
       {coachHint && !submitting && (
-        <div className="mt-2 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-sm text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+        <NoticeBanner variant="info" layout="compact" className="mt-2">
           <Lightbulb className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <span><span className="font-medium">Coach:</span> {coachHint}</span>
-        </div>
+        </NoticeBanner>
       )}
 
       {submitting ? (
@@ -424,7 +393,13 @@ export default function RoleplayTaking() {
                 sendTurn();
               }
             }}
-            placeholder={reachedMaxTurns ? "Submitting…" : "Type your reply…"}
+            placeholder={
+              reachedMaxTurns
+                ? "Submitting…"
+                : cheatModeEnabled
+                  ? "Type your reply… or CHEAT MODE: 81% Silver tier, passed"
+                  : "Type your reply…"
+            }
             rows={2}
             disabled={isStreaming || reachedMaxTurns || timeExpired}
             className="resize-none"

@@ -3,6 +3,7 @@ import { ensureMediaDir } from "./services/media.service.ts";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "./utils/logger.ts";
 import { getAuthConfigurationError } from "./config/auth-config.ts";
+import { isCheatModeEnabled } from "./config/cheat-mode.ts";
 import { oidcAuthService } from "./services/oidc-auth.service.ts";
 import { samlAuthService } from "./services/saml-auth.service.ts";
 
@@ -19,6 +20,11 @@ async function start() {
     ensureMediaDir();
     oidcAuthService.logStartupStatus();
     await samlAuthService.logStartupStatus();
+    if (isCheatModeEnabled()) {
+      logger.warn(
+        "CHEAT_MODE is enabled — type CHEAT MODE: <desired outcome> in the conversation to skip persona turns and use fast synthetic grading",
+      );
+    }
     app.listen(PORT, () => {
       logger.info(`Server listening on http://localhost:${PORT}`);
     });
