@@ -57,18 +57,18 @@ import {
 import { findCheatDirectiveInMessages, isCheatModeEnabled, extractCheatDirective } from "../config/cheat-mode.ts";
 import { generateLiveHint } from "../roleplay/coaching.ts";
 import { emitRoleplayEvent } from "../roleplay/roleplay-events.ts";
-import { classificationService } from "../services/classification.service.ts";
+import { classificationService } from "@heybray/taxonomy";
 import type {
   MissingImportClassificationOption,
   RoleplayClassificationInput,
   RoleplayClassifications,
-} from "../../shared/schemas/roleplay-classifications.ts";
+} from "@heybray/taxonomy/schema";
 import {
   IMPORT_PROMPT_DIMENSIONS,
   classificationDimensions,
   classificationOptions,
-  roleplayClassificationLinks,
-} from "../../shared/schemas/roleplay-classifications.ts";
+} from "@heybray/taxonomy/schema";
+import { roleplayClassificationLinks } from "../../shared/schemas/roleplay-classification-links.ts";
 import {
   scenarioRewardTiers,
   userScenarioTierRewards,

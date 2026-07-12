@@ -3,12 +3,10 @@ import {
   classificationDimensions,
   classificationOptions,
   slugifyLabel,
-} from "../../shared/schemas/roleplay-classifications.ts";
-import {
   DIMENSION_DISPLAY_DEFAULTS,
   FALLBACK_OPTION_DISPLAY,
   type ClassificationOptionDisplay,
-} from "../../shared/schemas/classification-display.ts";
+} from "@heybray/taxonomy/schema";
 import { and, eq } from "drizzle-orm";
 import { createLogger } from "@heybray/server-kit";
 

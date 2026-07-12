@@ -1,5 +1,7 @@
 import { createDb, setDatabase } from "@heybray/server-kit";
 import { users, teams, roles } from "@heybray/identity/schema";
+import { classificationDimensions, classificationOptions } from "@heybray/taxonomy/schema";
+import { setClassificationLinks } from "@heybray/taxonomy";
 import {
   roleplays,
   roleplaySettings,
@@ -10,11 +12,7 @@ import {
   roleplayCriterionScores,
   homepageFeaturedScenarios,
 } from "../shared/schemas/roleplay-core.ts";
-import {
-  classificationDimensions,
-  classificationOptions,
-  roleplayClassificationLinks,
-} from "../shared/schemas/roleplay-classifications.ts";
+import { roleplayClassificationLinks } from "../shared/schemas/roleplay-classification-links.ts";
 import {
   roleplayAppConfig,
   roleplayProviderKeys,
@@ -55,4 +53,5 @@ const schema = {
 
 const { db, pool } = createDb(schema);
 setDatabase(db);
+setClassificationLinks(roleplayClassificationLinks);
 export { db, pool };

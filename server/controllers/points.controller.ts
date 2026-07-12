@@ -8,11 +8,8 @@ import {
 } from "../../shared/schemas/points.ts";
 import { roleplays, roleplayAttempts, roleplaySettings, roleplayCriteria, roleplayCriterionScores } from "../../shared/schemas/roleplay-core.ts";
 import { users } from "@heybray/identity/schema";
-import {
-  classificationDimensions,
-  classificationOptions,
-  roleplayClassificationLinks,
-} from "../../shared/schemas/roleplay-classifications.ts";
+import { classificationDimensions, classificationOptions } from "@heybray/taxonomy/schema";
+import { roleplayClassificationLinks } from "../../shared/schemas/roleplay-classification-links.ts";
 import type { RoleplayAttempt } from "../../shared/schemas/roleplay-core.ts";
 
 export type PointsAwardResult = {

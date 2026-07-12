@@ -25,7 +25,7 @@ import {
 import { createLogger } from "@heybray/server-kit";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { classificationService } from "../services/classification.service.ts";
+import { classificationService } from "@heybray/taxonomy";
 import { mediaService, ensureMediaDir } from "../services/media.service.ts";
 import { pointsController } from "../controllers/points.controller.ts";
 import {

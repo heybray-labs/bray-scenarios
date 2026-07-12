@@ -1,9 +1,8 @@
-import { db } from "../db.ts";
+import { db } from "@heybray/server-kit";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import {
   classificationDimensions,
   classificationOptions,
-  roleplayClassificationLinks,
   slugifyLabel,
   labelFromSlug,
   IMPORT_AUTO_DIMENSIONS,
@@ -12,13 +11,14 @@ import {
   type MissingImportClassificationOption,
   type RoleplayClassificationInput,
   type RoleplayClassifications,
-} from "../../shared/schemas/roleplay-classifications.ts";
+} from "./schema/classifications.ts";
+import { classificationLinks as roleplayClassificationLinks } from "./schema/links-registry.ts";
 import {
   assertValidOptionDisplay,
   DIMENSION_DISPLAY_DEFAULTS,
   FALLBACK_OPTION_DISPLAY,
   resolveOptionDisplay,
-} from "../../shared/schemas/classification-display.ts";
+} from "./schema/display.ts";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

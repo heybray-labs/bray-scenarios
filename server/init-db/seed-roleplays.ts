@@ -8,7 +8,7 @@ import {
 } from "../../shared/schemas/roleplay-core.ts";
 import { createLogger } from "@heybray/server-kit";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { classificationService } from "../services/classification.service.ts";
+import { classificationService } from "@heybray/taxonomy";
 
 const log = createLogger("seed-roleplays");
 

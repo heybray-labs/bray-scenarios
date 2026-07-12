@@ -1,11 +1,8 @@
 import { db } from "../db.ts";
 import { users, teams } from "@heybray/identity/schema";
 import { roleplayAttempts, roleplays } from "../../shared/schemas/roleplay-core.ts";
-import {
-  classificationDimensions,
-  classificationOptions,
-  roleplayClassificationLinks,
-} from "../../shared/schemas/roleplay-classifications.ts";
+import { classificationDimensions, classificationOptions } from "@heybray/taxonomy/schema";
+import { roleplayClassificationLinks } from "../../shared/schemas/roleplay-classification-links.ts";
 import {
   scenarioRewardTiers,
   userScenarioTierRewards,

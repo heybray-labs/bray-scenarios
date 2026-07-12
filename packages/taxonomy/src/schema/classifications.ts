@@ -5,9 +5,7 @@ import {
   integer,
   boolean,
   uniqueIndex,
-  primaryKey,
 } from "drizzle-orm/pg-core";
-import { roleplays } from "./roleplay-core.ts";
 
 export const classificationDimensions = pgTable(
   "classification_dimensions",
@@ -37,22 +35,8 @@ export const classificationOptions = pgTable(
   (table) => [uniqueIndex("classification_options_dimension_slug").on(table.dimensionId, table.slug)],
 );
 
-export const roleplayClassificationLinks = pgTable(
-  "roleplay_classification_links",
-  {
-    roleplayId: integer("roleplay_id")
-      .notNull()
-      .references(() => roleplays.id, { onDelete: "cascade" }),
-    optionId: integer("option_id")
-      .notNull()
-      .references(() => classificationOptions.id, { onDelete: "cascade" }),
-  },
-  (table) => [primaryKey({ columns: [table.roleplayId, table.optionId] })],
-);
-
 export type ClassificationDimension = typeof classificationDimensions.$inferSelect;
 export type ClassificationOption = typeof classificationOptions.$inferSelect;
-export type RoleplayClassificationLink = typeof roleplayClassificationLinks.$inferSelect;
 
 export type ClassificationOptionSummary = {
   id: number;

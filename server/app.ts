@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
 import mediaRoutes from "./routes/media.ts";
-import roleplayClassificationsRoutes from "./routes/roleplay-classifications.ts";
+import { classificationsRouter } from "@heybray/taxonomy";
 import pointsRoutes from "./routes/points.ts";
 import teamStarMapRoutes from "./routes/team-star-map.ts";
 import { requestLogging, globalRateLimiter, getAppVersion } from "@heybray/server-kit";
@@ -77,7 +77,7 @@ export function createApp(): express.Application {
   app.use("/api/roleplay-config", roleplayConfigRoutes);
   app.use("/api/users", usersRouter);
   app.use("/api/media", mediaRoutes);
-  app.use("/api/roleplay-classifications", roleplayClassificationsRoutes);
+  app.use("/api/roleplay-classifications", classificationsRouter);
   app.use("/api/points", pointsRoutes);
   app.use("/api/teams", teamsRouter);
   app.use("/api/teams", teamStarMapRoutes);

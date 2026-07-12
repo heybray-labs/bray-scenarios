@@ -7,12 +7,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { CLASSIFICATION_ICON_OPTIONS } from "@shared/schemas/classification-display";
 import { resolveLucideIcon } from "@/lib/classification-display";
 import {
+  CLASSIFICATION_ICON_OPTIONS,
   DIMENSION_DISPLAY_DEFAULTS,
   FALLBACK_OPTION_DISPLAY,
-} from "@shared/schemas/classification-display";
+} from "@heybray/taxonomy/schema";
 
 type OptionDisplayFieldsProps = {
   dimensionSlug: string;
