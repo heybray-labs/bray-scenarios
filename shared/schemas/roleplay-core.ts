@@ -2,7 +2,7 @@ import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "@heybray/identity/schema";
-import { mediaAssets } from "./media-assets.ts";
+import { mediaAssets } from "@heybray/server-kit/schema";
 
 export const roleplays = pgTable("roleplays", {
   id: serial("id").primaryKey(),

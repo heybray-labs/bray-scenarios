@@ -2,13 +2,33 @@ import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { createReadStream, existsSync, mkdirSync } from "fs";
-import { desc, eq, sql, inArray } from "drizzle-orm";
-import { db } from "../db.ts";
-import { mediaAssets, type MediaAsset } from "../../shared/schemas/media-assets.ts";
-import { roleplays } from "../../shared/schemas/roleplay-core.ts";
-import { createLogger } from "@heybray/server-kit";
+import { desc, eq, inArray } from "drizzle-orm";
+import { db } from "../db/db-registry.ts";
+import { mediaAssets, type MediaAsset } from "../schema/media-assets.ts";
+import { createLogger } from "../logger.ts";
 
 const log = createLogger("media");
+
+/**
+ * Seam for domains that reference media assets (e.g. an app's content covers).
+ * server-kit owns media but must not know about app tables, so usage counting
+ * and reference detachment are delegated to an app-registered implementation.
+ */
+export interface MediaUsageHook {
+  /** Number of times each media id is referenced, keyed by media id. */
+  countUsages(mediaIds: number[]): Promise<Map<number, number>>;
+  /** Detach any references to the media id before it is deleted. */
+  onMediaDeleted(mediaId: number): Promise<void>;
+}
+
+const noopUsageHook: MediaUsageHook = {
+  async countUsages() {
+    return new Map();
+  },
+  async onMediaDeleted() {
+    /* no references to detach by default */
+  },
+};
 
 export const MEDIA_MAX_BYTES = 500 * 1024;
 export const MEDIA_ALLOWED_MIME = new Set([
@@ -78,26 +98,23 @@ export class MediaNotFoundError extends Error {
 export type MediaAssetWithUsage = MediaAsset & { usageCount: number };
 
 export class MediaService {
+  constructor(private usageHook: MediaUsageHook = noopUsageHook) {}
+
+  setUsageHook(hook: MediaUsageHook): void {
+    this.usageHook = hook;
+  }
+
   async listWithUsage(): Promise<MediaAssetWithUsage[]> {
     const rows = await db
-      .select({
-        id: mediaAssets.id,
-        originalFilename: mediaAssets.originalFilename,
-        mimeType: mediaAssets.mimeType,
-        sizeBytes: mediaAssets.sizeBytes,
-        storageKey: mediaAssets.storageKey,
-        createdBy: mediaAssets.createdBy,
-        createdAt: mediaAssets.createdAt,
-        usageCount: sql<number>`cast(count(${roleplays.id}) as int)`,
-      })
+      .select()
       .from(mediaAssets)
-      .leftJoin(roleplays, eq(roleplays.coverImageMediaId, mediaAssets.id))
-      .groupBy(mediaAssets.id)
       .orderBy(desc(mediaAssets.createdAt));
+
+    const usage = await this.usageHook.countUsages(rows.map((r) => r.id));
 
     return rows.map((r) => ({
       ...r,
-      usageCount: Number(r.usageCount) || 0,
+      usageCount: usage.get(r.id) ?? 0,
     }));
   }
 
@@ -176,16 +193,10 @@ export class MediaService {
     const asset = await this.getById(id);
     if (!asset) throw new MediaNotFoundError();
 
-    const referencing = await db
-      .select({ id: roleplays.id })
-      .from(roleplays)
-      .where(eq(roleplays.coverImageMediaId, id));
-    const usageCount = referencing.length;
+    const usage = await this.usageHook.countUsages([id]);
+    const usageCount = usage.get(id) ?? 0;
 
-    await db
-      .update(roleplays)
-      .set({ coverImageMediaId: null, updatedAt: new Date() })
-      .where(eq(roleplays.coverImageMediaId, id));
+    await this.usageHook.onMediaDeleted(id);
 
     await db.delete(mediaAssets).where(eq(mediaAssets.id, id));
 
@@ -210,3 +221,8 @@ export class MediaService {
 }
 
 export const mediaService = new MediaService();
+
+/** Register the app-backed media usage implementation on the shared singleton. */
+export function setMediaUsageHook(hook: MediaUsageHook): void {
+  mediaService.setUsageHook(hook);
+}

@@ -1,4 +1,4 @@
-import { createDb, setDatabase } from "@heybray/server-kit";
+import { createDb, setDatabase, setMediaUsageHook, serverKitSchema } from "@heybray/server-kit";
 import { identitySchema } from "@heybray/identity/schema";
 import { taxonomySchema, setClassificationLinks } from "@heybray/taxonomy";
 import {
@@ -18,15 +18,14 @@ import {
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
 } from "../shared/schemas/agent/roleplay-app-config.ts";
-import { mediaAssets } from "../shared/schemas/media-assets.ts";
 import {
   scenarioRewardTiers,
   userScenarioTierRewards,
   pointTransactions,
 } from "../shared/schemas/points.ts";
+import { roleplayMediaUsage } from "./media-usage.ts";
 
 const appSchema = {
-  mediaAssets,
   roleplays,
   roleplaySettings,
   roleplayPersonas,
@@ -45,9 +44,10 @@ const appSchema = {
   pointTransactions,
 };
 
-const schema = { ...identitySchema, ...taxonomySchema, ...appSchema };
+const schema = { ...serverKitSchema, ...identitySchema, ...taxonomySchema, ...appSchema };
 
 const { db, pool } = createDb(schema);
 setDatabase(db);
 setClassificationLinks(roleplayClassificationLinks);
+setMediaUsageHook(roleplayMediaUsage);
 export { db, pool };

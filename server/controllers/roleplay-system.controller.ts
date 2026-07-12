@@ -30,7 +30,7 @@ import {
   mediaService,
   MediaValidationError,
   withCoverImageUrl,
-} from "../services/media.service.ts";
+} from "@heybray/server-kit";
 import { users } from "@heybray/identity/schema";
 import { createLogger } from "@heybray/server-kit";
 import {

@@ -1,6 +1,6 @@
 import { beforeAll } from "vitest";
 import { initializeDatabase } from "../init-db/init-db.ts";
-import { ensureMediaDir } from "../services/media.service.ts";
+import { ensureMediaDir } from "@heybray/server-kit";
 import { resetMutableData } from "./db.ts";
 
 let databaseReady = false;

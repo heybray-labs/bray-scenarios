@@ -1,5 +1,5 @@
 import { createApp } from "./app.ts";
-import { ensureMediaDir } from "./services/media.service.ts";
+import { ensureMediaDir } from "@heybray/server-kit";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "@heybray/server-kit";
 import {
