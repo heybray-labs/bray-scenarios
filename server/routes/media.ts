@@ -13,7 +13,7 @@ import {
   requirePermission,
   type AuthRequest,
 } from "../middleware/auth.ts";
-import { platformLogger } from "../utils/logger.ts";
+import { platformLogger } from "@heybray/server-kit";
 
 const upload = multer({
   storage: multer.memoryStorage(),

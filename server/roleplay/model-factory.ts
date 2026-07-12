@@ -7,7 +7,7 @@ import {
   RoleplayNotConfiguredError,
   type RoleplayProvider,
 } from "../services/roleplay-config.service.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("roleplay-model");
 

@@ -8,7 +8,7 @@ import {
   generateRefreshToken,
   type AuthRequest,
 } from "../middleware/auth.ts";
-import { authRateLimiter } from "../middleware/rate-limit.ts";
+import { authRateLimiter } from "@heybray/server-kit";
 import {
   getPublicAuthConfig,
   getAuthProtocol,
@@ -23,7 +23,7 @@ import { db } from "../db.ts";
 import { roles } from "../../shared/schemas/roles.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 import { getRequestCookie } from "../utils/cookies.ts";
 
 const log = createLogger("auth");

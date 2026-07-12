@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { AgentProvider } from "./agent-config.service.ts";
-import { createLogger, logExternalCall } from "../utils/logger.ts";
+import { createLogger, logExternalCall } from "@heybray/server-kit";
 
 const log = createLogger("model-catalog");
 

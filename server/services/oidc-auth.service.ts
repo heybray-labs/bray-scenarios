@@ -14,7 +14,7 @@ import {
 } from "../config/auth-config.ts";
 import { createExchangeCode } from "./sso-exchange.service.ts";
 import { resolveUserFromSsoClaims } from "./sso-user-resolution.service.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 import type { Response } from "express";
 
 const log = createLogger("oidc");

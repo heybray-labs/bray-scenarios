@@ -10,7 +10,7 @@ import {
   type ClassificationOptionDisplay,
 } from "../../shared/schemas/classification-display.ts";
 import { and, eq } from "drizzle-orm";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("seed-classifications");
 

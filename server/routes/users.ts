@@ -13,7 +13,7 @@ import { isSsoEnabled } from "../config/auth-config.ts";
 import { db } from "../db.ts";
 import { roles } from "../../shared/schemas/roles.ts";
 import { eq } from "drizzle-orm";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("users");
 const router = Router();

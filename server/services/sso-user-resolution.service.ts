@@ -3,7 +3,7 @@ import { db } from "../db.ts";
 import { roles } from "../../shared/schemas/roles.ts";
 import { userIdentities } from "../../shared/schemas/user-identities.ts";
 import { userController } from "../controllers/user.controller.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("sso");
 

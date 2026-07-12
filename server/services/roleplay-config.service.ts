@@ -6,8 +6,8 @@ import {
   roleplayAllowedGraderModels,
 } from "../../shared/schemas/agent/roleplay-app-config.ts";
 import { roleplaySettings } from "../../shared/schemas/roleplay-core.ts";
-import { encryptSecret, decryptSecret } from "../utils/secret-encryption.ts";
-import { platformLogger } from "../utils/logger.ts";
+import { encryptSecret, decryptSecret } from "@heybray/server-kit";
+import { platformLogger } from "@heybray/server-kit";
 import { eq } from "drizzle-orm";
 
 export type RoleplayProvider = "openai" | "anthropic" | "google";

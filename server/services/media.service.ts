@@ -6,7 +6,7 @@ import { desc, eq, sql, inArray } from "drizzle-orm";
 import { db } from "../db.ts";
 import { mediaAssets, type MediaAsset } from "../../shared/schemas/media-assets.ts";
 import { roleplays } from "../../shared/schemas/roleplay-core.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("media");
 

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { pointsController } from "../controllers/points.controller.ts";
 import { authenticateToken, requirePasswordChanged, type AuthRequest } from "../middleware/auth.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("points");
 const router = Router();

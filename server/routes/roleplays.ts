@@ -14,7 +14,7 @@ import {
   subscribeToRoleplayRun,
   setupRoleplaySse,
 } from "../roleplay/roleplay-events.ts";
-import { platformLogger } from "../utils/logger.ts";
+import { platformLogger } from "@heybray/server-kit";
 import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "../middleware/auth.ts";
 import {
   transferImportBodySchema,

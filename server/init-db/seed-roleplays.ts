@@ -6,7 +6,7 @@ import {
   roleplayPersonas,
   roleplayCriteria,
 } from "../../shared/schemas/roleplay-core.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
 import { classificationService } from "../services/classification.service.ts";
 

@@ -1,8 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
-import { createLogger, generateRequestId } from "../utils/logger.ts";
-import type { AuthRequest } from "./auth.ts";
+import { createLogger, generateRequestId } from "../logger.ts";
 
 const log = createLogger("http");
+
+/**
+ * Minimal request shape read by the logger. The identity package augments the
+ * request with the full authenticated user; server-kit only needs the id.
+ */
+interface LoggableRequest extends Request {
+  requestId?: string;
+  user?: { id?: number | string };
+}
 
 const SKIP_PATHS = new Set(["/api/health"]);
 
@@ -14,13 +22,13 @@ export function requestLogging(req: Request, res: Response, next: NextFunction):
 
   const requestId =
     (req.headers["x-request-id"] as string | undefined) ?? generateRequestId();
-  (req as AuthRequest).requestId = requestId;
+  (req as LoggableRequest).requestId = requestId;
 
   const start = Date.now();
 
   res.on("finish", () => {
     const durationMs = Date.now() - start;
-    const authReq = req as AuthRequest;
+    const authReq = req as LoggableRequest;
     const meta: Record<string, unknown> = {
       method: req.method,
       path: req.path,

@@ -4,7 +4,7 @@ import { db } from "../db.ts";
 import { authExchangeCodes } from "../../shared/schemas/auth-exchange-codes.ts";
 import { userController } from "../controllers/user.controller.ts";
 import { generateToken, generateRefreshToken } from "../middleware/auth.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("sso");
 

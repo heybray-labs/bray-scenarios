@@ -32,7 +32,7 @@ import {
   withCoverImageUrl,
 } from "../services/media.service.ts";
 import { users } from "../../shared/schemas/users.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 import {
   createRoleplayChatModel,
   RoleplayNotConfiguredError,

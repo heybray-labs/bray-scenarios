@@ -1,7 +1,7 @@
 import { createApp } from "./app.ts";
 import { ensureMediaDir } from "./services/media.service.ts";
 import { initializeDatabase } from "./init-db/init-db.ts";
-import { logger } from "./utils/logger.ts";
+import { logger } from "@heybray/server-kit";
 import { getAuthConfigurationError } from "./config/auth-config.ts";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
 import { oidcAuthService } from "./services/oidc-auth.service.ts";

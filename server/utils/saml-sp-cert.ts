@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import selfsigned from "selfsigned";
-import { createLogger } from "./logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("saml");
 

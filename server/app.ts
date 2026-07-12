@@ -11,15 +11,13 @@ import mediaRoutes from "./routes/media.ts";
 import roleplayClassificationsRoutes from "./routes/roleplay-classifications.ts";
 import pointsRoutes from "./routes/points.ts";
 import teamsRoutes from "./routes/teams.ts";
-import { requestLogging } from "./middleware/request-logging.ts";
-import { globalRateLimiter } from "./middleware/rate-limit.ts";
+import { requestLogging, globalRateLimiter, getAppVersion } from "@heybray/server-kit";
 import {
   getAuthProtocol,
   getOidcProviderName,
   getSamlProviderName,
   type AuthProtocol,
 } from "./config/auth-config.ts";
-import { getAppVersion } from "./utils/app-version.ts";
 
 function getAuthProtocolLabel(protocol: AuthProtocol): string {
   switch (protocol) {

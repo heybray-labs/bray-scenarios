@@ -17,7 +17,7 @@ import {
 } from "../roleplay/model-factory.ts";
 import { agentModelCatalogService } from "../services/agent-model-catalog.service.ts";
 import type { AgentProvider } from "../services/agent-config.service.ts";
-import { platformLogger } from "../utils/logger.ts";
+import { platformLogger } from "@heybray/server-kit";
 
 const router = Router();
 

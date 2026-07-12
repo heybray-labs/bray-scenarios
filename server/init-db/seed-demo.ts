@@ -23,7 +23,7 @@ import {
   resolveRewardTierDisplay,
   tierNameFromStarLevel,
 } from "../../shared/schemas/points.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
 import { classificationService } from "../services/classification.service.ts";

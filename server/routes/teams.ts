@@ -16,7 +16,7 @@ import {
   updateTeamSchema,
   setTeamMembersSchema,
 } from "../../shared/schemas/teams.ts";
-import { createLogger } from "../utils/logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("teams");
 const router = Router();
