@@ -470,7 +470,4 @@ export class RoleplayConfigService {
   }
 }
 
-/** App-facing alias for the platform LLM error. */
-export { LlmNotConfiguredError as RoleplayNotConfiguredError };
-
 export const roleplayConfigService = new RoleplayConfigService();

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Star, Search, LayoutGrid } from "lucide-react";
-import { MainLayout, type NavbarProps } from "@heybray/react/components/MainLayout";
+import { MainLayout } from "@heybray/react/components/MainLayout";
 import { type SettingsPanel } from "@heybray/react/components/SettingsModal";
 import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
 import { AboutPanel } from "@heybray/react/components/AboutPanel";
@@ -151,7 +151,7 @@ const appSettingsPanels: SettingsPanel[] = [
 // rather than defaulted inside it.
 const MANAGE_PERMISSION = "roleplay:manage";
 
-export function AppLayout({ children }: { children: ReactNode } & Partial<NavbarProps>) {
+export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <MainLayout
       brand={<AppBrand />}
