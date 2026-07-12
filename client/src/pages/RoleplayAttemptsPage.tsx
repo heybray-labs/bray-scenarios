@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@heybray/ui/components
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import { ArrowLeft } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 
 export default function RoleplayAttemptsPage() {

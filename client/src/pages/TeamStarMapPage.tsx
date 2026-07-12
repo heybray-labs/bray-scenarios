@@ -21,9 +21,9 @@ import {
 } from "@/components/teams/star-map-types";
 import { compareMembers } from "@/components/teams/star-map-utils";
 import { PermissionDeniedScreen } from "@/components/errors";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
-import { HttpError } from "@/lib/http-error";
+import { useAuth } from "@heybray/react/hooks/use-auth";
+import { apiRequest } from "@heybray/react/lib/queryClient";
+import { HttpError } from "@heybray/react/lib/http-error";
 import {
   ChevronDown,
   Loader2,

@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@heybray/ui/components/dialog";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { Loader2, Plus, RefreshCw, TestTube2, Trash2, X } from "lucide-react";
 import {
   type AgentProvider,

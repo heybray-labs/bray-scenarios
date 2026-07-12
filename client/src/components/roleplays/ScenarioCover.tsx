@@ -1,8 +1,8 @@
 import { Drama } from "lucide-react";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { DifficultyPill } from "@/components/classifications/DifficultyPill";
-import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
-import { overlayPillStyle, formatDifficulty, getStatusPillColor } from "@/lib/classification-display";
+import { useAuthenticatedImage } from "@heybray/react/hooks/use-authenticated-image";
+import { overlayPillStyle, formatDifficulty, getStatusPillColor } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 import { CAROUSEL_COVER_HEIGHT_CLASS } from "@/components/roleplays/browse/carousel-card-layout";
 

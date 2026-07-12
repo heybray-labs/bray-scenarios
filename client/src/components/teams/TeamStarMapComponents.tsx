@@ -6,7 +6,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@heybray/ui/components/collapsible";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import {
   CategoryMasteryBar,
   categoryStarred,

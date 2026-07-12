@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { Badge } from "@heybray/ui/components/badge";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import { TierStars } from "@/components/points/TierStars";
 import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
-import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
-import { initialsFromName } from "@/lib/user-display";
+import { currentUserHighlightStyle, getRankColor } from "@heybray/react/lib/classification-display";
+import { initialsFromName } from "@heybray/react/lib/user-display";
 import { cn } from "@heybray/ui/utils";
 import { Star } from "lucide-react";
 

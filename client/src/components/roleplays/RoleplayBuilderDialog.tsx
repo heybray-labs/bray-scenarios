@@ -22,11 +22,11 @@ import {
 } from "@heybray/ui/components/select";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
 import { CoverImagePicker } from "@/components/roleplays/CoverImagePicker";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
-import { classificationChipStyle, resolveLucideIcon } from "@/lib/classification-display";
+import { classificationChipStyle, resolveLucideIcon } from "@heybray/react/lib/classification-display";
 import {
   Loader2,
   Plus,

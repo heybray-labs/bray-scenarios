@@ -13,9 +13,9 @@ import {
 } from "@heybray/ui/components/collapsible";
 import { MainLayout } from "@/components/MainLayout";
 import { cn } from "@heybray/ui/utils";
-import { useAuth } from "@/hooks/use-auth";
-import { initialsFromUser } from "@/lib/user-display";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@heybray/react/hooks/use-auth";
+import { initialsFromUser } from "@heybray/react/lib/user-display";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import {
   ThumbsUp,

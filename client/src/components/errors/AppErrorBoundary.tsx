@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { isHttpError } from "@/lib/http-error";
+import { isHttpError } from "@heybray/react/lib/http-error";
 import { HttpErrorScreen } from "./http-errors";
 import { PageNotFoundScreen } from "./error-screens";
 

@@ -1,4 +1,4 @@
-import { resolveLucideIcon } from "@/lib/classification-display";
+import { resolveLucideIcon } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 
 type ClassificationOptionLabelProps = {

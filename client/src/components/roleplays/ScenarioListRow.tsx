@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
-import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
+import { useAuthenticatedImage } from "@heybray/react/hooks/use-authenticated-image";
 import { TierStars } from "@/components/points/TierStars";
 import { drawerPink } from "@/components/teams/drawer-pink-styles";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import { cn } from "@heybray/ui/utils";
 
 export type ScenarioListRowItem = {

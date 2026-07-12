@@ -30,9 +30,9 @@ import type {
 } from "@/components/roleplays/scenario-detail/scenario-progress-types";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 
 export default function RoleplayIntroPage() {
   const params = useParams();

@@ -1,7 +1,7 @@
 import { Target } from "lucide-react";
 import { Progress } from "@heybray/ui/components/progress";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { overlayClassificationChipStyle } from "@/lib/classification-display";
+import { overlayClassificationChipStyle } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 import type { CriterionBest } from "./scenario-progress-types";
 

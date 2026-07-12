@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@heybray/ui/components/dropdown-menu";
 import { ScenarioMetadataChips } from "@/components/roleplays/scenario-detail/ScenarioMetadataChips";
-import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
+import { useAuthenticatedImage } from "@heybray/react/hooks/use-authenticated-image";
 import { cn } from "@heybray/ui/utils";
 import { Copy, MoreVertical, Pencil, Star, Trash2 } from "lucide-react";
 import { Link } from "wouter";

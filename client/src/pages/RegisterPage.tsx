@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Redirect, Link } from "wouter";
-import { AuthService } from "@/lib/auth";
+import { AuthService } from "@heybray/react/lib/auth";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import { Label } from "@heybray/ui/components/label";

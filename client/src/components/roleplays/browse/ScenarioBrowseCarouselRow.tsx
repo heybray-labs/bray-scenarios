@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import {
   ScenarioBrowseCard,
   type ScenarioBrowseCardData,

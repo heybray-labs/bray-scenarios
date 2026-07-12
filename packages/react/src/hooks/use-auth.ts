@@ -7,7 +7,7 @@ import {
   useContext,
   type ReactNode,
 } from "react";
-import { AuthService, type AuthResponse } from "@/lib/auth";
+import { AuthService, type AuthResponse } from "../lib/auth.ts";
 import type {
   UserWithRole,
   LoginCredentials,

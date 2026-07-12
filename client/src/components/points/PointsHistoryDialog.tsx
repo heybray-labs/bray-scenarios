@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@heybray/ui/components/dialog";
 import { Button } from "@heybray/ui/components/button";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import { ChevronLeft, ChevronRight, SquareArrowOutUpRight, Star } from "lucide-react";
 import { cn } from "@heybray/ui/utils";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";

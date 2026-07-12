@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@heybray/ui/components/dialog";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { LeaderboardPanel } from "@/components/points/LeaderboardPanel";
 import { RecentStarsPanel } from "@/components/points/RecentStarsPanel";
 import { YourProgressPanel, ALL_CATEGORIES_SLUG } from "@/components/points/YourProgressPanel";

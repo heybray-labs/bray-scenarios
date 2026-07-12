@@ -1,4 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { PermissionDeniedScreen } from "@/components/errors";
 import { Redirect, useLocation } from "wouter";
 import type { ReactNode } from "react";

@@ -12,8 +12,8 @@ import {
   formatBytes,
   type MediaAssetDto,
   uploadMediaFile,
-} from "@/lib/media";
-import { queryClient } from "@/lib/queryClient";
+} from "@heybray/react/lib/media";
+import { queryClient } from "@heybray/react/lib/queryClient";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { ImagePlus, Library, Loader2, X } from "lucide-react";
 

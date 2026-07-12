@@ -10,7 +10,7 @@ import {
   GITHUB_RELEASES_URL,
   GITHUB_REPO_URL,
 } from "@/lib/app-config";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import logo from "@assets/logo.png";
 
 type AboutResponse = {

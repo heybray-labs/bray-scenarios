@@ -3,8 +3,8 @@ import { Trophy } from "lucide-react";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { cn } from "@heybray/ui/utils";
-import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
-import { initialsFromName } from "@/lib/user-display";
+import { currentUserHighlightStyle, getRankColor } from "@heybray/react/lib/classification-display";
+import { initialsFromName } from "@heybray/react/lib/user-display";
 import type { ScenarioLeaderboardData } from "./scenario-progress-types";
 
 type ScenarioLeaderboardProps = {

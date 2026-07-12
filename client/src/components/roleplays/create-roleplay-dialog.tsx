@@ -1,5 +1,5 @@
 import RoleplayBuilderDialog from "./RoleplayBuilderDialog";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@heybray/react/lib/queryClient";
 
 interface CreateRoleplayDialogProps {
   open: boolean;

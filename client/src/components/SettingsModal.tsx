@@ -16,7 +16,7 @@ import { ClassificationManagementPanel } from "@/components/ClassificationManage
 import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
 import { TeamsManagementPanel } from "@/components/TeamsManagementPanel";
 import { AboutPanel } from "@/components/AboutPanel";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { Settings } from "lucide-react";
 
 interface SettingsModalProps {

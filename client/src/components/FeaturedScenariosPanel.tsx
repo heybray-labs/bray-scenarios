@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@heybray/ui/components/select";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { cn } from "@heybray/ui/utils";
 

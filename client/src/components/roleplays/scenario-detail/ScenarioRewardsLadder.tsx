@@ -2,7 +2,7 @@ import { Award } from "lucide-react";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";
 import { TierStars } from "@/components/points/TierStars";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { classificationChipStyle } from "@/lib/classification-display";
+import { classificationChipStyle } from "@heybray/react/lib/classification-display";
 import { resolveRewardTierDisplay } from "@shared/schemas/points";
 import type { RewardTierRow } from "./scenario-progress-types";
 

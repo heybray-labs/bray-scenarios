@@ -7,7 +7,7 @@ import {
 } from "@heybray/ui/components/select";
 import { Label } from "@heybray/ui/components/label";
 import { Input } from "@heybray/ui/components/input";
-import { resolveLucideIcon } from "@/lib/classification-display";
+import { resolveLucideIcon } from "@heybray/react/lib/classification-display";
 import {
   CLASSIFICATION_ICON_OPTIONS,
   DIMENSION_DISPLAY_DEFAULTS,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { mediaUrl } from "@/lib/media";
+import { mediaUrl } from "../lib/media.ts";
 
 /**
  * Fetches an authenticated media asset and returns a blob URL for use in <img>.

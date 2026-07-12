@@ -1,7 +1,7 @@
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { DifficultyPill } from "@/components/classifications/DifficultyPill";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";
-import { classificationChipStyle } from "@/lib/classification-display";
+import { classificationChipStyle } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 import type { ScenarioClassifications } from "@/components/roleplays/scenario-detail/types";
 

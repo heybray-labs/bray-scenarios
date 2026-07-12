@@ -12,7 +12,7 @@ import { Button } from "@heybray/ui/components/button";
 import { Alert, AlertDescription } from "@heybray/ui/components/alert";
 import { ScrollArea } from "@heybray/ui/components/scroll-area";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "@heybray/react/lib/queryClient";
 import {
   importScenariosZips,
   parseScenarioFiles,

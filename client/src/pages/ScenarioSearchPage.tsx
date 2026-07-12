@@ -31,8 +31,8 @@ import {
   Drama,
   ArrowLeft,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@heybray/react/hooks/use-auth";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import CreateRoleplayDialog from "@/components/roleplays/create-roleplay-dialog";
 import EditRoleplayDialog from "@/components/roleplays/edit-roleplay-dialog";
 import ImportRoleplaysDialog from "@/components/roleplays/import-roleplays-dialog";

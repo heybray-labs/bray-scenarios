@@ -7,7 +7,7 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import {
   ScenarioBrowseCard,
   type ScenarioBrowseCardData,
@@ -15,7 +15,7 @@ import {
 import { ScenarioBrowseCarouselRow } from "./ScenarioBrowseCarouselRow";
 import { ScenarioCarouselRow } from "./ScenarioCarouselRow";
 import { ScenarioCarouselCardSlot } from "./ScenarioCarouselCardSlot";
-import { resolveLucideIcon } from "@/lib/classification-display";
+import { resolveLucideIcon } from "@heybray/react/lib/classification-display";
 import {
   carouselWidthForCardCount,
   getCarouselCardMetrics,

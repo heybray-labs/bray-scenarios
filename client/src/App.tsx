@@ -1,7 +1,7 @@
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
-import { AuthProvider } from "@/hooks/use-auth";
+import { queryClient } from "@heybray/react/lib/queryClient";
+import { AuthProvider } from "@heybray/react/hooks/use-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@heybray/ui/components/toaster";
 import { AppErrorBoundary, PageNotFoundScreen } from "@/components/errors";

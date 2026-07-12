@@ -2,7 +2,7 @@ import { Lock, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { Badge } from "@heybray/ui/components/badge";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { initialsFromName } from "@/lib/user-display";
+import { initialsFromName } from "@heybray/react/lib/user-display";
 
 type ScenarioDossierProps = {
   name?: string | null;

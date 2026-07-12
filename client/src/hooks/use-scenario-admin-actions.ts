@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { fetchAndDownloadExport } from "@/lib/roleplay-transfer";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "@/hooks/use-featured-scenario";

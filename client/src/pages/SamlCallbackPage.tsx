@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { AuthService } from "@/lib/auth";
-import { useAuth } from "@/hooks/use-auth";
+import { AuthService } from "@heybray/react/lib/auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { SignInFailedScreen } from "@/components/errors";
 
 export default function SamlCallbackPage() {

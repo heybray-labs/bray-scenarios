@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
 import { Button } from "@heybray/ui/components/button";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import {
@@ -15,10 +15,10 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
-import { initialsFromUser } from "@/lib/user-display";
+import { initialsFromUser } from "@heybray/react/lib/user-display";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
-import { apiRequest } from "@/lib/queryClient";
-import { HttpError } from "@/lib/http-error";
+import { apiRequest } from "@heybray/react/lib/queryClient";
+import { HttpError } from "@heybray/react/lib/http-error";
 import logo from "@assets/logo.png";
 
 export function Navbar() {

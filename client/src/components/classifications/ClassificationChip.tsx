@@ -3,7 +3,7 @@ import {
   classificationChipStyle,
   overlayClassificationChipStyle,
   solidClassificationChipStyle,
-} from "@/lib/classification-display";
+} from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 
 type ClassificationChipProps = {

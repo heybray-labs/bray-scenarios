@@ -13,11 +13,11 @@ import {
 import { Button } from "@heybray/ui/components/button";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { Badge } from "@heybray/ui/components/badge";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import { cn } from "@heybray/ui/utils";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
-import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
-import { initialsFromName } from "@/lib/user-display";
+import { currentUserHighlightStyle, getRankColor } from "@heybray/react/lib/classification-display";
+import { initialsFromName } from "@heybray/react/lib/user-display";
 import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
 import {
   Trophy,

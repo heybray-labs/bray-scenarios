@@ -18,8 +18,8 @@ import {
   CollapsibleTrigger,
 } from "@heybray/ui/components/collapsible";
 import { useToast } from "@heybray/ui/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { HttpError } from "@/lib/http-error";
+import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { HttpError } from "@heybray/react/lib/http-error";
 import {
   ChevronDown,
   Loader2,

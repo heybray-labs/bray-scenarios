@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Redirect, Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
-import { AuthService } from "@/lib/auth";
+import { useAuth } from "@heybray/react/hooks/use-auth";
+import { AuthService } from "@heybray/react/lib/auth";
 import type { AuthConfig } from "@heybray/identity/schema";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";

@@ -1,7 +1,7 @@
 import { History, Lightbulb } from "lucide-react";
 import { Badge } from "@heybray/ui/components/badge";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
-import { overlayClassificationChipStyle } from "@/lib/classification-display";
+import { overlayClassificationChipStyle } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
 import type { ScenarioRun } from "./scenario-progress-types";
 
