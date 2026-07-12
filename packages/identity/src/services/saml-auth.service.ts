@@ -9,16 +9,16 @@ import {
   getSamlSpCertDir,
   getSamlSpEntityId,
   isSamlConfigured,
-} from "../config/auth-config.ts";
+} from "../auth-config.ts";
 import { createExchangeCode } from "./sso-exchange.service.ts";
 import { resolveUserFromSsoClaims } from "./sso-user-resolution.service.ts";
-import { parseIdpMetadata } from "../utils/saml-idp-metadata.ts";
-import { normalizeSamlPostBody } from "../utils/saml-post-body.ts";
-import { loadOrCreateSpCert } from "../utils/saml-sp-cert.ts";
+import { parseIdpMetadata } from "../saml/saml-idp-metadata.ts";
+import { normalizeSamlPostBody } from "../saml/saml-post-body.ts";
+import { loadOrCreateSpCert } from "../saml/saml-sp-cert.ts";
 import {
   shouldUseGoogleAccountChooser,
   wrapGoogleSamlAuthorizeUrl,
-} from "../utils/google-saml-account-chooser.ts";
+} from "../saml/google-saml-account-chooser.ts";
 import { createLogger } from "@heybray/server-kit";
 import type { Response } from "express";
 

@@ -1,10 +1,9 @@
 import { nanoid } from "nanoid";
 import { and, eq, isNull, lt } from "drizzle-orm";
-import { db } from "../db.ts";
-import { authExchangeCodes } from "../../shared/schemas/auth-exchange-codes.ts";
+import { authExchangeCodes } from "../schema/auth-exchange-codes.ts";
 import { userController } from "../controllers/user.controller.ts";
 import { generateToken, generateRefreshToken } from "../middleware/auth.ts";
-import { createLogger } from "@heybray/server-kit";
+import { createLogger, db } from "@heybray/server-kit";
 
 const log = createLogger("sso");
 

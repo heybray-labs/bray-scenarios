@@ -31,7 +31,7 @@ import {
   MediaValidationError,
   withCoverImageUrl,
 } from "../services/media.service.ts";
-import { users } from "../../shared/schemas/users.ts";
+import { users } from "@heybray/identity/schema";
 import { createLogger } from "@heybray/server-kit";
 import {
   createRoleplayChatModel,

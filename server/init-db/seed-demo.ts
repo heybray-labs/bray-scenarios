@@ -4,8 +4,7 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcrypt";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../db.ts";
-import { roles } from "../../shared/schemas/roles.ts";
-import { users } from "../../shared/schemas/users.ts";
+import { roles, users } from "@heybray/identity/schema";
 import { mediaAssets } from "../../shared/schemas/media-assets.ts";
 import {
   roleplays,

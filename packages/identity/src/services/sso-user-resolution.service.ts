@@ -1,9 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../db.ts";
-import { roles } from "../../shared/schemas/roles.ts";
-import { userIdentities } from "../../shared/schemas/user-identities.ts";
+import { roles } from "../schema/roles.ts";
+import { userIdentities } from "../schema/user-identities.ts";
 import { userController } from "../controllers/user.controller.ts";
-import { createLogger } from "@heybray/server-kit";
+import { createLogger, db } from "@heybray/server-kit";
 
 const log = createLogger("sso");
 

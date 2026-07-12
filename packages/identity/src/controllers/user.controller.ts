@@ -1,10 +1,10 @@
-import { db } from "../db.ts";
-import { users } from "../../shared/schemas/users.ts";
-import { roles } from "../../shared/schemas/roles.ts";
-import { userIdentities } from "../../shared/schemas/user-identities.ts";
+import { db } from "@heybray/server-kit";
+import { users } from "../schema/users.ts";
+import { roles } from "../schema/roles.ts";
+import { userIdentities } from "../schema/user-identities.ts";
 import { eq, and, sql, asc } from "drizzle-orm";
-import type { UserSummary, UserWithRole } from "../../shared/schemas/types.ts";
-import { getOidcProviderName, getSamlProviderName } from "../config/auth-config.ts";
+import type { UserSummary, UserWithRole } from "../schema/types.ts";
+import { getOidcProviderName, getSamlProviderName } from "../auth-config.ts";
 
 function resolveSignInMethod(
   hasPassword: boolean,

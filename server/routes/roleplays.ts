@@ -6,7 +6,7 @@ import { db } from "../db.ts";
 import { roleplayAttempts } from "../../shared/schemas/roleplay-core.ts";
 import { roleplaySystemController } from "../controllers/roleplay-system.controller.ts";
 import { pointsController } from "../controllers/points.controller.ts";
-import { canViewMemberAttempt } from "../controllers/team.controller.ts";
+import { canViewMemberAttempt } from "@heybray/identity";
 import { roleplayConfigService } from "../services/roleplay-config.service.ts";
 import { RoleplayNotConfiguredError, describeRoleplayModelError } from "../roleplay/model-factory.ts";
 import {
@@ -15,7 +15,7 @@ import {
   setupRoleplaySse,
 } from "../roleplay/roleplay-events.ts";
 import { platformLogger } from "@heybray/server-kit";
-import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "../middleware/auth.ts";
+import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "@heybray/identity";
 import {
   transferImportBodySchema,
   transferScenarioSchema,

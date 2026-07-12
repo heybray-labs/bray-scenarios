@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AuthService } from "@/lib/auth";
-import type { UserSummary } from "@shared/schemas/types";
+import type { UserSummary } from "@heybray/identity/schema";
 import { Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { HttpError } from "@/lib/http-error";
 

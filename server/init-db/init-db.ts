@@ -1,6 +1,5 @@
 import { db } from "../db.ts";
-import { roles } from "../../shared/schemas/roles.ts";
-import { users } from "../../shared/schemas/users.ts";
+import { roles, users } from "@heybray/identity/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { createLogger } from "@heybray/server-kit";

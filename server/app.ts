@@ -3,21 +3,22 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import authRoutes from "./routes/authentication.ts";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
-import userRoutes from "./routes/users.ts";
 import mediaRoutes from "./routes/media.ts";
 import roleplayClassificationsRoutes from "./routes/roleplay-classifications.ts";
 import pointsRoutes from "./routes/points.ts";
-import teamsRoutes from "./routes/teams.ts";
+import teamStarMapRoutes from "./routes/team-star-map.ts";
 import { requestLogging, globalRateLimiter, getAppVersion } from "@heybray/server-kit";
 import {
+  authenticationRouter,
+  usersRouter,
+  teamsRouter,
   getAuthProtocol,
   getOidcProviderName,
   getSamlProviderName,
   type AuthProtocol,
-} from "./config/auth-config.ts";
+} from "@heybray/identity";
 
 function getAuthProtocolLabel(protocol: AuthProtocol): string {
   switch (protocol) {
@@ -71,14 +72,15 @@ export function createApp(): express.Application {
     });
   });
 
-  app.use("/api/auth", authRoutes);
+  app.use("/api/auth", authenticationRouter);
   app.use("/api/roleplays", roleplayRoutes);
   app.use("/api/roleplay-config", roleplayConfigRoutes);
-  app.use("/api/users", userRoutes);
+  app.use("/api/users", usersRouter);
   app.use("/api/media", mediaRoutes);
   app.use("/api/roleplay-classifications", roleplayClassificationsRoutes);
   app.use("/api/points", pointsRoutes);
-  app.use("/api/teams", teamsRoutes);
+  app.use("/api/teams", teamsRouter);
+  app.use("/api/teams", teamStarMapRoutes);
 
   if (process.env.NODE_ENV !== "test") {
     const clientDist = path.resolve(

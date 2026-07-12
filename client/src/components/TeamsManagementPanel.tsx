@@ -27,7 +27,7 @@ import {
 import { FilterMultiSelect } from "@/components/classifications/FilterMultiSelect";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { UserSummary } from "@shared/schemas/types";
+import type { UserSummary } from "@heybray/identity/schema";
 import { Loader2, MoreVertical, Plus, Users } from "lucide-react";
 import { HttpError } from "@/lib/http-error";
 

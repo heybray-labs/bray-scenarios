@@ -1,4 +1,4 @@
-import { getSamlProviderName } from "../config/auth-config.ts";
+import { getSamlProviderName } from "../auth-config.ts";
 
 function isGoogleSamlProvider(): boolean {
   return getSamlProviderName().trim().toLowerCase() === "google";

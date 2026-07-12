@@ -2,10 +2,12 @@ import { createApp } from "./app.ts";
 import { ensureMediaDir } from "./services/media.service.ts";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger } from "@heybray/server-kit";
-import { getAuthConfigurationError } from "./config/auth-config.ts";
+import {
+  getAuthConfigurationError,
+  oidcAuthService,
+  samlAuthService,
+} from "@heybray/identity";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
-import { oidcAuthService } from "./services/oidc-auth.service.ts";
-import { samlAuthService } from "./services/saml-auth.service.ts";
 
 const app = createApp();
 const PORT = parseInt(process.env.PORT || "3001", 10);

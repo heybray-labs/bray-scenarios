@@ -8,12 +8,11 @@ import {
   type AuthRequest,
 } from "../middleware/auth.ts";
 import { userController } from "../controllers/user.controller.ts";
-import { adminCreateUserSchema, updateUserRoleSchema } from "../../shared/schemas/users.ts";
-import { isSsoEnabled } from "../config/auth-config.ts";
-import { db } from "../db.ts";
-import { roles } from "../../shared/schemas/roles.ts";
+import { adminCreateUserSchema, updateUserRoleSchema } from "../schema/users.ts";
+import { isSsoEnabled } from "../auth-config.ts";
+import { roles } from "../schema/roles.ts";
 import { eq } from "drizzle-orm";
-import { createLogger } from "@heybray/server-kit";
+import { createLogger, db } from "@heybray/server-kit";
 
 const log = createLogger("users");
 const router = Router();

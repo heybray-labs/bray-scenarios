@@ -1,7 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./users.ts";
+import { users } from "@heybray/identity/schema";
 import { mediaAssets } from "./media-assets.ts";
 
 export const roleplays = pgTable("roleplays", {

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import { classificationService } from "../services/classification.service.ts";
-import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "../middleware/auth.ts";
+import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "@heybray/identity";
 import { platformLogger } from "@heybray/server-kit";
 
 const router = Router();

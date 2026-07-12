@@ -7,7 +7,7 @@ import {
   resolveRewardTierDisplay,
 } from "../../shared/schemas/points.ts";
 import { roleplays, roleplayAttempts, roleplaySettings, roleplayCriteria, roleplayCriterionScores } from "../../shared/schemas/roleplay-core.ts";
-import { users } from "../../shared/schemas/users.ts";
+import { users } from "@heybray/identity/schema";
 import {
   classificationDimensions,
   classificationOptions,

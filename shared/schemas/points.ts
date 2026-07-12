@@ -8,7 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users } from "./users.ts";
+import { users } from "@heybray/identity/schema";
 import { roleplays, roleplayAttempts } from "./roleplay-core.ts";
 
 export const scenarioRewardTiers = pgTable(

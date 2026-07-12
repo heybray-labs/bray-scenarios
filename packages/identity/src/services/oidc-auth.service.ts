@@ -11,7 +11,7 @@ import {
   getAuthProtocol,
   isOidcConfigured,
   resolveOidcDiscoveryUrl,
-} from "../config/auth-config.ts";
+} from "../auth-config.ts";
 import { createExchangeCode } from "./sso-exchange.service.ts";
 import { resolveUserFromSsoClaims } from "./sso-user-resolution.service.ts";
 import { createLogger } from "@heybray/server-kit";

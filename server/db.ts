@@ -1,7 +1,5 @@
-import { createDb } from "@heybray/server-kit";
-import { users } from "../shared/schemas/users.ts";
-import { teams } from "../shared/schemas/teams.ts";
-import { roles } from "../shared/schemas/roles.ts";
+import { createDb, setDatabase } from "@heybray/server-kit";
+import { users, teams, roles } from "@heybray/identity/schema";
 import {
   roleplays,
   roleplaySettings,
@@ -56,4 +54,5 @@ const schema = {
 };
 
 const { db, pool } = createDb(schema);
+setDatabase(db);
 export { db, pool };

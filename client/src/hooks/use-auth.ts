@@ -13,7 +13,7 @@ import type {
   LoginCredentials,
   SetupAdminCredentials,
   ChangePasswordCredentials,
-} from "@shared/schemas/types";
+} from "@heybray/identity/schema";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextValue = {

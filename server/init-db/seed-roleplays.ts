@@ -1,5 +1,5 @@
 import { db, pool } from "../db.ts";
-import { users } from "../../shared/schemas/users.ts";
+import { users } from "@heybray/identity/schema";
 import {
   roleplays,
   roleplaySettings,

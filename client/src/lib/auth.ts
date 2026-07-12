@@ -5,7 +5,7 @@ import type {
   ChangePasswordCredentials,
   UserWithRole,
   AuthConfig,
-} from "@shared/schemas/types";
+} from "@heybray/identity/schema";
 
 export interface AuthResponse {
   token: string;

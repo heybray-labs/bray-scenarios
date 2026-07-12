@@ -5,7 +5,7 @@ import {
   requirePasswordChanged,
   requirePermission,
   type AuthRequest,
-} from "../middleware/auth.ts";
+} from "@heybray/identity";
 import {
   roleplayConfigService,
   type RoleplayProvider,

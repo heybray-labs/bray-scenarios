@@ -15,7 +15,7 @@ import {
   createTeamSchema,
   updateTeamSchema,
   setTeamMembersSchema,
-} from "../../shared/schemas/teams.ts";
+} from "../schema/teams.ts";
 import { createLogger } from "@heybray/server-kit";
 
 const log = createLogger("teams");
@@ -36,21 +36,6 @@ async function requireTeamViewAccess(
   }
   next();
 }
-
-const teamIdParamSchema = z.object({
-  id: z.union([z.literal("all"), z.coerce.number().int().positive()]),
-});
-
-const memberUserIdParamSchema = z.object({
-  id: z.union([z.literal("all"), z.coerce.number().int().positive()]),
-  userId: z.coerce.number().int().positive(),
-});
-
-const memberRoleplayParamSchema = z.object({
-  id: z.union([z.literal("all"), z.coerce.number().int().positive()]),
-  userId: z.coerce.number().int().positive(),
-  roleplayId: z.coerce.number().int().positive(),
-});
 
 const numericTeamIdSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -87,102 +72,6 @@ router.post("/", requireRole("admin"), async (req: AuthRequest, res) => {
     res.status(500).json({ message: "Failed to create team" });
   }
 });
-
-router.get("/:id/star-map", requireTeamViewAccess, async (req: AuthRequest, res) => {
-  try {
-    const { id } = teamIdParamSchema.parse(req.params);
-    const data = await teamController.getStarMap(req.user!, id);
-    res.json(data);
-  } catch (error) {
-    if (error instanceof TeamAccessError) {
-      return res.status(403).json({ message: "Insufficient permissions" });
-    }
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: "Invalid input", details: error.errors });
-    }
-    if (error instanceof Error && error.message === "Team not found") {
-      return res.status(404).json({ message: "Team not found" });
-    }
-    log.error("Failed to get star map", error instanceof Error ? error : undefined, {
-      requestId: req.requestId,
-    });
-    res.status(500).json({ message: "Failed to get star map" });
-  }
-});
-
-router.get(
-  "/:id/members/:userId/progress",
-  requireTeamViewAccess,
-  async (req: AuthRequest, res) => {
-    try {
-      const { id, userId } = memberUserIdParamSchema.parse(req.params);
-      const data = await teamController.getMemberProgress(req.user!, id, userId);
-      res.json(data);
-    } catch (error) {
-      if (error instanceof TeamAccessError) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", details: error.errors });
-      }
-      log.error("Failed to get member progress", error instanceof Error ? error : undefined, {
-        requestId: req.requestId,
-      });
-      res.status(500).json({ message: "Failed to get member progress" });
-    }
-  },
-);
-
-router.get(
-  "/:id/members/:userId/scenario-history",
-  requireTeamViewAccess,
-  async (req: AuthRequest, res) => {
-    try {
-      const { id, userId } = memberUserIdParamSchema.parse(req.params);
-      const data = await teamController.getMemberScenarioHistory(req.user!, id, userId);
-      res.json(data);
-    } catch (error) {
-      if (error instanceof TeamAccessError) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", details: error.errors });
-      }
-      log.error("Failed to get member scenario history", error instanceof Error ? error : undefined, {
-        requestId: req.requestId,
-      });
-      res.status(500).json({ message: "Failed to get member scenario history" });
-    }
-  },
-);
-
-router.get(
-  "/:id/members/:userId/roleplays/:roleplayId/attempts",
-  requireTeamViewAccess,
-  async (req: AuthRequest, res) => {
-    try {
-      const { id, userId, roleplayId } = memberRoleplayParamSchema.parse(req.params);
-      const attempts = await teamController.getMemberScenarioAttempts(
-        req.user!,
-        id,
-        userId,
-        roleplayId,
-      );
-      res.json({ attempts });
-    } catch (error) {
-      if (error instanceof TeamAccessError) {
-        return res.status(403).json({ message: "Insufficient permissions" });
-      }
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", details: error.errors });
-      }
-      log.error("Failed to get member scenario attempts", error instanceof Error ? error : undefined, {
-        requestId: req.requestId,
-      });
-      res.status(500).json({ message: "Failed to get member scenario attempts" });
-    }
-  },
-);
 
 router.patch("/:id", requireRole("admin"), async (req: AuthRequest, res) => {
   try {

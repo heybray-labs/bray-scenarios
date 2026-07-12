@@ -12,7 +12,7 @@ import {
   requirePasswordChanged,
   requirePermission,
   type AuthRequest,
-} from "../middleware/auth.ts";
+} from "@heybray/identity";
 import { platformLogger } from "@heybray/server-kit";
 
 const upload = multer({

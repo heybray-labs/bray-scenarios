@@ -1,5 +1,5 @@
 import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
-import { users } from "./users.ts";
+import { users } from "@heybray/identity/schema";
 
 export const mediaAssets = pgTable("media_assets", {
   id: serial("id").primaryKey(),

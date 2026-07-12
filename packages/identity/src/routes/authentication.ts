@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
-import { loginSchema, setupAdminSchema, changePasswordSchema } from "../../shared/schemas/users.ts";
+import { loginSchema, setupAdminSchema, changePasswordSchema } from "../schema/users.ts";
 import { userController } from "../controllers/user.controller.ts";
 import {
   authenticateToken,
@@ -15,16 +15,15 @@ import {
   isSsoEnabled,
   getAppUrl,
   getOidcRedirectUri,
-} from "../config/auth-config.ts";
+} from "../auth-config.ts";
 import { oidcAuthService, OIDC_STATE_COOKIE, getOidcStateCookieOptions } from "../services/oidc-auth.service.ts";
 import { samlAuthService, SAML_STATE_COOKIE } from "../services/saml-auth.service.ts";
 import { completeExchange } from "../services/sso-exchange.service.ts";
-import { db } from "../db.ts";
-import { roles } from "../../shared/schemas/roles.ts";
+import { roles } from "../schema/roles.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createLogger } from "@heybray/server-kit";
-import { getRequestCookie } from "../utils/cookies.ts";
+import { createLogger, db } from "@heybray/server-kit";
+import { getRequestCookie } from "../cookies.ts";
 
 const log = createLogger("auth");
 
