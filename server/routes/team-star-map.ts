@@ -1,8 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
 import {
-  authenticateToken,
-  requirePasswordChanged,
   type AuthRequest,
   TeamAccessError,
   canAccessTeamView,
@@ -13,9 +11,8 @@ import { createLogger } from "@heybray/server-kit";
 const log = createLogger("teams");
 const router = Router();
 
-router.use(authenticateToken);
-router.use(requirePasswordChanged);
-
+// Auth chain (authenticateToken + requirePasswordChanged) is applied once by the
+// parent /api/teams wrapper router in server/app.ts.
 async function requireTeamViewAccess(
   req: AuthRequest,
   res: import("express").Response,

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
@@ -88,8 +88,16 @@ export function createApp(): express.Application {
   );
   app.use("/api/roleplay-classifications", classificationsRouter);
   app.use("/api/points", pointsRoutes);
-  app.use("/api/teams", teamsRouter);
-  app.use("/api/teams", teamStarMapRoutes);
+
+  // Both team routers share the same auth chain; apply it once here rather than
+  // twice (each sub-router previously ran authenticateToken + requirePasswordChanged
+  // independently, double-running the user lookup on star-map paths).
+  const teamsRoot = Router();
+  teamsRoot.use(authenticateToken);
+  teamsRoot.use(requirePasswordChanged);
+  teamsRoot.use(teamsRouter);
+  teamsRoot.use(teamStarMapRoutes);
+  app.use("/api/teams", teamsRoot);
 
   if (process.env.NODE_ENV !== "test") {
     const clientDist = path.resolve(
