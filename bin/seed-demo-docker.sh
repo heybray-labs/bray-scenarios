@@ -9,7 +9,12 @@ if ! docker compose ps --services --filter status=running 2>/dev/null | grep -qx
   exit 1
 fi
 
+# The image ENTRYPOINT (docker/entrypoint.sh) ignores its args and always boots
+# the server, so a plain CMD override runs index.ts instead of the seed. Override
+# the entrypoint to actually run the demo seed.
 exec ./bin/compose-env.sh -- docker compose run --rm --no-deps \
+  --entrypoint sh \
   -v "$ROOT/server:/app/server" \
   -v "$ROOT/shared:/app/shared" \
-  app sh -c "cd /app/server && npx tsx init-db/seed-demo.ts"
+  -v "$ROOT/examples:/app/examples" \
+  app -c "cd /app/server && npx tsx init-db/seed-demo.ts"
