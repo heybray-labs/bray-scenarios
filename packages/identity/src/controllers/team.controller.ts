@@ -23,8 +23,22 @@ export function avatarInitials(name: string): string {
   return name.slice(0, 2).toUpperCase() || "?";
 }
 
+// The app's "manage" permission string is injected at startup via
+// setManagePermission (see server/app.ts) so this platform controller stays
+// free of any single app's permission vocabulary.
+let managePermission: string | null = null;
+
+export function setManagePermission(permission: string): void {
+  managePermission = permission;
+}
+
 export function hasManagePermission(user: UserWithRole): boolean {
-  return user.role?.permissions?.includes("roleplay:manage") ?? false;
+  if (managePermission == null) {
+    throw new Error(
+      "Team manage permission not configured; call setManagePermission() at startup.",
+    );
+  }
+  return user.role?.permissions?.includes(managePermission) ?? false;
 }
 
 export async function isTeamManager(userId: number): Promise<boolean> {

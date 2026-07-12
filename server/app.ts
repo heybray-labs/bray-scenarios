@@ -5,7 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
-import { classificationsRouter } from "@heybray/taxonomy";
+import { createTaxonomyRouter } from "@heybray/taxonomy";
 import pointsRoutes from "./routes/points.ts";
 import teamStarMapRoutes from "./routes/team-star-map.ts";
 import { requestLogging, globalRateLimiter, getAppVersion, createMediaRouter } from "@heybray/server-kit";
@@ -16,11 +16,16 @@ import {
   authenticateToken,
   requirePasswordChanged,
   requirePermission,
+  setManagePermission,
   getAuthProtocol,
   getOidcProviderName,
   getSamlProviderName,
   type AuthProtocol,
 } from "@heybray/identity";
+
+// The permission string that gates management actions in the platform packages.
+// It lives in app config here, not inside the packages.
+const MANAGE_PERMISSION = "roleplay:manage";
 
 function getAuthProtocolLabel(protocol: AuthProtocol): string {
   switch (protocol) {
@@ -35,6 +40,9 @@ function getAuthProtocolLabel(protocol: AuthProtocol): string {
 
 export function createApp(): express.Application {
   const app = express();
+
+  // Inject the app's manage-permission string into the identity team controller.
+  setManagePermission(MANAGE_PERMISSION);
 
   if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
     app.set("trust proxy", 1);
@@ -83,10 +91,13 @@ export function createApp(): express.Application {
     createMediaRouter({
       authenticateToken,
       requirePasswordChanged,
-      requireManage: requirePermission("roleplay:manage"),
+      requireManage: requirePermission(MANAGE_PERMISSION),
     }),
   );
-  app.use("/api/roleplay-classifications", classificationsRouter);
+  app.use(
+    "/api/roleplay-classifications",
+    createTaxonomyRouter({ managePermission: MANAGE_PERMISSION }),
+  );
   app.use("/api/points", pointsRoutes);
 
   // Both team routers share the same auth chain; apply it once here rather than

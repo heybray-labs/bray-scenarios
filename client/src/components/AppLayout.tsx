@@ -147,12 +147,17 @@ const appSettingsPanels: SettingsPanel[] = [
   },
 ];
 
+// The app's manage-permission string; supplied explicitly to the platform shell
+// rather than defaulted inside it.
+const MANAGE_PERMISSION = "roleplay:manage";
+
 export function AppLayout({ children }: { children: ReactNode } & Partial<NavbarProps>) {
   return (
     <MainLayout
       brand={<AppBrand />}
       actions={<AppNavActions />}
       settingsPanels={appSettingsPanels}
+      managePermission={MANAGE_PERMISSION}
     >
       {children}
     </MainLayout>

@@ -28,15 +28,15 @@ interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   panels: SettingsPanel[];
-  /** Permission required to see `requiresManage` panels. */
-  managePermission?: string;
+  /** Permission required to see `requiresManage` panels (supplied by the app). */
+  managePermission: string;
 }
 
 export function SettingsModal({
   open,
   onOpenChange,
   panels,
-  managePermission = "roleplay:manage",
+  managePermission,
 }: SettingsModalProps) {
   const { hasPermission } = useAuth();
   const canManage = hasPermission(managePermission);

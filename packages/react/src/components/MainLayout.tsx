@@ -81,7 +81,7 @@ export function Navbar({ brand, actions, settingsPanels, managePermission }: Nav
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {hasSettings && (
+              {hasSettings && managePermission && (
                 <SettingsModal
                   open={settingsOpen}
                   onOpenChange={setSettingsOpen}
