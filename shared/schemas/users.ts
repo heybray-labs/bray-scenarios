@@ -30,6 +30,8 @@ export const users = pgTable("users", {
   emailOtpExpiry: timestamp("email_otp_expiry"), // When email OTP expires
   twoFactorBackupUsed: integer("two_factor_backup_used").notNull().default(0), // Count of backup codes used
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  // v1: single-team-per-user; see teams.ts for migration notes.
+  teamId: integer("team_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({

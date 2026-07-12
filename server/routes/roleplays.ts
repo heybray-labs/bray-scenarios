@@ -1,7 +1,12 @@
 import { Router, Response } from "express";
+import { isCheatModeEnabled } from "../config/cheat-mode.ts";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "../db.ts";
+import { roleplayAttempts } from "../../shared/schemas/roleplay-core.ts";
 import { roleplaySystemController } from "../controllers/roleplay-system.controller.ts";
 import { pointsController } from "../controllers/points.controller.ts";
+import { canViewMemberAttempt } from "../controllers/team.controller.ts";
 import { roleplayConfigService } from "../services/roleplay-config.service.ts";
 import { RoleplayNotConfiguredError, describeRoleplayModelError } from "../roleplay/model-factory.ts";
 import {
@@ -88,7 +93,7 @@ router.use(requirePasswordChanged);
 router.get("/config-status", async (_req: AuthRequest, res: Response) => {
   try {
     const isReady = await roleplayConfigService.isConfigReady();
-    res.json({ isReady });
+    res.json({ isReady, cheatModeEnabled: isCheatModeEnabled() });
   } catch (error) {
     platformLogger.error("config-status error", error instanceof Error ? error : undefined);
     res.status(500).json({ error: "Failed to get config status" });
@@ -642,7 +647,18 @@ router.post("/:id/attempts/:attemptId/submit", async (req: AuthRequest, res: Res
 router.get("/:id/attempts/:attemptId/results", async (req: AuthRequest, res: Response) => {
   try {
     const attemptId = parseInt(req.params.attemptId);
-    const results = await roleplaySystemController.getResults(attemptId, req.user!.id);
+    let results = await roleplaySystemController.getResults(attemptId, req.user!.id);
+    if (!results) {
+      const [attempt] = await db
+        .select({ userId: roleplayAttempts.userId })
+        .from(roleplayAttempts)
+        .where(eq(roleplayAttempts.id, attemptId))
+        .limit(1);
+      if (!attempt) return res.status(404).json({ error: "Results not found" });
+      const allowed = await canViewMemberAttempt(req.user!, attempt.userId);
+      if (!allowed) return res.status(404).json({ error: "Results not found" });
+      results = await roleplaySystemController.getResults(attemptId, attempt.userId);
+    }
     if (!results) return res.status(404).json({ error: "Results not found" });
     res.json(results);
   } catch (error) {

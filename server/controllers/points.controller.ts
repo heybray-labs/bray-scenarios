@@ -470,6 +470,166 @@ export class PointsController {
     };
   }
 
+  getTopImprovementFromScores(
+    scores: Array<{
+      score: string | number | null;
+      maxScore: number;
+      improvements: string | null;
+    }>,
+  ): string | null {
+    if (!scores.length) return null;
+
+    let lowestNorm = Infinity;
+    let lowestImprovement: string | null = null;
+    for (const row of scores) {
+      const maxScore = row.maxScore > 0 ? row.maxScore : 100;
+      const normalized = (parseFloat(String(row.score)) / maxScore) * 100;
+      if (normalized < lowestNorm) {
+        lowestNorm = normalized;
+        lowestImprovement = row.improvements?.trim() || null;
+      }
+    }
+    return lowestImprovement;
+  }
+
+  async resolveNextTierForScore(
+    roleplayId: number,
+    userId: number,
+    bestScore: number | null,
+  ): Promise<{
+    rewardTiers: Awaited<ReturnType<PointsController["getRewardTiersForRoleplay"]>>;
+    nextTier: ScenarioProgressTier | null;
+  }> {
+    const tiers = await this.getRewardTiersForRoleplay(roleplayId);
+    const sortedAsc = [...tiers].sort((a, b) => a.minScorePercent - b.minScorePercent);
+
+    const tierReward = await this.getUserTierReward(userId, roleplayId);
+    let currentTier: ScenarioProgressTier | null = null;
+    if (tierReward?.highestTierId) {
+      const tier = tiers.find((t) => t.id === tierReward.highestTierId);
+      if (tier) {
+        const display = resolveRewardTierDisplay(tier);
+        currentTier = {
+          tierName: tier.tierName,
+          starLevel: tier.starLevel,
+          color: display.color,
+          minScorePercent: tier.minScorePercent,
+          rewardPoints: tier.rewardPoints,
+        };
+      }
+    }
+
+    const nextTierRow =
+      bestScore != null
+        ? sortedAsc.find((t) => t.minScorePercent > bestScore)
+        : sortedAsc[0];
+
+    let nextTier: ScenarioProgressTier | null = null;
+    if (nextTierRow && (!currentTier || nextTierRow.minScorePercent > currentTier.minScorePercent)) {
+      const display = resolveRewardTierDisplay(nextTierRow);
+      nextTier = {
+        tierName: nextTierRow.tierName,
+        starLevel: nextTierRow.starLevel,
+        color: display.color,
+        minScorePercent: nextTierRow.minScorePercent,
+        rewardPoints: nextTierRow.rewardPoints,
+      };
+    }
+
+    return { rewardTiers: tiers, nextTier };
+  }
+
+  async getResultsContext(
+    attempt: RoleplayAttempt,
+    userId: number,
+    criterionScores: Array<{
+      score: string | number | null;
+      maxScore: number;
+      improvements: string | null;
+    }>,
+  ) {
+    const roleplayId = attempt.roleplayId;
+
+    const [settings] = await db
+      .select({ maxAttempts: roleplaySettings.maxAttempts })
+      .from(roleplaySettings)
+      .where(eq(roleplaySettings.roleplayId, roleplayId))
+      .limit(1);
+
+    const attempts = await db
+      .select({
+        id: roleplayAttempts.id,
+        score: roleplayAttempts.score,
+        status: roleplayAttempts.status,
+      })
+      .from(roleplayAttempts)
+      .where(
+        and(
+          eq(roleplayAttempts.roleplayId, roleplayId),
+          eq(roleplayAttempts.userId, userId),
+        ),
+      );
+
+    const otherCompletedScores = attempts
+      .filter((a) => a.status === "completed" && a.id !== attempt.id)
+      .map((a) => (a.score != null ? parseFloat(String(a.score)) : null))
+      .filter((s): s is number => s != null);
+
+    const previousBestScore = otherCompletedScores.length
+      ? Math.max(...otherCompletedScores)
+      : null;
+
+    const thisScore =
+      attempt.score != null ? parseFloat(String(attempt.score)) : null;
+    const bestScoreAfter =
+      thisScore != null
+        ? Math.max(previousBestScore ?? 0, thisScore)
+        : (previousBestScore ?? 0);
+
+    const isNewBest =
+      thisScore != null &&
+      (previousBestScore == null || thisScore > previousBestScore);
+
+    const attemptCount = attempts.length;
+    const maxAttempts = settings?.maxAttempts ?? null;
+    const hasUnlimited = !maxAttempts || maxAttempts <= 0;
+    const usedCount = attemptCount;
+    const isOutOfAttempts = !hasUnlimited && attemptCount >= maxAttempts!;
+
+    const { rewardTiers, nextTier } = await this.resolveNextTierForScore(
+      roleplayId,
+      userId,
+      bestScoreAfter > 0 ? bestScoreAfter : null,
+    );
+
+    const topImprovement = this.getTopImprovementFromScores(criterionScores);
+    const totalPoints = await this.getUserPointsTotal(userId);
+
+    return {
+      previousBestScore,
+      isNewBest,
+      bestScoreAfter,
+      rewardTiers: rewardTiers.map((t) => ({
+        id: t.id,
+        starLevel: t.starLevel,
+        tierName: t.tierName,
+        minScorePercent: t.minScorePercent,
+        rewardPoints: t.rewardPoints,
+        color: t.color,
+        icon: t.icon,
+      })),
+      nextTier,
+      topImprovement,
+      attemptContext: {
+        attemptNumber: attempt.attemptNumber,
+        maxAttempts: hasUnlimited ? null : maxAttempts,
+        usedCount,
+        isOutOfAttempts,
+      },
+      totalPoints,
+    };
+  }
+
   async getPointsForAttempt(attemptId: number) {
     const [row] = await db
       .select({
@@ -634,19 +794,7 @@ export class PointsController {
         .from(roleplayCriterionScores)
         .where(eq(roleplayCriterionScores.attemptId, mostRecentCompleted.id));
 
-      if (recentScores.length) {
-        let lowestNorm = Infinity;
-        let lowestImprovement: string | null = null;
-        for (const row of recentScores) {
-          const maxScore = row.maxScore > 0 ? row.maxScore : 100;
-          const normalized = (parseFloat(String(row.score)) / maxScore) * 100;
-          if (normalized < lowestNorm) {
-            lowestNorm = normalized;
-            lowestImprovement = row.improvements?.trim() || null;
-          }
-        }
-        lastTopImprovement = lowestImprovement;
-      }
+      lastTopImprovement = this.getTopImprovementFromScores(recentScores);
     }
 
     return {

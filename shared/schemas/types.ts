@@ -63,6 +63,7 @@ export type UserSummary = {
   email: string;
   firstName: string | null;
   signInMethod: string;
+  teamId: number | null;
   role: {
     id: number;
     name: string;

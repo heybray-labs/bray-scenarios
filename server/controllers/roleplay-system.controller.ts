@@ -54,6 +54,7 @@ import {
   computeWeightedPercent,
   type GradingCriterionInput,
 } from "../roleplay/grading.ts";
+import { findCheatDirectiveInMessages, isCheatModeEnabled, extractCheatDirective } from "../config/cheat-mode.ts";
 import { generateLiveHint } from "../roleplay/coaching.ts";
 import { emitRoleplayEvent } from "../roleplay/roleplay-events.ts";
 import { classificationService } from "../services/classification.service.ts";
@@ -1941,6 +1942,26 @@ export class RoleplaySystemController {
         .set({ turnCount: newTurnNumber })
         .where(eq(roleplayAttempts.id, attemptId));
 
+      const cheatDirective = isCheatModeEnabled()
+        ? extractCheatDirective(learnerText)
+        : null;
+      if (cheatDirective) {
+        await db.insert(roleplayMessages).values({
+          attemptId,
+          role: "ended",
+          content: "Cheat mode — submitting for grading…",
+          turnNumber: newTurnNumber,
+        });
+        emitRoleplayEvent(runId, { type: "ended", reason: "cheat_mode" });
+        emitRoleplayEvent(runId, { type: "done", runId, aiEnded: true });
+        log.warn("CHEAT MODE — ending conversation from learner message", {
+          attemptId,
+          roleplayId,
+          directivePreview: cheatDirective.slice(0, 120),
+        });
+        return;
+      }
+
       // Build context from full history
       const history = await this.getAttemptMessages(attemptId);
       const model = await createRoleplayChatModel({
@@ -2125,6 +2146,18 @@ export class RoleplaySystemController {
           weight: parseFloat(String(c.weight)) || 1,
           maxScore: c.maxScore,
         }));
+
+        const cheatDirective = isCheatModeEnabled()
+          ? findCheatDirectiveInMessages(messages)
+          : null;
+        if (cheatDirective) {
+          log.warn("CHEAT MODE grading — using learner message directive", {
+            attemptId,
+            roleplayId,
+            directivePreview: cheatDirective.slice(0, 120),
+          });
+        }
+
         const result = await gradeTranscript(model, {
           roleplayTitle: roleplay?.title ?? "Roleplay",
           learnerRole: roleplay?.learnerRole,
@@ -2134,6 +2167,7 @@ export class RoleplaySystemController {
           personaName: persona?.name,
           criteria: criterionInputs,
           transcript,
+          cheatDirective,
         });
 
         overallFeedback = result.overallFeedback;
@@ -2258,6 +2292,11 @@ export class RoleplaySystemController {
     const messages = await this.getAttemptMessages(attemptId);
 
     const pointsForAttempt = await pointsController.getPointsForAttempt(attemptId);
+    const resultsContext = await pointsController.getResultsContext(
+      attempt,
+      userId,
+      criterionScores,
+    );
 
     return {
       attempt,
@@ -2265,6 +2304,7 @@ export class RoleplaySystemController {
       messages,
       pointsAwarded: pointsForAttempt?.amount ?? 0,
       tierName: pointsForAttempt?.tierName ?? null,
+      ...resultsContext,
     };
   }
 

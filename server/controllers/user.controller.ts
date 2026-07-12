@@ -164,6 +164,7 @@ export const userController = {
         id: users.id,
         email: users.email,
         firstName: users.firstName,
+        teamId: users.teamId,
         hasPassword: sql<boolean>`${users.password} IS NOT NULL`,
         roleId: roles.id,
         roleName: roles.name,
@@ -190,6 +191,7 @@ export const userController = {
         id: row.id,
         email: row.email,
         firstName: row.firstName,
+        teamId: row.teamId,
         signInMethod: resolveSignInMethod(row.hasPassword, identity),
         role: {
           id: row.roleId,

@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { Request } from "express";
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -11,10 +11,19 @@ const globalMax = parsePositiveInt(process.env.RATE_LIMIT_MAX, 300);
 const authMax = parsePositiveInt(process.env.AUTH_RATE_LIMIT_MAX, 20);
 
 function isHealthCheck(req: Request): boolean {
-  return req.path === "/api/health" || req.path === "/health";
+  return req.path === "/health";
 }
 
-/** Applied to all requests (API, static files, SPA fallback). */
+/** Prefer per-session keys so multiple logged-in users on one IP do not share a bucket. */
+function rateLimitKey(req: Request): string {
+  const auth = req.headers.authorization;
+  if (typeof auth === "string" && auth.length > 0) {
+    return `auth:${auth}`;
+  }
+  return `ip:${ipKeyGenerator(req.ip)}`;
+}
+
+/** Applied to /api routes only (static assets and SPA HTML are not counted). */
 export const globalRateLimiter = rateLimit({
   windowMs,
   max: globalMax,
@@ -22,6 +31,7 @@ export const globalRateLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many requests, please try again later." },
   skip: isHealthCheck,
+  keyGenerator: rateLimitKey,
 });
 
 /**
@@ -34,4 +44,5 @@ export const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many authentication attempts, please try again later." },
+  keyGenerator: rateLimitKey,
 });

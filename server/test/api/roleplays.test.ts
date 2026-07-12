@@ -52,6 +52,7 @@ describe("Roleplays API", () => {
       .set(authHeader(admin.token))
       .expect(200);
     expect(res.body).toHaveProperty("isReady");
+    expect(res.body).toHaveProperty("cheatModeEnabled");
   });
 
   it("GET /api/roleplays/available-models", async () => {
@@ -266,6 +267,22 @@ describe("Roleplays API", () => {
       .set(authHeader(learner.token))
       .expect(200);
     expectNotServerError(res.status);
+    expect(res.body).toHaveProperty("attempt");
+    expect(res.body).toHaveProperty("criterionScores");
+    expect(res.body).toHaveProperty("previousBestScore");
+    expect(res.body).toHaveProperty("isNewBest");
+    expect(res.body).toHaveProperty("bestScoreAfter");
+    expect(res.body).toHaveProperty("rewardTiers");
+    expect(res.body).toHaveProperty("nextTier");
+    expect(res.body).toHaveProperty("topImprovement");
+    expect(res.body).toHaveProperty("attemptContext");
+    expect(res.body.attemptContext).toMatchObject({
+      attemptNumber: expect.any(Number),
+      usedCount: expect.any(Number),
+      isOutOfAttempts: expect.any(Boolean),
+    });
+    expect(res.body).toHaveProperty("totalPoints");
+    expect(typeof res.body.totalPoints).toBe("number");
   });
 
   it("GET /api/roleplays/:id/attempts (admin)", async () => {

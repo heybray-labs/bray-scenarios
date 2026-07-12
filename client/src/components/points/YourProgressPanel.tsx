@@ -4,11 +4,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import {
+  ALL_CATEGORIES_SLUG,
+  CategoryMasteryBar,
+  categoryStarred,
+} from "@/components/points/CategoryMasteryBar";
 import { cn } from "@/lib/utils";
 import { Flame } from "lucide-react";
 
-export const ALL_CATEGORIES_SLUG = "__all__";
+export { ALL_CATEGORIES_SLUG } from "@/components/points/CategoryMasteryBar";
 
 type CategoryMasteryRow = {
   slug: string;
@@ -16,56 +20,6 @@ type CategoryMasteryRow = {
   total: number;
   starCounts: { gold: number; silver: number; bronze: number };
 };
-
-const TIER_BAR_COLORS = {
-  bronze: resolveRewardTierDisplay({ starLevel: 1 }).color,
-  silver: resolveRewardTierDisplay({ starLevel: 2 }).color,
-  gold: resolveRewardTierDisplay({ starLevel: 3 }).color,
-} as const;
-
-function categoryStarred(row: { starCounts: CategoryMasteryRow["starCounts"] }) {
-  return row.starCounts.gold + row.starCounts.silver + row.starCounts.bronze;
-}
-
-function CategoryMasteryBar({
-  starCounts,
-  total,
-  highlight,
-}: {
-  starCounts: { gold: number; silver: number; bronze: number };
-  total: number;
-  highlight?: boolean;
-}) {
-  if (total <= 0) {
-    return <div className="flex-1 h-3 rounded-full bg-muted" />;
-  }
-
-  const segments = [
-    { key: "bronze", count: starCounts.bronze, color: TIER_BAR_COLORS.bronze },
-    { key: "silver", count: starCounts.silver, color: TIER_BAR_COLORS.silver },
-    { key: "gold", count: starCounts.gold, color: TIER_BAR_COLORS.gold },
-  ] as const;
-
-  return (
-    <div
-      className={cn(
-        "flex-1 h-3 rounded-full bg-muted overflow-hidden flex",
-        highlight && "ring-1 ring-warning ring-offset-1 ring-offset-card",
-      )}
-    >
-      {segments.map(({ key, count, color }) =>
-        count > 0 ? (
-          <div
-            key={key}
-            className="h-full shrink-0"
-            style={{ width: `${(count / total) * 100}%`, backgroundColor: color }}
-            title={`${count} ${key}`}
-          />
-        ) : null,
-      )}
-    </div>
-  );
-}
 
 type YourProgressPanelProps = {
   className?: string;
@@ -97,7 +51,7 @@ function CategoryMasteryRowView({
   highlight?: boolean;
   onCategorySelect?: (slug: string) => void;
 }) {
-  const starred = categoryStarred(row);
+  const starred = categoryStarred(row.starCounts);
 
   return (
     <div className="flex items-center gap-3 text-sm py-0.5">
@@ -184,7 +138,7 @@ export function YourProgressPanel({
   const lowestMasteryRatio = (() => {
     const rows = stats?.categoryMastery.filter((r) => r.total > 0) ?? [];
     if (!rows.length) return null;
-    return Math.min(...rows.map((r) => categoryStarred(r) / r.total));
+    return Math.min(...rows.map((r) => categoryStarred(r.starCounts) / r.total));
   })();
 
   return (
@@ -246,7 +200,7 @@ export function YourProgressPanel({
                 <div className="space-y-3">
                   {masteryRows.map((row) => {
                     const ratio =
-                      row.total > 0 ? categoryStarred(row) / row.total : 0;
+                      row.total > 0 ? categoryStarred(row.starCounts) / row.total : 0;
                     const isLowest =
                       row.slug !== ALL_CATEGORIES_SLUG &&
                       row.total > 0 &&

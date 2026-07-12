@@ -10,12 +10,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Star, Search } from "lucide-react";
+import { LogOut, Settings, Star, Search, LayoutGrid } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { apiRequest } from "@/lib/queryClient";
+import { HttpError } from "@/lib/http-error";
 import logo from "@assets/logo.png";
 
 export function Navbar() {
@@ -24,6 +25,25 @@ export function Navbar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pointsHistoryOpen, setPointsHistoryOpen] = useState(false);
   const isAdmin = hasRole("admin");
+
+  const { data: teamsAccess } = useQuery<{ teams: unknown[] }>({
+    queryKey: ["/api/teams"],
+    queryFn: async () => {
+      try {
+        return await apiRequest("GET", "/api/teams");
+      } catch (error) {
+        if (error instanceof HttpError && error.status === 403) {
+          return { teams: [] };
+        }
+        throw error;
+      }
+    },
+    enabled: !!user,
+    retry: false,
+    throwOnError: false,
+  });
+
+  const showStarMapNav = (teamsAccess?.teams?.length ?? 0) > 0 || isAdmin;
 
   const { data: pointsData } = useQuery<{ total: number; monthTotal: number }>({
     queryKey: ["/api/points/me"],
@@ -66,6 +86,18 @@ export function Navbar() {
               >
                 <Search className="h-5 w-5" />
               </Button>
+
+              {showStarMapNav && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full gap-1.5 hidden sm:inline-flex"
+                  onClick={() => navigate("/team-star-map")}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Star Map
+                </Button>
+              )}
 
               <button
                 type="button"

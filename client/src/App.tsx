@@ -15,6 +15,7 @@ import RoleplayIntroPage from "@/pages/RoleplayIntroPage";
 import RoleplayTaking from "@/pages/RoleplayTaking";
 import RoleplayResults from "@/pages/RoleplayResults";
 import RoleplayAttemptsPage from "@/pages/RoleplayAttemptsPage";
+import TeamStarMapPage from "@/pages/TeamStarMapPage";
 
 export default function App() {
   return (
@@ -49,6 +50,11 @@ export default function App() {
             <Route path="/roleplays/:id/results/:attemptId">
               <ProtectedRoute>
                 <RoleplayResults />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/team-star-map">
+              <ProtectedRoute>
+                <TeamStarMapPage />
               </ProtectedRoute>
             </Route>
             <Route path="/roleplays/:id/attempts">

@@ -25,6 +25,7 @@ import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { MainLayout } from "@/components/MainLayout";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { cn } from "@/lib/utils";
+import { isCheatModeMessage } from "@/lib/cheat-mode";
 
 interface ChatMessage {
   id: number | string;
@@ -66,6 +67,10 @@ export default function RoleplayTaking() {
     queryKey: [`/api/roleplays/${roleplayId}`],
     enabled: !!roleplayId,
   });
+  const { data: configStatus } = useQuery<{ isReady?: boolean; cheatModeEnabled?: boolean }>({
+    queryKey: [`/api/roleplays/config-status`],
+  });
+  const cheatModeEnabled = !!configStatus?.cheatModeEnabled;
   const settings = roleplay?.settings ?? {};
   const persona = roleplay?.persona ?? {};
 
@@ -191,12 +196,15 @@ export default function RoleplayTaking() {
     const text = input.trim();
     if (!text || !roleplayId || !attemptId || isStreaming || timeExpired || reachedMaxTurns) return;
 
+    const cheatMessage = cheatModeEnabled && isCheatModeMessage(text);
     setInput("");
     setCoachHint(null);
     setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "learner", content: text }]);
 
-    const personaMsgId = `streaming-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: personaMsgId, role: "persona", content: "" }]);
+    const personaMsgId = cheatMessage ? null : `streaming-${Date.now()}`;
+    if (personaMsgId) {
+      setMessages((prev) => [...prev, { id: personaMsgId, role: "persona", content: "" }]);
+    }
     setIsStreaming(true);
 
     let shouldEnd = false;
@@ -210,7 +218,7 @@ export default function RoleplayTaking() {
       );
 
       await streamRun(roleplayId, runId, (event) => {
-        if (event.type === "token") {
+        if (event.type === "token" && personaMsgId) {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === personaMsgId ? { ...m, content: m.content + event.content } : m,
@@ -221,12 +229,18 @@ export default function RoleplayTaking() {
         } else if (event.type === "ended") {
           shouldEnd = true;
           endReason = event.reason;
+          if (personaMsgId) {
+            setMessages((prev) => prev.filter((m) => m.id !== personaMsgId || m.content.trim()));
+          }
           setMessages((prev) => [
             ...prev,
             {
               id: `ended-${Date.now()}`,
               role: "ended",
-              content: "This roleplay scenario has ended.",
+              content:
+                event.reason === "cheat_mode"
+                  ? "Cheat mode — submitting for grading…"
+                  : "This roleplay scenario has ended.",
             },
           ]);
         } else if (event.type === "error") {
@@ -427,7 +441,13 @@ export default function RoleplayTaking() {
                 sendTurn();
               }
             }}
-            placeholder={reachedMaxTurns ? "Submitting…" : "Type your reply…"}
+            placeholder={
+              reachedMaxTurns
+                ? "Submitting…"
+                : cheatModeEnabled
+                  ? "Type your reply… or CHEAT MODE: 81% Silver tier, passed"
+                  : "Type your reply…"
+            }
             rows={2}
             disabled={isStreaming || reachedMaxTurns || timeExpired}
             className="resize-none"

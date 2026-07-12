@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { users } from "../shared/schemas/users.ts";
+import { teams } from "../shared/schemas/teams.ts";
 import { roles } from "../shared/schemas/roles.ts";
 import {
   roleplays,
@@ -33,6 +34,7 @@ import { resolveDatabaseUrl } from "./init-db/resolve-database-url.ts";
 
 const schema = {
   users,
+  teams,
   roles,
   mediaAssets,
   roleplays,
