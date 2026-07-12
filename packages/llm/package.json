@@ -6,5 +6,12 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@heybray/server-kit": "*",
+    "@langchain/anthropic": "^1.5.1",
+    "@langchain/core": "^1.2.1",
+    "@langchain/google-genai": "^2.2.0",
+    "@langchain/openai": "^1.5.3"
   }
 }
