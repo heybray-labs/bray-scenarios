@@ -6,7 +6,7 @@ import { apiRequest } from "@heybray/react/lib/queryClient";
 import { useAuthenticatedImage } from "@heybray/react/hooks/use-authenticated-image";
 import { Button } from "@heybray/ui/components/button";
 import { ClassificationChip } from "@heybray/react/classifications/ClassificationChip";
-import { DifficultyPill } from "@heybray/react/classifications/DifficultyPill";
+import { DifficultyPill } from "@/components/classifications/DifficultyPill";
 import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ScenarioCarouselRow } from "./ScenarioCarouselRow";
 import { HERO_CINEMA_SLOT_CLASS } from "./carousel-card-layout";

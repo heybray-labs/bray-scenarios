@@ -1,9 +1,8 @@
 import {
   classificationChipStyle,
-  formatDifficulty,
-  getDifficultyColor,
   overlayPillStyle,
-} from "../lib/classification-display.ts";
+} from "@heybray/react/lib/classification-display";
+import { formatDifficulty, getDifficultyColor } from "@/lib/difficulty-display";
 import { cn } from "@heybray/ui/utils";
 
 const variantClasses = {

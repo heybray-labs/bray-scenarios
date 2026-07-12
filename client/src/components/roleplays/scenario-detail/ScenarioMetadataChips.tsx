@@ -1,5 +1,5 @@
 import { ClassificationChip } from "@heybray/react/classifications/ClassificationChip";
-import { DifficultyPill } from "@heybray/react/classifications/DifficultyPill";
+import { DifficultyPill } from "@/components/classifications/DifficultyPill";
 import { RewardTierLabel } from "@/components/points/RewardTierLabel";
 import { classificationChipStyle } from "@heybray/react/lib/classification-display";
 import { cn } from "@heybray/ui/utils";
