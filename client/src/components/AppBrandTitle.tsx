@@ -7,11 +7,11 @@ type AppBrandTitleProps = {
 const sizeStyles = {
   default: {
     wordmark: "text-xs",
-    title: "font-semibold text-gray-900",
+    title: "font-semibold text-foreground",
   },
   large: {
     wordmark: "text-[calc(1.5rem*12/14)]",
-    title: "text-2xl font-semibold text-gray-900",
+    title: "text-2xl font-semibold text-foreground",
   },
 } as const;
 

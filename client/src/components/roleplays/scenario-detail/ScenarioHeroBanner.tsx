@@ -7,32 +7,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ClassificationChip } from "@/components/classifications/ClassificationChip";
-import { RewardTierLabel } from "@/components/points/RewardTierLabel";
+import { ScenarioMetadataChips } from "@/components/roleplays/scenario-detail/ScenarioMetadataChips";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
-import { classificationChipStyle, overlayPillStyle } from "@/lib/classification-display";
 import { cn } from "@/lib/utils";
 import { Copy, MoreVertical, Pencil, Star, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import type { ScenarioClassifications } from "./types";
-
-function formatDifficulty(difficulty: string): string {
-  const label = difficulty.trim();
-  if (!label) return label;
-  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
-}
-
-function difficultyColor(difficulty: string): string {
-  switch (difficulty.toLowerCase()) {
-    case "easy":
-      return "#059669";
-    case "hard":
-      return "#ea580c";
-    case "medium":
-    default:
-      return "#0284c7";
-  }
-}
 
 type AchievedTier = {
   tierName: string;
@@ -63,9 +43,6 @@ type ScenarioHeroBannerProps = {
   className?: string;
 };
 
-const heroPill =
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-sm text-white";
-
 export function ScenarioHeroBanner({
   title,
   description,
@@ -89,11 +66,6 @@ export function ScenarioHeroBanner({
   className,
 }: ScenarioHeroBannerProps) {
   const { src, isLoading } = useAuthenticatedImage(coverImageMediaId);
-  const difficultyLabel = difficulty?.trim() ? formatDifficulty(difficulty) : null;
-  const category = classifications?.category ?? null;
-  const audienceLevel = classifications?.audienceLevel ?? null;
-  const duration = classifications?.duration ?? null;
-  const tags = classifications?.tags ?? [];
 
   return (
     <div
@@ -151,7 +123,7 @@ export function ScenarioHeroBanner({
                   disabled={featuredPending || featuredDisabled || !onFeaturedChange}
                 />
                 <span className="text-sm flex items-center gap-1.5">
-                  <Star className={cn("h-3.5 w-3.5", isFeatured && "fill-current text-amber-500")} />
+                  <Star className={cn("h-3.5 w-3.5", isFeatured && "fill-current text-[var(--featured-star)]")} />
                   Homepage hero
                 </span>
               </div>
@@ -180,59 +152,13 @@ export function ScenarioHeroBanner({
       )}
 
       <div className="relative z-[1] p-6 w-full">
-        <div className="flex flex-wrap gap-2 mb-3">
-          {category && (
-            <ClassificationChip
-              label={category.label}
-              color={category.color}
-              icon={category.icon}
-              overlay
-            />
-          )}
-          {audienceLevel && (
-            <ClassificationChip
-              label={audienceLevel.label}
-              color={audienceLevel.color}
-              icon={audienceLevel.icon}
-              overlay
-            />
-          )}
-          {difficultyLabel && (
-            <span className={heroPill} style={overlayPillStyle(difficultyColor(difficulty!))}>
-              {difficultyLabel}
-            </span>
-          )}
-          {duration && (
-            <ClassificationChip
-              label={duration.label}
-              color={duration.color}
-              icon={duration.icon}
-              overlay
-            />
-          )}
-          {tags.map((tag) => (
-            <ClassificationChip
-              key={tag.slug ?? tag.label}
-              label={tag.label}
-              color={tag.color}
-              icon={tag.icon}
-              overlay
-            />
-          ))}
-          {achievedTier && (
-            <span
-              className={heroPill}
-              style={classificationChipStyle(achievedTier.color)}
-            >
-              <RewardTierLabel
-                compact
-                tierName={achievedTier.tierName}
-                starLevel={achievedTier.starLevel}
-                color={achievedTier.color}
-              />
-            </span>
-          )}
-        </div>
+        <ScenarioMetadataChips
+          difficulty={difficulty}
+          classifications={classifications}
+          variant="overlay"
+          achievedTier={achievedTier}
+          className="gap-2 mb-3"
+        />
         <h1 className="text-2xl lg:text-3xl font-semibold text-white drop-shadow-md">{title}</h1>
         {description && (
           <p className="text-white/85 text-sm lg:text-base mt-1.5 max-w-3xl drop-shadow-sm">

@@ -2,6 +2,7 @@ import { Lock, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
+import { initialsFromName } from "@/lib/user-display";
 
 type ScenarioDossierProps = {
   name?: string | null;
@@ -10,14 +11,6 @@ type ScenarioDossierProps = {
   hasHiddenObjective?: boolean;
   className?: string;
 };
-
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase() || "?";
-}
 
 export function ScenarioDossier({
   name,

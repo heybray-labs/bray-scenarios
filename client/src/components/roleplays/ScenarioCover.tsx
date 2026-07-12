@@ -1,7 +1,8 @@
 import { Drama } from "lucide-react";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
+import { DifficultyPill } from "@/components/classifications/DifficultyPill";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
-import { overlayPillStyle } from "@/lib/classification-display";
+import { overlayPillStyle, formatDifficulty, getStatusPillColor } from "@/lib/classification-display";
 import { cn } from "@/lib/utils";
 import { CAROUSEL_COVER_HEIGHT_CLASS } from "@/components/roleplays/browse/carousel-card-layout";
 
@@ -35,30 +36,6 @@ type ScenarioCoverProps = {
 
 const pillBase =
   "rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-sm";
-
-function formatDifficulty(difficulty: string): string {
-  const label = difficulty.trim();
-  if (!label) return label;
-  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
-}
-
-function difficultyPillColor(difficulty: string): string {
-  switch (difficulty.toLowerCase()) {
-    case "easy":
-      return "#059669";
-    case "hard":
-      return "#ea580c";
-    case "medium":
-    default:
-      return "#0284c7";
-  }
-}
-
-function statusPillColor(status: ScenarioCoverStatus): string {
-  if (status.isPassed === true) return "#059669";
-  if (status.isPassed === false) return "#e11d48";
-  return "#475569";
-}
 
 export function ScenarioCover({
   mediaId,
@@ -113,7 +90,7 @@ export function ScenarioCover({
             e.stopPropagation();
             onStatusClick?.();
           }}
-          style={overlayPillStyle(statusPillColor(status!))}
+          style={overlayPillStyle(getStatusPillColor(status!))}
           className={cn(
             pillBase,
             "absolute top-2 right-2 z-[1]",
@@ -128,12 +105,7 @@ export function ScenarioCover({
       {showBottomRight && (
         <div className="absolute bottom-2 right-2 z-[1] flex max-w-[calc(100%-1rem)] flex-col items-end gap-1.5">
           {difficultyLabel && (
-            <span
-              className={pillBase}
-              style={overlayPillStyle(difficultyPillColor(difficulty!))}
-            >
-              {difficultyLabel}
-            </span>
+            <DifficultyPill difficulty={difficulty!} variant="cover" />
           )}
           {(category || audienceLevel) && (
             <div className="flex flex-wrap justify-end gap-1.5">

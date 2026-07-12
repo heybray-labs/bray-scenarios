@@ -16,7 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { ClassificationOptionLabel } from "@/components/classifications/ClassificationOptionLabel";
-import { overlayClassificationChipStyle } from "@/lib/classification-display";
+import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
+import { initialsFromName } from "@/lib/user-display";
+import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
 import {
   Trophy,
   Globe,
@@ -28,8 +30,6 @@ import {
 const GLOBAL_LEADERBOARD_VALUE = "global";
 const LEADERBOARD_LIMIT = 20;
 const TABLE_BODY_MAX_ROWS = LEADERBOARD_LIMIT - 3;
-
-const YOU_ROW_COLOR = "hsl(330, 65%, 55%)";
 
 type LeaderboardEntry = {
   userId: number;
@@ -51,45 +51,25 @@ type LeaderboardPanelProps = {
   className?: string;
 };
 
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase() || "?";
-}
-
 const CURRENT_USER_ROW = "font-semibold";
 
 function currentUserRowStyle(isCurrentUser: boolean) {
-  return isCurrentUser ? overlayClassificationChipStyle(YOU_ROW_COLOR) : undefined;
+  return isCurrentUser ? currentUserHighlightStyle() : undefined;
 }
 
 const PODIUM_CONFIG = {
   1: {
-    crownClass: "text-[#ca8a04] fill-[#ca8a04]",
-    ringClass: "ring-[#ca8a04]",
-    badgeClass: "bg-[#ca8a04] text-white",
     size: "h-[4.5rem] w-[4.5rem]",
-    textClass: "text-[#ca8a04]",
     order: "order-2",
     pedestal: "h-14",
   },
   2: {
-    crownClass: "text-[#64748b] fill-[#64748b]",
-    ringClass: "ring-[#64748b]",
-    badgeClass: "bg-[#64748b] text-white",
     size: "h-16 w-16",
-    textClass: "text-[#64748b]",
     order: "order-1",
     pedestal: "h-10",
   },
   3: {
-    crownClass: "text-[#b45309] fill-[#b45309]",
-    ringClass: "ring-[#b45309]",
-    badgeClass: "bg-[#b45309] text-white",
     size: "h-16 w-16",
-    textClass: "text-[#b45309]",
     order: "order-3",
     pedestal: "h-8",
   },
@@ -99,20 +79,23 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
   const config = PODIUM_CONFIG[entry.rank as 1 | 2 | 3];
   if (!config) return null;
 
+  const rankColor = getRankColor(entry.rank as 1 | 2 | 3);
+
   return (
     <div className={cn("flex flex-col items-center min-w-0 flex-1", config.order)}>
       <div className="relative mb-2 pt-4">
         <Crown
-          className={cn("absolute top-0 right-0 h-5 w-5 drop-shadow-sm z-10", config.crownClass)}
+          className="absolute top-0 right-0 h-5 w-5 drop-shadow-sm z-10"
+          style={{ color: rankColor, fill: rankColor }}
           aria-hidden
         />
         <Avatar
           className={cn(
             config.size,
-            "ring-[3px] shadow-lg",
-            config.ringClass,
-            entry.isCurrentUser && "ring-primary ring-offset-2 ring-offset-card",
+            "shadow-lg border-[3px]",
+            entry.isCurrentUser && "ring-2 ring-primary ring-offset-2 ring-offset-card",
           )}
+          style={{ borderColor: rankColor }}
         >
           <AvatarFallback
             className={cn(
@@ -124,10 +107,8 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
           </AvatarFallback>
         </Avatar>
         <span
-          className={cn(
-            "absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold shadow-sm",
-            config.badgeClass,
-          )}
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-0.5 text-[10px] font-bold shadow-sm text-white"
+          style={{ backgroundColor: rankColor }}
         >
           #{entry.rank}
         </span>
@@ -140,7 +121,7 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
           </Badge>
         )}
       </p>
-      <p className={cn("text-sm font-bold tabular-nums", config.textClass)}>
+      <p className="text-sm font-bold tabular-nums" style={{ color: rankColor }}>
         {entry.points.toLocaleString()}
       </p>
       <div
@@ -226,7 +207,7 @@ function CurrentUserRankBar({ entry }: { entry: LeaderboardEntry }) {
       className={cn(
         "shrink-0 flex items-center justify-between gap-2 px-3 py-2.5 text-sm border-t",
       )}
-      style={overlayClassificationChipStyle(YOU_ROW_COLOR)}
+      style={currentUserHighlightStyle()}
     >
       <span className="font-medium truncate">
         Your rank
@@ -285,24 +266,12 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
   const showCurrentUserBar = currentUser && !currentUserInList;
 
   return (
-    <section
-      className={cn(
-        "rounded-2xl border bg-card p-4 shadow-sm",
-        className,
-      )}
+    <HomeSidebarPanel
+      icon={Trophy}
+      title="Leaderboard"
+      subtitle="Top performers by points"
+      className={className}
     >
-      <header className="shrink-0 mb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <Trophy className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold leading-tight">Leaderboard</p>
-            <p className="text-xs text-muted-foreground">Top performers by points</p>
-          </div>
-        </div>
-      </header>
-
       <div className="shrink-0 space-y-2.5 mb-3">
         <div className="flex rounded-full bg-muted p-0.5">
           <Button
@@ -398,6 +367,6 @@ export function LeaderboardPanel({ categoryOptions = [], className }: Leaderboar
       </div>
 
       {showCurrentUserBar && currentUser && <CurrentUserRankBar entry={currentUser} />}
-    </section>
+    </HomeSidebarPanel>
   );
 }

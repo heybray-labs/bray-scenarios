@@ -52,7 +52,7 @@ export function TierStars({
                     fill: "none",
                     stroke: variant === "clip" ? "rgba(255,255,255,0.7)" : "currentColor",
                     strokeWidth: 1.6,
-                    color: variant === "clip" ? undefined : "hsl(var(--muted-foreground))",
+                    color: variant === "clip" ? undefined : "var(--muted-foreground)",
                   }),
             }}
           />

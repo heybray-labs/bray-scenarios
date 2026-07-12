@@ -3,10 +3,9 @@ import { Trophy } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { cn } from "@/lib/utils";
-import { overlayClassificationChipStyle } from "@/lib/classification-display";
+import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
+import { initialsFromName } from "@/lib/user-display";
 import type { ScenarioLeaderboardData } from "./scenario-progress-types";
-
-const YOU_ROW_COLOR = "hsl(330, 65%, 55%)";
 
 type ScenarioLeaderboardProps = {
   roleplayId: number;
@@ -15,20 +14,6 @@ type ScenarioLeaderboardProps = {
   canManage?: boolean;
   className?: string;
 };
-
-const RANK_COLORS: Record<number, string> = {
-  1: "text-amber-500",
-  2: "text-slate-400",
-  3: "text-orange-600",
-};
-
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase() || "?";
-}
 
 function LeaderboardRow({
   entry,
@@ -42,15 +27,18 @@ function LeaderboardRow({
   return (
     <div
       className={cn("flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm", highlight && "border")}
-      style={highlight ? overlayClassificationChipStyle(YOU_ROW_COLOR) : undefined}
+      style={highlight ? currentUserHighlightStyle() : undefined}
     >
       <span
         className={cn(
           "w-6 text-center font-bold tabular-nums text-xs shrink-0",
-          highlight
-            ? "text-primary"
-            : RANK_COLORS[entry.rank] ?? "text-muted-foreground",
+          highlight ? "text-primary" : (entry.rank < 1 || entry.rank > 3) && "text-muted-foreground",
         )}
+        style={
+          !highlight && entry.rank >= 1 && entry.rank <= 3
+            ? { color: getRankColor(entry.rank as 1 | 2 | 3) }
+            : undefined
+        }
       >
         {entry.rank}
       </span>

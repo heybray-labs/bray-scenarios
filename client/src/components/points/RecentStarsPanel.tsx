@@ -4,12 +4,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { TierStars } from "@/components/points/TierStars";
-import { overlayClassificationChipStyle } from "@/lib/classification-display";
+import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
+import { currentUserHighlightStyle, getRankColor } from "@/lib/classification-display";
+import { initialsFromName } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 import { Star } from "lucide-react";
 
 const RECENT_STARS_LIMIT = 15;
-const YOU_ROW_COLOR = "hsl(330, 65%, 55%)";
 
 type RecentStarItem = {
   id: number;
@@ -27,14 +28,6 @@ type RecentStarItem = {
 type RecentStarsPanelProps = {
   className?: string;
 };
-
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase() || "?";
-}
 
 function formatRelativeTime(value: string) {
   const date = new Date(value);
@@ -57,6 +50,7 @@ function formatRelativeTime(value: string) {
 function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () => void }) {
   const starLevel = Math.min(3, Math.max(0, item.starLevel)) as 0 | 1 | 2 | 3;
   const isGold = starLevel === 3;
+  const goldColor = getRankColor(1);
 
   return (
     <button
@@ -67,14 +61,14 @@ function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () 
         "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         item.isCurrentUser && "border-l-[3px] pl-[calc(0.5rem-3px)]",
       )}
-      style={item.isCurrentUser ? overlayClassificationChipStyle(YOU_ROW_COLOR) : undefined}
+      style={item.isCurrentUser ? currentUserHighlightStyle() : undefined}
     >
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarFallback
           className={cn(
             "text-xs font-semibold",
             item.isCurrentUser
-              ? "bg-[hsl(330,65%,55%)] text-white"
+              ? "bg-primary text-primary-foreground"
               : "bg-muted text-muted-foreground",
           )}
         >
@@ -89,7 +83,7 @@ function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () 
             <Badge
               variant="outline"
               className="h-4 shrink-0 px-1 text-[10px] font-semibold"
-              style={overlayClassificationChipStyle(YOU_ROW_COLOR)}
+              style={currentUserHighlightStyle()}
             >
               You
             </Badge>
@@ -100,10 +94,15 @@ function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () 
 
       <div className="shrink-0 flex flex-col items-end gap-0.5">
         <span
-          className={cn(
-            "inline-flex rounded-full p-0.5",
-            isGold && "ring-1 ring-[#ca8a04]/40 shadow-[0_0_6px_rgba(202,138,4,0.35)]",
-          )}
+          className="inline-flex rounded-full p-0.5"
+          style={
+            isGold
+              ? {
+                  boxShadow: `0 0 6px color-mix(in srgb, ${goldColor} 35%, transparent)`,
+                  outline: `1px solid color-mix(in srgb, ${goldColor} 40%, transparent)`,
+                }
+              : undefined
+          }
         >
           <TierStars level={starLevel} size="sm" />
         </span>
@@ -127,24 +126,13 @@ export function RecentStarsPanel({ className }: RecentStarsPanelProps) {
   const items = data?.items ?? [];
 
   return (
-    <section
-      className={cn(
-        "flex flex-col rounded-2xl border bg-card p-4 shadow-sm",
-        className,
-      )}
+    <HomeSidebarPanel
+      icon={Star}
+      iconClassName="fill-primary/20"
+      title="Recent stars"
+      subtitle="Latest tier upgrades across the team"
+      className={cn("flex flex-col", className)}
     >
-      <header className="shrink-0 mb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <Star className="h-5 w-5 text-primary fill-primary/20" />
-          </div>
-          <div>
-            <p className="font-semibold leading-tight">Recent stars</p>
-            <p className="text-xs text-muted-foreground">Latest tier upgrades across the team</p>
-          </div>
-        </div>
-      </header>
-
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-6 text-center">Loading…</p>
       ) : items.length === 0 ? (
@@ -162,6 +150,6 @@ export function RecentStarsPanel({ className }: RecentStarsPanelProps) {
           ))}
         </div>
       )}
-    </section>
+    </HomeSidebarPanel>
   );
 }

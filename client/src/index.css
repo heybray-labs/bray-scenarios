@@ -39,6 +39,62 @@
   /* Navigation chrome */
   --nav-header-bg: #FFE4F8;
   --nav-sidebar-bg: #E8E0E3;
+  --nav-bar-bg: #FFD6E7;
+
+  /* Difficulty levels */
+  --difficulty-easy: #059669;
+  --difficulty-medium: #0284c7;
+  --difficulty-hard: #ea580c;
+
+  /* Rank / podium */
+  --rank-gold: #ca8a04;
+  --rank-silver: #64748b;
+  --rank-bronze: #b45309;
+
+  /* Status pills */
+  --status-fail: #e11d48;
+  --status-neutral: #475569;
+
+  /* Featured / points accents */
+  --featured-star: #f59e0b;
+  --featured-star-fill: #fbbf24;
+  --points-value: #d97706;
+
+  /* Rewards points pill */
+  --rewards-banner-bg: #fffbeb;
+  --rewards-banner-border: #fde68a;
+  --rewards-banner-hover: #fef3c7;
+  --rewards-banner-text: #78350f;
+  --rewards-banner-label: #b45309;
+
+  /* Drawer pink tints */
+  --bray-pink-98: hsl(330, 65%, 98%);
+  --bray-pink-97: hsl(330, 65%, 97%);
+  --bray-pink-95: hsl(330, 65%, 95%);
+  --bray-pink-94: hsl(330, 65%, 94%);
+  --bray-pink-93: hsl(330, 65%, 93%);
+  --bray-pink-92: hsl(330, 65%, 92%);
+  --bray-pink-90: hsl(330, 65%, 90%);
+
+  /* Alert surfaces */
+  --alert-urgent-border: #fca5a5;
+  --alert-urgent-bg: #fef2f2;
+  --alert-urgent-text: #991b1b;
+  --alert-timer-border: #fcd34d;
+  --alert-timer-bg: #fffbeb;
+  --alert-timer-text: #78350f;
+  --alert-info-border: #bfdbfe;
+  --alert-info-bg: #eff6ff;
+  --alert-info-text: #1e40af;
+
+  /* Admin notice banner */
+  --admin-banner-border: #fde68a;
+  --admin-banner-bg: #fffbeb;
+  --admin-banner-text: #78350f;
+
+  /* Feedback text */
+  --feedback-positive: #15803d;
+  --feedback-improvement: #b45309;
 }
 
 .dark {
@@ -73,6 +129,61 @@
   --bray-grey-medium: hsl(210, 9%, 64%); /* #9FADBC */
   --bray-elevation-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
   --bray-elevation-shadow-raised: 0 12px 24px -6px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.4);
+
+  /* Difficulty levels (lightened for dark mode) */
+  --difficulty-easy: #10b981;
+  --difficulty-medium: #38bdf8;
+  --difficulty-hard: #fb923c;
+
+  /* Rank / podium (same in both modes) */
+  --rank-gold: #ca8a04;
+  --rank-silver: #64748b;
+  --rank-bronze: #b45309;
+
+  /* Status pills (lightened for dark mode) */
+  --status-fail: #f43f5e;
+  --status-neutral: #94a3b8;
+
+  /* Featured / points accents */
+  --featured-star: #f59e0b;
+  --featured-star-fill: #fbbf24;
+  --points-value: #d97706;
+
+  /* Rewards points pill */
+  --rewards-banner-bg: rgba(69, 26, 3, 0.4);
+  --rewards-banner-border: #92400e;
+  --rewards-banner-hover: rgba(69, 26, 3, 0.55);
+  --rewards-banner-text: #fde68a;
+  --rewards-banner-label: #fcd34d;
+
+  /* Drawer pink tints (dark) */
+  --bray-pink-98: hsl(330, 65%, 18%);
+  --bray-pink-97: hsl(330, 65%, 17%);
+  --bray-pink-95: hsl(330, 65%, 16%);
+  --bray-pink-94: hsl(330, 65%, 15%);
+  --bray-pink-93: hsl(330, 65%, 25%);
+  --bray-pink-92: hsl(330, 65%, 14%);
+  --bray-pink-90: hsl(330, 65%, 22%);
+
+  /* Alert surfaces */
+  --alert-urgent-border: #991b1b;
+  --alert-urgent-bg: rgba(69, 10, 10, 0.4);
+  --alert-urgent-text: #fca5a5;
+  --alert-timer-border: #92400e;
+  --alert-timer-bg: rgba(69, 26, 3, 0.4);
+  --alert-timer-text: #fde68a;
+  --alert-info-border: #1e3a8a;
+  --alert-info-bg: rgba(23, 37, 84, 0.3);
+  --alert-info-text: #93c5fd;
+
+  /* Admin notice banner */
+  --admin-banner-border: #92400e;
+  --admin-banner-bg: rgba(69, 26, 3, 0.4);
+  --admin-banner-text: #fde68a;
+
+  /* Feedback text */
+  --feedback-positive: #4ade80;
+  --feedback-improvement: #fbbf24;
 }
 
 @layer base {
@@ -155,192 +266,41 @@
   }
 }
 
-@layer components {
-  /* Atlassian Button System */
-  .btn-primary {
-    @apply bg-primary text-primary-foreground border-0 px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
-    border-radius: var(--radius);
-    box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25);
-  }
-  
-  .btn-primary:hover {
-    @apply bg-blue-700;
-    box-shadow: 0 2px 4px rgba(9, 30, 66, 0.25);
-  }
-  
-  .btn-primary:focus {
-    @apply outline-none ring-2 ring-blue-200;
-    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
-  }
-
-  .btn-secondary {
-    @apply bg-transparent text-foreground border border-border px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
-    border-radius: var(--radius);
-  }
-  
-  .btn-secondary:hover {
-    @apply bg-muted;
-  }
-  
-  .btn-secondary:focus {
-    @apply outline-none ring-2 ring-blue-200;
-    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
-  }
-
-  .btn-success {
-    @apply bg-success text-white border-0 px-3 py-1.5 font-medium text-sm leading-5 transition-all duration-200;
-    border-radius: var(--radius);
-    background-color: hsl(var(--success));
-  }
-
-  /* Atlassian Card System */
-  .card {
-    @apply bg-card text-card-foreground border border-border p-4;
-    border-radius: var(--radius);
-    box-shadow: var(--atlassian-elevation-shadow);
-    transition: box-shadow 0.2s ease;
-  }
-  
-  .card:hover {
-    box-shadow: var(--atlassian-elevation-shadow-raised);
-  }
-
-  /* Atlassian Navigation */
-  .nav-item {
-    @apply flex items-center px-2 py-1.5 font-normal text-sm transition-all duration-150;
-    border-radius: var(--radius);
-    margin: 1px 8px;
-    min-height: 32px;
-  }
-
-  .nav-item.active {
-    @apply text-primary font-medium;
-    background-color: var(--atlassian-blue-light);
-    color: var(--atlassian-blue);
-  }
-
-  .nav-item:not(.active) {
-    @apply text-muted-foreground;
-  }
-  
-  .nav-item:not(.active):hover {
-    @apply bg-muted text-foreground;
-  }
-
-  /* Atlassian Dashboard Cards */
-  .stats-card {
-    @apply bg-card border border-border p-4;
-    border-radius: var(--radius);
-    box-shadow: var(--atlassian-elevation-shadow);
-  }
-
-  /* Atlassian Form Elements */
-  .form-input {
-    @apply w-full px-3 py-2 border border-input text-sm bg-background transition-all duration-200;
-    border-radius: var(--radius);
-    font-size: 14px;
-    line-height: 1.42857;
-  }
-  
-  .form-input:focus {
-    @apply outline-none border-primary;
-    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
-  }
-
-  /* Atlassian Table System */
-  .table-header {
-    @apply bg-muted text-muted-foreground font-medium text-xs uppercase tracking-wide border-b border-border px-3 py-2;
-    font-size: 11px;
-    line-height: 1.36364;
-  }
-
-  .table-row {
-    @apply border-b border-border transition-colors cursor-pointer;
-  }
-  
-  .table-row:hover {
-    background-color: var(--atlassian-grey-subtle);
-  }
-  
-  .table-cell {
-    @apply px-3 py-2 text-sm;
-    line-height: 1.42857;
-  }
-
-  /* Atlassian Status Badges */
-  .badge {
-    @apply inline-flex items-center px-2 py-1 text-xs font-medium;
-    border-radius: var(--radius);
-    line-height: 1;
-  }
-  
-  .badge-success {
-    @apply text-green-800 bg-green-100;
-    background-color: #E3FCEF;
-    color: #006644;
-  }
-  
-  .badge-warning {
-    @apply text-orange-800 bg-orange-100;
-    background-color: #FFFAE6;
-    color: #974F0C;
-  }
-  
-  .badge-error {
-    @apply text-red-800 bg-red-100;
-    background-color: #FFEBE6;
-    color: #AE2E24;
-  }
-  
-  .badge-info {
-    @apply text-blue-800 bg-blue-100;
-    background-color: #DEEBFF;
-    color: #0747A6;
-  }
-
-  /* Atlassian Spacing */
-  .atlassian-spacing-xs { margin: 2px; }
-  .atlassian-spacing-sm { margin: 4px; }
-  .atlassian-spacing-md { margin: 8px; }
-  .atlassian-spacing-lg { margin: 16px; }
-  .atlassian-spacing-xl { margin: 24px; }
-}
-
 @layer utilities {
   .text-success {
-    color: hsl(160, 84%, 39%);
+    color: var(--success);
   }
 
   .text-warning {
-    color: hsl(38, 92%, 50%);
+    color: var(--warning);
   }
 
   .text-info {
-    color: hsl(199, 89%, 48%);
+    color: var(--info);
   }
 
   .bg-success {
-    background-color: hsl(160, 84%, 39%);
+    background-color: var(--success);
   }
 
   .bg-warning {
-    background-color: hsl(38, 92%, 50%);
+    background-color: var(--warning);
   }
 
   .bg-info {
-    background-color: hsl(199, 89%, 48%);
+    background-color: var(--info);
   }
 
   .bg-success-10 {
-    background-color: hsl(160, 84%, 39%, 0.1);
+    background-color: color-mix(in srgb, var(--success) 10%, transparent);
   }
 
   .bg-warning-10 {
-    background-color: hsl(38, 92%, 50%, 0.1);
+    background-color: color-mix(in srgb, var(--warning) 10%, transparent);
   }
 
   .bg-info-10 {
-    background-color: hsl(199, 89%, 48%, 0.1);
+    background-color: color-mix(in srgb, var(--info) 10%, transparent);
   }
 }
 
@@ -365,15 +325,15 @@
 
 /* Dark mode adjustments */
 .dark .ql-toolbar {
-  background-color: hsl(var(--muted) / 0.5);
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
 .dark .ql-stroke {
-  stroke: hsl(var(--foreground));
+  stroke: var(--foreground);
 }
 
 .dark .ql-fill {
-  fill: hsl(var(--foreground));
+  fill: var(--foreground);
 }
 
 .dark .ql-picker-label {
@@ -405,13 +365,13 @@
 .dark .ql-toolbar button:hover .ql-stroke,
 .dark .ql-toolbar button:focus .ql-stroke,
 .dark .ql-toolbar button.ql-active .ql-stroke {
-  stroke: hsl(var(--primary));
+  stroke: var(--primary);
 }
 
 .dark .ql-toolbar button:hover .ql-fill,
 .dark .ql-toolbar button:focus .ql-fill,
 .dark .ql-toolbar button.ql-active .ql-fill {
-  fill: hsl(var(--primary));
+  fill: var(--primary);
 }
 
 /* Force left alignment for prose content */

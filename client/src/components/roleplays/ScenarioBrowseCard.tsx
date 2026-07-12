@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
+import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
 import { TierStars } from "@/components/points/TierStars";
 import { cn } from "@/lib/utils";
@@ -68,26 +69,6 @@ type ScenarioBrowseCardProps = {
   onOpen?: () => void;
   onBestScoreClick?: () => void;
 };
-
-function CoverRibbon({
-  children,
-  variant,
-}: {
-  children: React.ReactNode;
-  variant: "new" | "progress";
-}) {
-  return (
-    <span
-      className={cn(
-        "absolute top-2.5 left-0 z-10 text-[10px] font-bold tracking-wide uppercase",
-        "px-2 py-0.5 rounded-r text-white",
-        variant === "new" ? "bg-primary" : "bg-warning",
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 function isRecentlyPublished(publishedAt?: string | null): boolean {
   if (!publishedAt) return false;
@@ -201,7 +182,7 @@ export function ScenarioBrowseCard({
                     disabled={featuredPending}
                     onClick={onFeaturedToggle}
                   >
-                    <Star className={cn("h-4 w-4 mr-2", isFeatured && "fill-current text-amber-500")} />
+                    <Star className={cn("h-4 w-4 mr-2", isFeatured && "fill-current text-[var(--featured-star)]")} />
                     {featuredPending
                       ? "Updating…"
                       : isFeatured
@@ -222,8 +203,8 @@ export function ScenarioBrowseCard({
           </div>
         )}
 
-        {inProgress && <CoverRibbon variant="progress">In progress</CoverRibbon>}
-        {showNew && <CoverRibbon variant="new">New</CoverRibbon>}
+        {inProgress && <CardRibbon variant="progress">In progress</CardRibbon>}
+        {showNew && <CardRibbon variant="new">New</CardRibbon>}
 
         <ScenarioCover
           mediaId={rp.coverImageMediaId}

@@ -14,6 +14,8 @@ import { LogOut, Settings, Star, Search, LayoutGrid } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { AppBrandTitle } from "@/components/AppBrandTitle";
+import { NoticeBannerButton, noticeLabelClassName } from "@/components/ui/NoticeBanner";
+import { initialsFromUser } from "@/lib/user-display";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { apiRequest } from "@/lib/queryClient";
 import { HttpError } from "@/lib/http-error";
@@ -55,18 +57,12 @@ export function Navbar() {
     [user?.profile?.firstName, user?.profile?.lastName].filter(Boolean).join(" ") ||
     user?.email ||
     "";
-  const initials =
-    [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
-      .filter(Boolean)
-      .join("")
-      .toUpperCase() ||
-    user?.email?.[0]?.toUpperCase() ||
-    "?";
+  const initials = initialsFromUser(user);
 
   return (
     <nav
       className="sticky top-0 z-50 border-b border-border"
-      style={{ background: "#FFD6E7", height: "56px" }}
+      style={{ background: "var(--nav-bar-bg)", height: "56px" }}
     >
       <div className="w-full h-full flex items-center justify-between px-4">
         <Link href="/" className="flex items-end gap-2 no-underline">
@@ -99,29 +95,29 @@ export function Navbar() {
                 </Button>
               )}
 
-              <button
-                type="button"
+              <NoticeBannerButton
+                variant="rewards"
+                layout="rewards"
                 onClick={() => setPointsHistoryOpen(true)}
-                className="flex items-center gap-3 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm hover:bg-amber-100 transition-colors"
                 title="View points history"
               >
-                <Star className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
-                <span className="flex items-center gap-3 text-amber-900">
+                <Star className="h-4 w-4 fill-[var(--featured-star-fill)] text-[var(--featured-star)] shrink-0" />
+                <span className="flex items-center gap-3">
                   <span className="flex flex-col items-start leading-tight">
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-amber-700/80">
+                    <span className={noticeLabelClassName()}>
                       This month
                     </span>
                     <span className="font-bold tabular-nums">{pointsData?.monthTotal ?? 0}</span>
                   </span>
-                  <span className="h-8 w-px bg-amber-200" aria-hidden />
+                  <span className="h-8 w-px bg-[var(--rewards-banner-border)]" aria-hidden />
                   <span className="flex flex-col items-start leading-tight">
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-amber-700/80">
+                    <span className={noticeLabelClassName()}>
                       All time
                     </span>
                     <span className="font-bold tabular-nums">{pointsData?.total ?? 0}</span>
                   </span>
                 </span>
-              </button>
+              </NoticeBannerButton>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -131,7 +127,7 @@ export function Navbar() {
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium text-gray-900">{fullName}</span>
+                    <span className="text-sm font-medium text-foreground">{fullName}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

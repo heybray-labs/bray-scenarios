@@ -6,15 +6,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import {
   ALL_CATEGORIES_SLUG,
-  CategoryMasteryBar,
   categoryStarred,
 } from "@/components/points/CategoryMasteryBar";
+import { CategoryMasteryRow as CategoryMasteryRowLayout } from "@/components/points/CategoryMasteryRow";
+import { initialsFromName } from "@/lib/user-display";
 import { cn } from "@/lib/utils";
 import { Flame } from "lucide-react";
 
 export { ALL_CATEGORIES_SLUG } from "@/components/points/CategoryMasteryBar";
 
-type CategoryMasteryRow = {
+type CategoryMasteryRowData = {
   slug: string;
   label: string;
   total: number;
@@ -34,65 +35,54 @@ function userDisplayName(user: ReturnType<typeof useAuth>["user"]) {
   return user?.email?.split("@")[0] ?? "You";
 }
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase() || "?";
-}
-
 function CategoryMasteryRowView({
   row,
   isActive,
   highlight,
   onCategorySelect,
 }: {
-  row: CategoryMasteryRow;
+  row: CategoryMasteryRowData;
   isActive?: boolean;
   highlight?: boolean;
   onCategorySelect?: (slug: string) => void;
 }) {
-  const starred = categoryStarred(row.starCounts);
+  const label = onCategorySelect ? (
+    <button
+      type="button"
+      onClick={() => onCategorySelect(row.slug)}
+      className={cn(
+        "w-[9rem] truncate text-left hover:underline",
+        isActive
+          ? "font-semibold text-primary"
+          : "text-foreground hover:text-primary",
+        row.slug === ALL_CATEGORIES_SLUG && "font-semibold",
+      )}
+      title={
+        row.slug === ALL_CATEGORIES_SLUG
+          ? "Browse all scenarios"
+          : `Filter scenarios by ${row.label}`
+      }
+    >
+      {row.label}
+    </button>
+  ) : (
+    <span
+      className={cn(
+        "w-[9rem] truncate",
+        row.slug === ALL_CATEGORIES_SLUG && "font-semibold",
+      )}
+    >
+      {row.label}
+    </span>
+  );
 
   return (
-    <div className="flex items-center gap-3 text-sm py-0.5">
-      {onCategorySelect ? (
-        <button
-          type="button"
-          onClick={() => onCategorySelect(row.slug)}
-          className={cn(
-            "w-[9rem] truncate text-left hover:underline",
-            isActive
-              ? "font-semibold text-primary"
-              : "text-foreground hover:text-primary",
-            row.slug === ALL_CATEGORIES_SLUG && "font-semibold",
-          )}
-          title={
-            row.slug === ALL_CATEGORIES_SLUG
-              ? "Browse all scenarios"
-              : `Filter scenarios by ${row.label}`
-          }
-        >
-          {row.label}
-        </button>
-      ) : (
-        <span
-          className={cn(
-            "w-[9rem] truncate",
-            row.slug === ALL_CATEGORIES_SLUG && "font-semibold",
-          )}
-        >
-          {row.label}
-        </span>
-      )}
-      <CategoryMasteryBar
-        starCounts={row.starCounts}
-        total={row.total}
-        highlight={highlight}
-      />
-      <span className="w-10 text-right tabular-nums text-muted-foreground">
-        {starred}/{row.total}
-      </span>
-    </div>
+    <CategoryMasteryRowLayout
+      label={label}
+      starCounts={row.starCounts}
+      total={row.total}
+      highlight={highlight}
+    />
   );
 }
 
@@ -104,7 +94,7 @@ type ProgressStats = {
   publishedCount: number;
   streakWeeks: number;
   currentWeekActive: boolean;
-  categoryMastery: CategoryMasteryRow[];
+  categoryMastery: CategoryMasteryRowData[];
 };
 
 export function YourProgressPanel({
@@ -125,7 +115,7 @@ export function YourProgressPanel({
   const masteryRows = useMemo(() => {
     if (!stats) return [];
 
-    const allCategoriesRow: CategoryMasteryRow = {
+    const allCategoriesRow: CategoryMasteryRowData = {
       slug: ALL_CATEGORIES_SLUG,
       label: "All Categories",
       total: stats.publishedCount,
@@ -152,7 +142,7 @@ export function YourProgressPanel({
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-              {initials(name)}
+              {initialsFromName(name)}
             </AvatarFallback>
           </Avatar>
           <div>

@@ -6,7 +6,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuthenticatedImage } from "@/hooks/use-authenticated-image";
 import { Button } from "@/components/ui/button";
 import { ClassificationChip } from "@/components/classifications/ClassificationChip";
-import { overlayPillStyle } from "@/lib/classification-display";
+import { DifficultyPill } from "@/components/classifications/DifficultyPill";
+import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ScenarioCarouselRow } from "./ScenarioCarouselRow";
 import { HERO_CINEMA_SLOT_CLASS } from "./carousel-card-layout";
 import { cn } from "@/lib/utils";
@@ -25,27 +26,6 @@ type FeaturedItem = {
 
 const ROTATE_MS = 7000;
 
-const pillBase =
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-sm";
-
-function formatDifficulty(difficulty: string): string {
-  const label = difficulty.trim();
-  if (!label) return label;
-  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
-}
-
-function difficultyPillColor(difficulty: string): string {
-  switch (difficulty.toLowerCase()) {
-    case "easy":
-      return "#059669";
-    case "hard":
-      return "#ea580c";
-    case "medium":
-    default:
-      return "#0284c7";
-  }
-}
-
 function HeroFeaturedCard({
   item,
   onPlay,
@@ -56,9 +36,7 @@ function HeroFeaturedCard({
   const { src } = useAuthenticatedImage(item.coverImageMediaId);
   const category = item.classifications?.category ?? null;
   const audience = item.classifications?.audienceLevel ?? null;
-  const difficultyLabel = item.difficulty?.trim()
-    ? formatDifficulty(item.difficulty)
-    : null;
+  const hasDifficulty = Boolean(item.difficulty?.trim());
 
   return (
     <article className="group relative h-full w-full overflow-hidden rounded-xl shadow-lg ring-1 ring-white/10">
@@ -77,12 +55,15 @@ function HeroFeaturedCard({
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(214,77,122,0.18),transparent_55%)]" />
 
-      <span className="absolute top-3 left-0 z-10 text-[10px] font-bold tracking-[0.14em] uppercase px-2.5 py-1 rounded-r bg-primary text-white shadow-md">
+      <CardRibbon
+        variant="featured"
+        className="top-3 tracking-[0.14em] px-2.5 py-1 shadow-md"
+      >
         Featured
-      </span>
+      </CardRibbon>
 
       <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2.5 p-4 pt-10">
-        {(category || audience || difficultyLabel) && (
+        {(category || audience || hasDifficulty) && (
           <div className="flex flex-wrap gap-1.5">
             {category && (
               <ClassificationChip
@@ -92,13 +73,8 @@ function HeroFeaturedCard({
                 overlay
               />
             )}
-            {difficultyLabel && (
-              <span
-                className={pillBase}
-                style={overlayPillStyle(difficultyPillColor(item.difficulty!))}
-              >
-                {difficultyLabel}
-              </span>
+            {hasDifficulty && (
+              <DifficultyPill difficulty={item.difficulty!} variant="cover" />
             )}
             {audience && (
               <ClassificationChip

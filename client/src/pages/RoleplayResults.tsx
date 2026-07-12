@@ -1,12 +1,10 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { FaUser } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Collapsible,
@@ -16,348 +14,31 @@ import {
 import { MainLayout } from "@/components/MainLayout";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { initialsFromUser } from "@/lib/user-display";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  CheckCircle2,
-  XCircle,
   ThumbsUp,
   ArrowUpCircle,
   ArrowLeft,
   Target,
   User,
   Route,
-  MessageSquare,
-  Flag,
-  ClipboardList,
   ChevronDown,
   Lightbulb,
   PlayCircle,
-  TrendingUp,
 } from "lucide-react";
 import { ClockFading } from "@/components/icons/roleplay-field-icons";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
-import { TierStars } from "@/components/points/TierStars";
-import { ScenarioNextTierStrip } from "@/components/roleplays/scenario-detail/ScenarioNextTierStrip";
 import { AttemptPips } from "@/components/roleplays/scenario-detail/AttemptPips";
 import { FinalAttemptDialog } from "@/components/roleplays/scenario-detail/FinalAttemptDialog";
-import { starLevelFromTierName } from "@shared/schemas/points";
 import type { RewardTierRow } from "@/components/roleplays/scenario-detail/scenario-progress-types";
-
-const STAGES = [
-  {
-    id: "challenge",
-    step: 1,
-    label: "The challenge",
-    shortLabel: "Challenge",
-    description: "What you were asked to do",
-    icon: Target,
-  },
-  {
-    id: "conversation",
-    step: 2,
-    label: "The conversation",
-    shortLabel: "Conversation",
-    description: "What happened in the session",
-    icon: MessageSquare,
-  },
-  {
-    id: "assessment",
-    step: 3,
-    label: "Your assessment",
-    shortLabel: "Assessment",
-    description: "How you performed",
-    icon: ClipboardList,
-  },
-] as const;
-
-const REVEAL_EASING = (t: number) => 1 - Math.pow(1 - t, 3);
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handler = () => setReduced(mq.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return reduced;
-}
-
-function useAnimatedValue(target: number, durationMs: number, enabled: boolean) {
-  const [value, setValue] = useState(enabled ? 0 : target);
-
-  useEffect(() => {
-    if (!enabled) {
-      setValue(target);
-      return;
-    }
-
-    let frame = 0;
-    const start = performance.now();
-
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(1, elapsed / durationMs);
-      setValue(Math.round(target * REVEAL_EASING(progress)));
-      if (progress < 1) {
-        frame = requestAnimationFrame(tick);
-      }
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, durationMs, enabled]);
-
-  return value;
-}
-
-function StagePanel({
-  step,
-  label,
-  description,
-  icon: Icon,
-  children,
-  className,
-}: {
-  step: number;
-  label: string;
-  description: string;
-  icon: ComponentType<{ className?: string }>;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={cn(
-        "flex flex-col min-h-0 rounded-xl border bg-card shadow-sm overflow-hidden",
-        className,
-      )}
-    >
-      <header className="shrink-0 border-b bg-muted/40 px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-            {step}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-              <h2 className="text-sm font-semibold tracking-tight">{label}</h2>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-          </div>
-        </div>
-      </header>
-      <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
-    </section>
-  );
-}
-
-function FieldBlock({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ResultsRevealHero({
-  score,
-  passed,
-  gradingFailed,
-  overallFeedback,
-  tierName,
-  pointsAwarded,
-  totalPoints,
-  isNewBest,
-  previousBestScore,
-  reducedMotion,
-  rewardTiers,
-  nextTier,
-  bestScoreAfter,
-}: {
-  score: number | null;
-  passed: boolean | null;
-  gradingFailed: boolean;
-  overallFeedback?: string | null;
-  tierName: string | null;
-  pointsAwarded: number;
-  totalPoints: number;
-  isNewBest: boolean;
-  previousBestScore: number | null;
-  reducedMotion: boolean;
-  rewardTiers: RewardTierRow[];
-  nextTier: {
-    tierName: string;
-    starLevel?: number;
-    color: string;
-    minScorePercent: number;
-    rewardPoints: number;
-  } | null;
-  bestScoreAfter: number | undefined;
-}) {
-  const animate = !reducedMotion && score != null && !gradingFailed;
-  const displayScore = useAnimatedValue(score ?? 0, 1100, animate);
-  const displayPoints = useAnimatedValue(pointsAwarded, 1100, animate && pointsAwarded > 0);
-  const ringDegrees = animate ? (displayScore / 100) * 360 : (score ?? 0) * 3.6;
-
-  const showTierProgress = pointsAwarded > 0 && !!tierName;
-  const starLevel = tierName
-    ? (starLevelFromTierName(tierName) as 0 | 1 | 2 | 3)
-    : 0;
-  const showNewBest =
-    isNewBest &&
-    (pointsAwarded > 0 ||
-      (previousBestScore != null && score != null && score > Math.round(previousBestScore)));
-  const delta =
-    showNewBest && previousBestScore != null && score != null
-      ? score - Math.round(previousBestScore)
-      : null;
-
-  if (gradingFailed) {
-    return (
-      <div className="rounded-2xl border bg-card px-6 py-8 shadow-sm">
-        <div className="max-h-48 overflow-y-auto text-sm text-muted-foreground leading-relaxed">
-          {overallFeedback || "Grading could not be completed for this attempt."}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border bg-gradient-to-br from-pink-50/80 to-card dark:from-pink-950/20 dark:to-card px-6 py-7 shadow-sm">
-      <div className="flex flex-col sm:flex-row items-center gap-7 sm:gap-8">
-        <div className="relative h-[132px] w-[132px] shrink-0">
-          <div className="absolute inset-0 rounded-full bg-muted" />
-          <div
-            className="absolute inset-0 rounded-full transition-[background] duration-[1100ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-            style={{
-              background: `conic-gradient(hsl(var(--success)) 0deg, hsl(var(--success)) ${ringDegrees}deg, hsl(var(--muted)) ${ringDegrees}deg)`,
-            }}
-          />
-          <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full border bg-card shadow-[inset_0_0_0_1px_hsl(var(--border))]">
-            <span className="text-[2rem] font-bold tabular-nums leading-none tracking-tight">
-              {score != null ? displayScore : "—"}
-            </span>
-            <span className="text-sm text-muted-foreground -mt-0.5">%</span>
-            {passed != null && (
-              <span
-                className={cn(
-                  "mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                  passed
-                    ? "bg-success/10 text-success"
-                    : "bg-destructive/10 text-destructive",
-                )}
-              >
-                {passed ? (
-                  <>
-                    <CheckCircle2 className="h-3 w-3" /> Passed
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-3 w-3" /> Not passed
-                  </>
-                )}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="min-w-0 flex-1 text-center sm:text-left">
-          {showTierProgress && (
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-2.5">
-              <TierStars
-                level={starLevel}
-                size="lg"
-                animateStamp={animate}
-              />
-              <span className="text-[15px] font-semibold">Reached {tierName}</span>
-            </div>
-          )}
-
-          {showNewBest && (
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-2.5">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-bold tracking-wide text-primary-foreground",
-                  animate && "animate-reveal-pop-in",
-                  !animate && "opacity-100",
-                )}
-              >
-                <TrendingUp className="h-3 w-3" />
-                NEW BEST
-              </span>
-              {delta != null && previousBestScore != null && (
-                <span className="text-sm text-muted-foreground">
-                  vs previous best {Math.round(previousBestScore)}% ·{" "}
-                  <strong className="text-success">▲ +{delta}</strong>
-                </span>
-              )}
-            </div>
-          )}
-
-          {pointsAwarded > 0 && tierName && (
-            <p
-              className={cn(
-                "text-sm text-foreground",
-                animate && "animate-reveal-fade-up",
-                !animate && "opacity-100",
-              )}
-            >
-              <span className="text-lg font-bold tabular-nums text-warning">
-                +{displayPoints}
-              </span>{" "}
-              points earned — reached {tierName}
-              {totalPoints > 0 && (
-                <span className="text-muted-foreground text-xs ml-1.5">
-                  · {totalPoints.toLocaleString()} pts total
-                </span>
-              )}
-            </p>
-          )}
-
-          {overallFeedback && (
-            <div className="mt-3 max-h-36 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-sm text-muted-foreground leading-relaxed max-w-prose mx-auto sm:mx-0">
-              {overallFeedback}
-            </div>
-          )}
-
-          {rewardTiers.length > 0 && (
-            <ScenarioNextTierStrip
-              tiers={rewardTiers}
-              bestScore={bestScoreAfter ?? null}
-              nextTier={nextTier}
-              tierReachedThisAttempt={pointsAwarded > 0 && tierName ? tierName : null}
-              emphasizeCurrentTier={pointsAwarded > 0 && !!tierName}
-              previousBestScore={previousBestScore}
-              animate={animate}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { FieldBlock } from "@/components/roleplays/results/FieldBlock";
+import { ResultsRevealHero } from "@/components/roleplays/results/ResultsRevealHero";
+import { usePrefersReducedMotion } from "@/components/roleplays/results/reveal-hooks";
+import { RESULT_STAGES } from "@/components/roleplays/results/stages";
+import { StagePanel } from "@/components/roleplays/results/StagePanel";
+import { TranscriptThread } from "@/components/roleplays/transcript/TranscriptThread";
 
 export default function RoleplayResults() {
   const params = useParams();
@@ -451,17 +132,7 @@ export default function RoleplayResults() {
   } | undefined;
   const totalPoints = Number(data.totalPoints ?? 0);
 
-  const userInitials =
-    [user?.profile?.firstName?.[0], user?.profile?.lastName?.[0]]
-      .filter(Boolean)
-      .join("")
-      .toUpperCase() ||
-    user?.email?.[0]?.toUpperCase() ||
-    "?";
-
-  const transcriptMessages = messages.filter(
-    (m) => m.role === "persona" || m.role === "learner" || m.role === "ended",
-  );
+  const userInitials = initialsFromUser(user);
 
   const hasChallengeContent =
     roleplay?.situationContext ||
@@ -508,68 +179,12 @@ export default function RoleplayResults() {
     </div>
   );
 
-  const conversationContent = showTranscript ? (
-    transcriptMessages.length === 0 ? (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        No messages in this attempt.
-      </p>
-    ) : (
-      <div className="space-y-3">
-        {transcriptMessages.map((m) => {
-          if (m.role === "ended") {
-            return (
-              <div key={m.id} className="flex items-center gap-3 py-2">
-                <div className="h-px flex-1 bg-border" />
-                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Flag className="h-3.5 w-3.5" />
-                  {m.content}
-                </span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-            );
-          }
-          const isLearner = m.role === "learner";
-          return (
-            <div
-              key={m.id}
-              className={cn(
-                "flex items-end gap-2",
-                isLearner ? "justify-end" : "justify-start",
-              )}
-            >
-              {!isLearner && (
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className="bg-muted text-muted-foreground">
-                    <FaUser className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div
-                className={cn(
-                  "max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap",
-                  isLearner
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-muted rounded-bl-sm",
-                )}
-              >
-                {m.content}
-              </div>
-              {isLearner && (
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {userInitials}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )
-  ) : (
-    <p className="text-sm text-muted-foreground text-center py-8">
-      Transcript is not available for this roleplay.
-    </p>
+  const conversationContent = (
+    <TranscriptThread
+      messages={messages}
+      learnerInitials={userInitials}
+      showTranscript={showTranscript}
+    />
   );
 
   const assessmentContent = (
@@ -627,13 +242,13 @@ export default function RoleplayResults() {
                 )}
                 <div className="grid gap-2 pt-1">
                   {cs.strengths && (
-                    <div className="flex items-start gap-1.5 text-xs text-green-700 dark:text-green-400">
+                    <div className="flex items-start gap-1.5 text-xs text-[var(--feedback-positive)]">
                       <ThumbsUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                       <span>{cs.strengths}</span>
                     </div>
                   )}
                   {cs.improvements && (
-                    <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                    <div className="flex items-start gap-1.5 text-xs text-[var(--feedback-improvement)]">
                       <ArrowUpCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                       <span>{cs.improvements}</span>
                     </div>
@@ -730,7 +345,7 @@ export default function RoleplayResults() {
           </Link>
 
           <div className="min-w-0">
-            <span className="inline-block text-xs font-medium uppercase tracking-wide text-pink-800 dark:text-pink-200 mb-2 rounded-md bg-pink-100 dark:bg-pink-950/50 px-2 py-1">
+            <span className="inline-block text-xs font-medium uppercase tracking-wide text-primary mb-2 rounded-md bg-primary/10 px-2 py-1">
               Session results
             </span>
             <h1 className="text-2xl font-semibold tracking-tight truncate">
@@ -836,7 +451,7 @@ export default function RoleplayResults() {
           <CollapsibleContent className="mt-4 flex flex-col flex-1 min-h-0 overflow-hidden data-[state=open]:flex">
             <Tabs defaultValue="assessment" className="flex flex-col flex-1 min-h-0 lg:hidden">
               <TabsList className="w-full shrink-0 h-auto gap-0 p-1">
-                {STAGES.map((stage) => {
+                {RESULT_STAGES.map((stage) => {
                   const Icon = stage.icon;
                   return (
                     <TabsTrigger
@@ -852,7 +467,7 @@ export default function RoleplayResults() {
                   );
                 })}
               </TabsList>
-              {STAGES.map((stage) => (
+              {RESULT_STAGES.map((stage) => (
                 <TabsContent
                   key={stage.id}
                   value={stage.id}
@@ -872,7 +487,7 @@ export default function RoleplayResults() {
             </Tabs>
 
             <div className="hidden lg:grid grid-cols-3 gap-5 flex-1 min-h-[min(65vh,560px)]">
-              {STAGES.map((stage) => (
+              {RESULT_STAGES.map((stage) => (
                 <StagePanel
                   key={stage.id}
                   step={stage.step}

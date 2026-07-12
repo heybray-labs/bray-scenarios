@@ -8,6 +8,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AttemptPips } from "./AttemptPips";
+import { getStartAttemptLabel } from "@/lib/attempt-display";
+import { NoticeBanner } from "@/components/ui/NoticeBanner";
 import { cn } from "@/lib/utils";
 
 type ScenarioLaunchBarProps = {
@@ -60,17 +62,14 @@ export function ScenarioLaunchBar({
   className,
 }: ScenarioLaunchBarProps) {
   const hasUnlimited = !maxAttempts || maxAttempts <= 0;
-  const nextAttemptNumber = attemptCount + 1;
 
-  const ctaLabel = isOutOfAttempts
-    ? "No attempts remaining"
-    : hasUnlimited
-      ? startPending
-        ? "Starting…"
-        : "Start roleplay"
-      : startPending
-        ? "Starting…"
-        : `Start attempt ${nextAttemptNumber} of ${maxAttempts}`;
+  const ctaLabel = getStartAttemptLabel({
+    isOutOfAttempts,
+    hasUnlimited,
+    attemptCount,
+    maxAttempts,
+    startPending,
+  });
 
   return (
     <footer
@@ -80,14 +79,14 @@ export function ScenarioLaunchBar({
       )}
     >
       {notConfigured && (
-        <div className="border-b border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800">
-          <div className="max-w-6xl mx-auto px-4 lg:px-6 py-2 flex gap-2 text-sm text-amber-900 dark:text-amber-200">
+        <NoticeBanner variant="admin" layout="strip" className="border-b">
+          <div className="max-w-6xl mx-auto px-4 lg:px-6 py-2 flex gap-2 text-sm">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             {configNotReady
               ? "AI not configured. Ask an admin to set up API keys and model allowlists."
               : "This roleplay is missing AI models. An admin must edit it and select persona and grader models."}
           </div>
-        </div>
+        </NoticeBanner>
       )}
       <div className="max-w-6xl mx-auto px-4 lg:px-6 py-2.5">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">

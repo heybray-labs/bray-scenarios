@@ -76,7 +76,7 @@ export function PointsHistoryDialog({ open, onOpenChange }: PointsHistoryDialogP
       >
         <DialogHeader className="shrink-0 px-4 pt-4 pb-2 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Star className="h-4 w-4 text-amber-500" />
+            <Star className="h-4 w-4 text-[var(--featured-star)]" />
             Points history
           </DialogTitle>
         </DialogHeader>
@@ -131,7 +131,7 @@ export function PointsHistoryDialog({ open, onOpenChange }: PointsHistoryDialogP
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className="py-2 text-right font-semibold text-amber-600 tabular-nums align-top whitespace-nowrap">
+                    <td className="py-2 text-right font-semibold text-[var(--points-value)] tabular-nums align-top whitespace-nowrap">
                       +{item.amount}
                     </td>
                   </tr>
