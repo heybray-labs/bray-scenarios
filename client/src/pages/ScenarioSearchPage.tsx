@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import {
@@ -213,7 +213,7 @@ export default function ScenarioSearchPage() {
   };
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div className="w-full max-w-6xl mx-auto px-4 lg:px-6 py-8">
         <div className="mb-6 flex items-center gap-3">
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => navigate("/")}>
@@ -463,6 +463,6 @@ export default function ScenarioSearchPage() {
           </Dialog>
         </>
       )}
-    </MainLayout>
+    </AppLayout>
   );
 }

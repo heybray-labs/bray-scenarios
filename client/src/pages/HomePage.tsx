@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@heybray/ui/components/button";
 import {
   Dialog,
@@ -60,7 +60,7 @@ export default function HomePage() {
       })) ?? [];
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div className="w-full px-4 lg:px-6 py-6 flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-3.5rem)]">
         <div className="min-w-0 lg:w-[75%] flex flex-col gap-6 overflow-auto">
           <HeroFeaturedCarousel />
@@ -164,6 +164,6 @@ export default function HomePage() {
           </Dialog>
         </>
       )}
-    </MainLayout>
+    </AppLayout>
   );
 }

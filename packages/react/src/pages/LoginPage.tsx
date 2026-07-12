@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
 import { Redirect, Link, useLocation } from "wouter";
-import { useAuth } from "@heybray/react/hooks/use-auth";
-import { AuthService } from "@heybray/react/lib/auth";
+import { useAuth } from "../hooks/use-auth.ts";
+import { AuthService } from "../lib/auth.ts";
 import type { AuthConfig } from "@heybray/identity/schema";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import { Label } from "@heybray/ui/components/label";
 import { Alert, AlertDescription } from "@heybray/ui/components/alert";
 import { Eye, EyeOff, Info } from "lucide-react";
-import logo from "@assets/logo.png";
-import { getOidcProviderIcon } from "@/lib/oidc-provider-icon";
-import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
-import { AuthHeroPanel } from "@/components/AuthHeroPanel";
-import { AuthUnavailableScreen } from "@/components/errors";
-import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
+import { getOidcProviderIcon } from "../lib/oidc-provider-icon.ts";
+import { AppBrandTitle } from "../components/AppBrandTitle.tsx";
+import { AuthHeroPanel } from "../components/AuthHeroPanel.tsx";
+import { AuthUnavailableScreen } from "../errors/index.ts";
+
+export interface AuthPageBranding {
+  appName: string;
+  logoSrc: string;
+  heroImageSrc: string;
+}
 
 function PasswordField({
   id,
@@ -85,7 +89,7 @@ function SsoSignInButton({
   );
 }
 
-export default function LoginPage() {
+export default function LoginPage({ appName, logoSrc, heroImageSrc }: AuthPageBranding) {
   const { login, setupAdmin, changePassword, isLoggingIn, isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
@@ -198,8 +202,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       <div className="w-full lg:w-1/2 flex flex-col p-8 bg-white">
         <div className="flex items-end gap-3 mb-8">
-          <img src={logo} alt="" className="h-14 w-14" />
-          <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} size="large" />
+          <img src={logoSrc} alt="" className="h-14 w-14" />
+          <AppBrandTitle appName={appName} size="large" />
         </div>
         <div className="flex-1 flex items-center justify-center">
           {mustChangePassword ? (
@@ -250,7 +254,7 @@ export default function LoginPage() {
           ) : needsSetup ? (
             ssoConfig ? (
               <div className="w-full max-w-md space-y-4">
-                <h1 className="text-3xl font-bold text-center">Get started with {APPLICATION_DISPLAY_NAME}</h1>
+                <h1 className="text-3xl font-bold text-center">Get started with {appName}</h1>
                 <Alert className="bg-muted/50 border-muted">
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-muted-foreground">
@@ -266,7 +270,7 @@ export default function LoginPage() {
               </div>
             ) : (
             <form onSubmit={handleSetup} className="w-full max-w-md space-y-4">
-              <h1 className="text-3xl font-bold text-center">Get started with {APPLICATION_DISPLAY_NAME}</h1>
+              <h1 className="text-3xl font-bold text-center">Get started with {appName}</h1>
               <Alert className="bg-muted/50 border-muted">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-muted-foreground">
@@ -366,7 +370,7 @@ export default function LoginPage() {
           )}
         </div>
       </div>
-      <AuthHeroPanel />
+      <AuthHeroPanel imageSrc={heroImageSrc} />
     </div>
   );
 }

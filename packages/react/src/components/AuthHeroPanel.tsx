@@ -1,10 +1,8 @@
-import loginScreenImage from "@assets/login-screen-image.png";
-
-export function AuthHeroPanel() {
+export function AuthHeroPanel({ imageSrc }: { imageSrc: string }) {
   return (
     <div className="hidden lg:block lg:w-1/2 relative overflow-hidden bg-primary">
       <img
-        src={loginScreenImage}
+        src={imageSrc}
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
       />

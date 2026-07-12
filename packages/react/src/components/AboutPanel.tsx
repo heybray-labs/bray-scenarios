@@ -1,17 +1,8 @@
 import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
-import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
-import {
-  APPLICATION_DISPLAY_NAME,
-  APPLICATION_TAGLINE,
-  GITHUB_DOCS_URL,
-  GITHUB_ISSUES_URL,
-  GITHUB_RELEASES_URL,
-  GITHUB_REPO_URL,
-} from "@/lib/app-config";
-import { apiRequest } from "@heybray/react/lib/queryClient";
-import logo from "@assets/logo.png";
+import { AppBrandTitle } from "./AppBrandTitle.tsx";
+import { apiRequest } from "../lib/queryClient.ts";
 
 type AboutResponse = {
   version: string;
@@ -19,14 +10,19 @@ type AboutResponse = {
   authProtocolLabel: string;
 };
 
-const LINKS = [
-  { label: "GitHub", href: GITHUB_REPO_URL },
-  { label: "Documentation", href: GITHUB_DOCS_URL },
-  { label: "Report issue", href: GITHUB_ISSUES_URL },
-  { label: "Release notes", href: GITHUB_RELEASES_URL },
-] as const;
+export interface AboutPanelLink {
+  label: string;
+  href: string;
+}
 
-export function AboutPanel() {
+export interface AboutPanelProps {
+  appName: string;
+  tagline: string;
+  logoSrc: string;
+  links: AboutPanelLink[];
+}
+
+export function AboutPanel({ appName, tagline, logoSrc, links }: AboutPanelProps) {
   const { data } = useQuery<AboutResponse>({
     queryKey: ["/api/about"],
     queryFn: () => apiRequest("GET", "/api/about") as Promise<AboutResponse>,
@@ -38,9 +34,9 @@ export function AboutPanel() {
   return (
     <div className="flex flex-col items-center gap-6 py-4 text-center">
       <div className="flex flex-col items-center gap-3">
-        <img src={logo} alt="" className="h-12 w-12" />
-        <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} size="large" />
-        <p className="max-w-md text-sm text-muted-foreground">{APPLICATION_TAGLINE}</p>
+        <img src={logoSrc} alt="" className="h-12 w-12" />
+        <AppBrandTitle appName={appName} size="large" />
+        <p className="max-w-md text-sm text-muted-foreground">{tagline}</p>
       </div>
 
       <div className="space-y-1 text-sm">
@@ -57,7 +53,7 @@ export function AboutPanel() {
       </div>
 
       <nav className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
-        {LINKS.map((link, index) => (
+        {links.map((link, index) => (
           <Fragment key={link.href}>
             {index > 0 && <span className="text-muted-foreground" aria-hidden="true">·</span>}
             <a

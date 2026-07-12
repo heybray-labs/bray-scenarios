@@ -14,6 +14,10 @@
     "./classifications/*": "./src/classifications/*.tsx",
     "./errors": "./src/errors/index.ts"
   },
+  "dependencies": {
+    "@heybray/identity": "*",
+    "@heybray/ui": "*"
+  },
   "peerDependencies": {
     "@tanstack/react-query": "^5.60.5",
     "lucide-react": "^0.453.0",

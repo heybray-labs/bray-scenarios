@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { MainLayout } from "@/components/MainLayout";
-import { NotFoundScreen } from "@/components/errors";
+import { AppLayout } from "@/components/AppLayout";
+import { NotFoundScreen } from "@heybray/react/errors";
 import { Button } from "@heybray/ui/components/button";
 import { Skeleton } from "@heybray/ui/components/skeleton";
 import {
@@ -171,7 +171,7 @@ export default function RoleplayIntroPage() {
 
   if (isLoading) {
     return (
-      <MainLayout>
+      <AppLayout>
         <div className="w-full max-w-6xl mx-auto px-4 lg:px-6 py-6 pb-24 space-y-6">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="h-[260px] w-full rounded-xl" />
@@ -188,15 +188,15 @@ export default function RoleplayIntroPage() {
             </div>
           </div>
         </div>
-      </MainLayout>
+      </AppLayout>
     );
   }
 
   if (!roleplay) {
     return (
-      <MainLayout>
+      <AppLayout>
         <NotFoundScreen resource="roleplay" />
-      </MainLayout>
+      </AppLayout>
     );
   }
 
@@ -230,7 +230,7 @@ export default function RoleplayIntroPage() {
         : null;
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div className="w-full max-w-6xl mx-auto px-4 lg:px-6 py-6 pb-24 flex flex-col min-h-0">
         <Link
           href="/"
@@ -380,6 +380,6 @@ export default function RoleplayIntroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </AppLayout>
   );
 }

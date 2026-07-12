@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { AuthService } from "@heybray/react/lib/auth";
-import { useAuth } from "@heybray/react/hooks/use-auth";
-import { SignInFailedScreen } from "@/components/errors";
+import { AuthService } from "../lib/auth.ts";
+import { useAuth } from "../hooks/use-auth.ts";
+import { SignInFailedScreen } from "../errors/index.ts";
 
 export default function OidcCallbackPage() {
   const [, setLocation] = useLocation();

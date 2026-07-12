@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "wouter";
-import { Navbar } from "@/components/MainLayout";
+import { Navbar } from "../components/MainLayout.tsx";
 import { Button } from "@heybray/ui/components/button";
 import { cn } from "@heybray/ui/utils";
 

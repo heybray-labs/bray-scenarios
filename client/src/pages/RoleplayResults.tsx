@@ -11,7 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@heybray/ui/components/collapsible";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { cn } from "@heybray/ui/utils";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { initialsFromUser } from "@heybray/react/lib/user-display";
@@ -92,7 +92,7 @@ export default function RoleplayResults() {
 
   if (isLoading || !data) {
     return (
-      <MainLayout>
+      <AppLayout>
         <div className="p-6 space-y-4 w-full max-w-3xl mx-auto">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-8 w-1/2" />
@@ -100,7 +100,7 @@ export default function RoleplayResults() {
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
-      </MainLayout>
+      </AppLayout>
     );
   }
 
@@ -331,7 +331,7 @@ export default function RoleplayResults() {
         : `Try again — attempt ${nextAttemptNumber} of ${maxAttempts}`;
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div
         className="w-full max-w-[1600px] mx-auto py-4 px-4 lg:px-8 flex flex-col gap-4 min-h-0"
         style={{ minHeight: "calc(100vh - 7rem)" }}
@@ -517,6 +517,6 @@ export default function RoleplayResults() {
           onConfirm={() => startMutation.mutate()}
         />
       )}
-    </MainLayout>
+    </AppLayout>
   );
 }

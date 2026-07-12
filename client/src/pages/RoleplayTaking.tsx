@@ -23,7 +23,7 @@ import { useAuth } from "@heybray/react/hooks/use-auth";
 import { initialsFromUser } from "@heybray/react/lib/user-display";
 import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
 import { cn } from "@heybray/ui/utils";
 import { isCheatModeMessage } from "@/lib/cheat-mode";
@@ -259,17 +259,17 @@ export default function RoleplayTaking() {
 
   if (initializing) {
     return (
-      <MainLayout>
+      <AppLayout>
         <div className="p-6 space-y-4 w-full max-w-3xl mx-auto">
           <Skeleton className="h-10 w-1/3" />
           <Skeleton className="h-64 w-full" />
         </div>
-      </MainLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <MainLayout>
+    <AppLayout>
     <div className="w-full max-w-3xl mx-auto py-4 flex flex-col px-4" style={{ height: "calc(100vh - 7rem)" }}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -457,6 +457,6 @@ export default function RoleplayTaking() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </AppLayout>
   );
 }

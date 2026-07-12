@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@heybray/ui/components/card";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
@@ -35,7 +35,7 @@ export default function RoleplayAttemptsPage() {
   });
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div className="max-w-4xl mx-auto p-6">
         <Link href={`/roleplays/${roleplayId}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground mb-4">
           <ArrowLeft className="h-4 w-4" /> Back
@@ -69,6 +69,6 @@ export default function RoleplayAttemptsPage() {
           </div>
         )}
       </div>
-    </MainLayout>
+    </AppLayout>
   );
 }

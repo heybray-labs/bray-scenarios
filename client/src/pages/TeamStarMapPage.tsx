@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MainLayout } from "@/components/MainLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@heybray/ui/components/button";
 import {
   DropdownMenu,
@@ -20,7 +20,7 @@ import {
   type TeamSummary,
 } from "@/components/teams/star-map-types";
 import { compareMembers } from "@/components/teams/star-map-utils";
-import { PermissionDeniedScreen } from "@/components/errors";
+import { PermissionDeniedScreen } from "@heybray/react/errors";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { HttpError } from "@heybray/react/lib/http-error";
@@ -98,27 +98,27 @@ export default function TeamStarMapPage() {
 
   if (teamsLoading) {
     return (
-      <MainLayout>
+      <AppLayout>
         <div className="flex items-center justify-center py-24 text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>
-      </MainLayout>
+      </AppLayout>
     );
   }
 
   if (teamsError instanceof HttpError && teamsError.status === 403) {
     return (
-      <MainLayout>
+      <AppLayout>
         <PermissionDeniedScreen />
-      </MainLayout>
+      </AppLayout>
     );
   }
 
   const noTeams = !isAdmin && !teamsData?.teams.length;
 
   return (
-    <MainLayout>
+    <AppLayout>
       <div className="max-w-[76rem] mx-auto px-6 py-6 pb-16">
         <header className="flex flex-wrap items-start justify-between gap-4 mb-5">
           <div>
@@ -212,6 +212,6 @@ export default function TeamStarMapPage() {
           onClose={() => setDrawerSelection(null)}
         />
       )}
-    </MainLayout>
+    </AppLayout>
   );
 }

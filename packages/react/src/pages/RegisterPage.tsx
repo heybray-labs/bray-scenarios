@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { Redirect, Link } from "wouter";
-import { AuthService } from "@heybray/react/lib/auth";
+import { AuthService } from "../lib/auth.ts";
 import { Button } from "@heybray/ui/components/button";
 import { Input } from "@heybray/ui/components/input";
 import { Label } from "@heybray/ui/components/label";
-import logo from "@assets/logo.png";
-import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
-import { AuthHeroPanel } from "@/components/AuthHeroPanel";
-import { AuthUnavailableScreen } from "@/components/errors";
-import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
+import { AppBrandTitle } from "../components/AppBrandTitle.tsx";
+import { AuthHeroPanel } from "../components/AuthHeroPanel.tsx";
+import { AuthUnavailableScreen } from "../errors/index.ts";
+import type { AuthPageBranding } from "./LoginPage.tsx";
 
-export default function RegisterPage() {
+export default function RegisterPage({ appName, logoSrc, heroImageSrc }: AuthPageBranding) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -65,8 +64,8 @@ export default function RegisterPage() {
     <div className="min-h-screen flex">
       <div className="w-full lg:w-1/2 flex flex-col p-8 bg-white">
         <div className="flex items-end gap-3 mb-8">
-          <img src={logo} alt="" className="h-14 w-14" />
-          <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} size="large" />
+          <img src={logoSrc} alt="" className="h-14 w-14" />
+          <AppBrandTitle appName={appName} size="large" />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
@@ -96,7 +95,7 @@ export default function RegisterPage() {
           </form>
         </div>
       </div>
-      <AuthHeroPanel />
+      <AuthHeroPanel imageSrc={heroImageSrc} />
     </div>
   );
 }
