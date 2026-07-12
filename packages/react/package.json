@@ -12,6 +12,7 @@
     "./admin/*": "./src/admin/*.tsx",
     "./pages/*": "./src/pages/*.tsx",
     "./classifications/*": "./src/classifications/*.tsx",
+    "./config": "./src/config/app-config.tsx",
     "./errors": "./src/errors/index.ts"
   },
   "dependencies": {

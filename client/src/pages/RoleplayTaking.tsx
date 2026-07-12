@@ -24,7 +24,7 @@ import { initialsFromUser } from "@heybray/react/lib/user-display";
 import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
 import { useRoleplayStream } from "@/hooks/use-roleplay-stream";
 import { AppLayout } from "@/components/AppLayout";
-import { APPLICATION_DISPLAY_NAME } from "@/lib/app-config";
+import { useAppConfig } from "@heybray/react/config";
 import { cn } from "@heybray/ui/utils";
 import { isCheatModeMessage } from "@/lib/cheat-mode";
 
@@ -46,6 +46,7 @@ export default function RoleplayTaking() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { displayName: appName } = useAppConfig();
   const { streamRun, stop } = useRoleplayStream();
 
   const roleplayId = params.id ? parseInt(params.id) : null;
@@ -425,7 +426,7 @@ export default function RoleplayTaking() {
           <DialogHeader className="items-center text-center sm:items-center sm:text-center">
             <div className="mx-auto mb-2 flex items-center gap-3">
               <img src={logo} alt="" className="h-10 w-10" />
-              <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} />
+              <AppBrandTitle appName={appName} />
             </div>
             <DialogTitle className="flex items-center justify-center gap-2">
               <Flag className="h-5 w-5 text-primary" />

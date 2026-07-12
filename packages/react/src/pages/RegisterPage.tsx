@@ -8,8 +8,10 @@ import { AppBrandTitle } from "../components/AppBrandTitle.tsx";
 import { AuthHeroPanel } from "../components/AuthHeroPanel.tsx";
 import { AuthUnavailableScreen } from "../errors/index.ts";
 import type { AuthPageBranding } from "./LoginPage.tsx";
+import { useAppConfig } from "../config/app-config.tsx";
 
-export default function RegisterPage({ appName, logoSrc, heroImageSrc }: AuthPageBranding) {
+export default function RegisterPage({ logoSrc, heroImageSrc }: AuthPageBranding) {
+  const { displayName: appName } = useAppConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");

@@ -13,27 +13,21 @@ import { ClassificationManagementPanel } from "@heybray/react/admin/Classificati
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { HttpError } from "@heybray/react/lib/http-error";
+import { useAppConfig } from "@heybray/react/config";
 import { Button } from "@heybray/ui/components/button";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
 import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
-import {
-  APPLICATION_DISPLAY_NAME,
-  APPLICATION_TAGLINE,
-  GITHUB_REPO_URL,
-  GITHUB_DOCS_URL,
-  GITHUB_ISSUES_URL,
-  GITHUB_RELEASES_URL,
-} from "@/lib/app-config";
 import logo from "@assets/logo.png";
 
 function AppBrand() {
+  const { displayName } = useAppConfig();
   return (
     <Link href="/" className="flex items-end gap-2 no-underline">
       <img src={logo} alt="" className="h-8 w-8" />
-      <AppBrandTitle appName={APPLICATION_DISPLAY_NAME} />
+      <AppBrandTitle appName={displayName} />
     </Link>
   );
 }
@@ -118,13 +112,6 @@ function AppNavActions() {
   );
 }
 
-const ABOUT_LINKS = [
-  { label: "GitHub", href: GITHUB_REPO_URL },
-  { label: "Documentation", href: GITHUB_DOCS_URL },
-  { label: "Report issue", href: GITHUB_ISSUES_URL },
-  { label: "Release notes", href: GITHUB_RELEASES_URL },
-];
-
 const appSettingsPanels: SettingsPanel[] = [
   {
     value: "ai",
@@ -156,14 +143,7 @@ const appSettingsPanels: SettingsPanel[] = [
   {
     value: "about",
     label: "About",
-    render: () => (
-      <AboutPanel
-        appName={APPLICATION_DISPLAY_NAME}
-        tagline={APPLICATION_TAGLINE}
-        logoSrc={logo}
-        links={ABOUT_LINKS}
-      />
-    ),
+    render: () => <AboutPanel logoSrc={logo} />,
   },
 ];
 

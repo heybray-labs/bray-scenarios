@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { AppBrandTitle } from "./AppBrandTitle.tsx";
 import { apiRequest } from "../lib/queryClient.ts";
+import { useAppConfig } from "../config/app-config.tsx";
 
 type AboutResponse = {
   version: string;
@@ -10,19 +11,18 @@ type AboutResponse = {
   authProtocolLabel: string;
 };
 
-export interface AboutPanelLink {
-  label: string;
-  href: string;
-}
-
 export interface AboutPanelProps {
-  appName: string;
-  tagline: string;
   logoSrc: string;
-  links: AboutPanelLink[];
 }
 
-export function AboutPanel({ appName, tagline, logoSrc, links }: AboutPanelProps) {
+export function AboutPanel({ logoSrc }: AboutPanelProps) {
+  const { displayName: appName, tagline, urls } = useAppConfig();
+  const links = [
+    { label: "GitHub", href: urls.repo },
+    ...(urls.docs ? [{ label: "Documentation", href: urls.docs }] : []),
+    ...(urls.issues ? [{ label: "Report issue", href: urls.issues }] : []),
+    ...(urls.releases ? [{ label: "Release notes", href: urls.releases }] : []),
+  ];
   const { data } = useQuery<AboutResponse>({
     queryKey: ["/api/about"],
     queryFn: () => apiRequest("GET", "/api/about") as Promise<AboutResponse>,

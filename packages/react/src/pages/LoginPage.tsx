@@ -12,9 +12,9 @@ import { getOidcProviderIcon } from "../lib/oidc-provider-icon.ts";
 import { AppBrandTitle } from "../components/AppBrandTitle.tsx";
 import { AuthHeroPanel } from "../components/AuthHeroPanel.tsx";
 import { AuthUnavailableScreen } from "../errors/index.ts";
+import { useAppConfig } from "../config/app-config.tsx";
 
 export interface AuthPageBranding {
-  appName: string;
   logoSrc: string;
   heroImageSrc: string;
 }
@@ -89,7 +89,8 @@ function SsoSignInButton({
   );
 }
 
-export default function LoginPage({ appName, logoSrc, heroImageSrc }: AuthPageBranding) {
+export default function LoginPage({ logoSrc, heroImageSrc }: AuthPageBranding) {
+  const { displayName: appName } = useAppConfig();
   const { login, setupAdmin, changePassword, isLoggingIn, isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
