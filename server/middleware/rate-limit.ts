@@ -20,7 +20,7 @@ function rateLimitKey(req: Request): string {
   if (typeof auth === "string" && auth.length > 0) {
     return `auth:${auth}`;
   }
-  return `ip:${ipKeyGenerator(req.ip)}`;
+  return `ip:${ipKeyGenerator(req.ip ?? "")}`;
 }
 
 /** Applied to /api routes only (static assets and SPA HTML are not counted). */
