@@ -1,9 +1,8 @@
 import { randomUUID } from "crypto";
-import path from "path";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, createLogger } from "@heybray/server-kit";
 import { mediaAssets, type MediaAsset } from "./schema/media-assets.ts";
-import { getMediaDir, getStorageProvider, StorageNotFoundError } from "./storage.ts";
+import { getStorageProvider, StorageNotFoundError } from "./storage.ts";
 
 const log = createLogger("media");
 
@@ -150,10 +149,6 @@ export class MediaService {
       await getStorageProvider().delete(storageKey).catch(() => undefined);
       throw error;
     }
-  }
-
-  resolvePath(asset: MediaAsset): string {
-    return path.join(getMediaDir(), asset.storageKey);
   }
 
   openReadStream(asset: MediaAsset) {

@@ -1,5 +1,5 @@
 import { createApp } from "./app.ts";
-import { ensureMediaDir } from "@heybray/media";
+import { initStorage } from "@heybray/media";
 import { initializeDatabase } from "./init-db/init-db.ts";
 import { logger, wireAuditLogging } from "@heybray/server-kit";
 import {
@@ -21,7 +21,7 @@ async function start() {
     }
     await initializeDatabase();
     await reconcileGamificationProjection();
-    ensureMediaDir();
+    await initStorage();
     wireAuditLogging();
     oidcAuthService.logStartupStatus();
     await samlAuthService.logStartupStatus();

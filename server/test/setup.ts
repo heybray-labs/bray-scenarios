@@ -1,6 +1,6 @@
 import { beforeAll } from "vitest";
 import { initializeDatabase } from "../init-db/init-db.ts";
-import { ensureMediaDir } from "@heybray/media";
+import { initStorage } from "@heybray/media";
 import { resetMutableData } from "./db.ts";
 
 let databaseReady = false;
@@ -8,7 +8,7 @@ let databaseReady = false;
 export async function ensureTestDatabase(): Promise<void> {
   if (!databaseReady) {
     await initializeDatabase();
-    ensureMediaDir();
+    await initStorage();
     databaseReady = true;
   }
   await resetMutableData();

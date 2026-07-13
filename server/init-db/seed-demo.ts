@@ -26,7 +26,7 @@ import {
 import { createLogger } from "@heybray/server-kit";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { mediaService, ensureMediaDir } from "@heybray/media";
+import { mediaService, getStorageProvider, initStorage } from "@heybray/media";
 import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
 import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 import {
@@ -107,12 +107,9 @@ async function wipeDemoData() {
     .where(like(mediaAssets.storageKey, `${DEMO_COVER_PREFIX}%`));
 
   for (const asset of demoMedia) {
-    try {
-      const filePath = mediaService.resolvePath(asset);
-      await fs.unlink(filePath).catch(() => undefined);
-    } catch {
-      /* ignore */
-    }
+    await getStorageProvider()
+      .delete(asset.storageKey)
+      .catch(() => undefined);
   }
 
   if (demoMedia.length) {
@@ -336,7 +333,7 @@ async function seedAttempts(
   scenarios: { scenario: DemoScenario; roleplayId: number }[],
   learnerProfiles: LearnerProfile[],
 ) {
-  ensureMediaDir();
+  await initStorage();
   let attemptCount = 0;
   let completedCount = 0;
   let inProgressCount = 0;
