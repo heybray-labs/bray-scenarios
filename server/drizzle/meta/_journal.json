@@ -64,6 +64,13 @@
       "when": 1783252891758,
       "tag": "0008_gamification_generalization",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783252891759,
+      "tag": "0009_scenario_binding",
+      "breakpoints": true
     }
   ]
 }
