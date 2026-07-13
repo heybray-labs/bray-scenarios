@@ -31,21 +31,8 @@ import {
   requirePermission,
   setManagePermission,
   getAuthProtocol,
-  getOidcProviderName,
-  getSamlProviderName,
-  type AuthProtocol,
+  getActiveAuthProvider,
 } from "@heybray/identity";
-
-function getAuthProtocolLabel(protocol: AuthProtocol): string {
-  switch (protocol) {
-    case "local":
-      return "Local sign-in";
-    case "oidc":
-      return getOidcProviderName();
-    case "saml":
-      return getSamlProviderName();
-  }
-}
 
 export function createApp(): express.Application {
   const app = express();
@@ -88,7 +75,7 @@ export function createApp(): express.Application {
     res.json({
       version: getAppVersion(),
       authProtocol,
-      authProtocolLabel: getAuthProtocolLabel(authProtocol),
+      authProtocolLabel: getActiveAuthProvider().label,
     });
   });
 

@@ -1,5 +1,6 @@
 export * from "./middleware/auth.ts";
 export * from "./auth-config.ts";
+export * from "./auth-providers.ts";
 export * from "./cookies.ts";
 export * from "./controllers/user.controller.ts";
 export * from "./controllers/team.controller.ts";

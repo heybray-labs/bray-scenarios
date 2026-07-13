@@ -14,6 +14,27 @@ describe("Auth API", () => {
     expect(res.body).toHaveProperty("protocol");
   });
 
+  // Phase 3 Step 7 parity requirement: the AuthProviderRegistry refactor must
+  // leave this response byte-identical for the default local-protocol config.
+  it("GET /api/auth/config — full response shape parity", async () => {
+    const res = await api().get("/api/auth/config").expect(200);
+    expect(res.body).toEqual({
+      protocol: "local",
+      misconfigured: false,
+      sso: {
+        enabled: false,
+        providerName: "SSO",
+        loginUrl: "/api/auth/oidc/login",
+      },
+      oidc: {
+        enabled: false,
+        providerName: "SSO",
+        loginUrl: "/api/auth/oidc/login",
+      },
+      localRegistration: true,
+    });
+  });
+
   it("GET /api/auth/setup-status", async () => {
     const res = await api().get("/api/auth/setup-status").expect(200);
     expect(res.body).toHaveProperty("needsSetup");

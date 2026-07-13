@@ -13,5 +13,8 @@ describe("Health & about", () => {
     const res = await api().get("/api/about").expect(200);
     expectJsonKeys(res.body, ["version", "authProtocol", "authProtocolLabel"]);
     expect(res.body.authProtocol).toBe("local");
+    // Phase 3 Step 7 parity requirement: AuthProviderRegistry must produce
+    // the same label the old getAuthProtocolLabel() switch did.
+    expect(res.body.authProtocolLabel).toBe("Local sign-in");
   });
 });
