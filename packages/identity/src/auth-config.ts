@@ -1,5 +1,3 @@
-import { getAuthProviders } from "./auth-providers.ts";
-
 export type AuthProtocol = "local" | "oidc" | "saml";
 
 export function getAuthProtocol(): AuthProtocol {
@@ -135,34 +133,6 @@ export function getAuthConfigurationError(): string | null {
   }
 
   return null;
-}
-
-export function getPublicAuthConfig() {
-  const protocol = getAuthProtocol();
-  const providers = getAuthProviders();
-  const oidcProvider = providers.find((p) => p.name === "oidc")!;
-  const samlProvider = providers.find((p) => p.name === "saml")!;
-  const oidcReady = oidcProvider.isConfigured();
-  const samlReady = samlProvider.isConfigured();
-  const ssoEnabled = oidcReady || samlReady;
-  const providerName = protocol === "saml" ? samlProvider.label : oidcProvider.label;
-  const loginUrl = protocol === "saml" ? "/api/auth/saml/login" : "/api/auth/oidc/login";
-
-  return {
-    protocol,
-    misconfigured: getAuthConfigurationError() !== null,
-    sso: {
-      enabled: ssoEnabled,
-      providerName,
-      loginUrl,
-    },
-    oidc: {
-      enabled: oidcReady,
-      providerName: oidcProvider.label,
-      loginUrl: "/api/auth/oidc/login",
-    },
-    localRegistration: !isSsoEnabled(),
-  };
 }
 
 export function assertOidcConfigured(): void {

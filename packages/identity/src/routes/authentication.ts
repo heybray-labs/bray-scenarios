@@ -10,12 +10,12 @@ import {
 } from "../middleware/auth.ts";
 import { authRateLimiter } from "@heybray/server-kit";
 import {
-  getPublicAuthConfig,
   getAuthProtocol,
   isSsoEnabled,
   getAppUrl,
   getOidcRedirectUri,
 } from "../auth-config.ts";
+import { getPublicAuthConfig } from "../auth-providers.ts";
 import { oidcAuthService, OIDC_STATE_COOKIE, getOidcStateCookieOptions } from "../services/oidc-auth.service.ts";
 import { samlAuthService, SAML_STATE_COOKIE } from "../services/saml-auth.service.ts";
 import { completeExchange } from "../services/sso-exchange.service.ts";

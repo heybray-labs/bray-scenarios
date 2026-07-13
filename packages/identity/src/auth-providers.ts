@@ -1,7 +1,9 @@
 import {
   getAuthProtocol,
+  getAuthConfigurationError,
   isOidcConfigured,
   isSamlConfigured,
+  isSsoEnabled,
   getOidcProviderName,
   getSamlProviderName,
   type AuthProtocol,
@@ -33,4 +35,39 @@ export function getAuthProviders(): AuthProviderDescriptor[] {
 export function getActiveAuthProvider(): AuthProviderDescriptor {
   const protocol = getAuthProtocol();
   return getAuthProviders().find((provider) => provider.name === protocol)!;
+}
+
+/**
+ * Lives here (not auth-config.ts) so the dependency only runs one way:
+ * this module imports auth-config.ts's primitives, never the reverse. Moved
+ * out of auth-config.ts during the Phase 3 remediation pass — it used to
+ * import getAuthProviders() back from here, which was a real (if currently
+ * harmless) circular import between the two modules.
+ */
+export function getPublicAuthConfig() {
+  const protocol = getAuthProtocol();
+  const providers = getAuthProviders();
+  const oidcProvider = providers.find((p) => p.name === "oidc")!;
+  const samlProvider = providers.find((p) => p.name === "saml")!;
+  const oidcReady = oidcProvider.isConfigured();
+  const samlReady = samlProvider.isConfigured();
+  const ssoEnabled = oidcReady || samlReady;
+  const providerName = protocol === "saml" ? samlProvider.label : oidcProvider.label;
+  const loginUrl = protocol === "saml" ? "/api/auth/saml/login" : "/api/auth/oidc/login";
+
+  return {
+    protocol,
+    misconfigured: getAuthConfigurationError() !== null,
+    sso: {
+      enabled: ssoEnabled,
+      providerName,
+      loginUrl,
+    },
+    oidc: {
+      enabled: oidcReady,
+      providerName: oidcProvider.label,
+      loginUrl: "/api/auth/oidc/login",
+    },
+    localRegistration: !isSsoEnabled(),
+  };
 }
