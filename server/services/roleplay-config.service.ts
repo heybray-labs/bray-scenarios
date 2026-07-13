@@ -435,10 +435,18 @@ export class RoleplayConfigService {
     return this.getFullConfig();
   }
 
-  async setDefaults(input: {
-    persona: RoleplayModelRef;
-    grader: RoleplayModelRef;
-  }): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
+  async setDefaults(
+    input: {
+      persona: RoleplayModelRef;
+      grader: RoleplayModelRef;
+    },
+    // Currently unreachable from any route (no caller exists yet). Kept
+    // optional and unused-but-present so it matches the actor-threading
+    // pattern already on upsertProviderKeys/setAllowlists/setUnifiedAllowlist/
+    // removeProviderKeys — a future caller (and any accompanying audit event)
+    // won't have to rediscover the convention.
+    actorId?: number,
+  ): Promise<{ persona: RoleplayModelRef; grader: RoleplayModelRef }> {
     await this.ensureConfigRow();
     const persona = normalizeModelRef(input.persona);
     const grader = normalizeModelRef(input.grader);
