@@ -27,19 +27,19 @@ import { roleplayAttempts } from "../../../shared/schemas/roleplay-core.ts";
  *   (which use the real Postgres now()) are DETERMINISTICALLY EMPTY. That keeps
  *   the month-scoped snapshots stable across calendar dates at the cost of them
  *   being empty — the all-time / structural paths carry the parity coverage.
- * - normalize() strips volatile timestamps. FIELD_SHIM is retained (empty after
- *   Step 6) so snapshots captured with legacy field names keep validating.
+ * - normalize() strips volatile timestamps and sorts object keys.
+ *
+ * Field-rename honesty: these snapshots were RE-BASELINED with the canonical
+ * field names during Step 6 (roleplayId→contentId, scenarioTitle→contentTitle,
+ * attemptId→activityId). They therefore prove structural stability from Step 6
+ * onward, not byte-parity across the rename itself — that pre/post-rename data
+ * parity rests on the upgrade-path test (docs/phase-2-remediation.md Fix 4b).
  */
 
 const FROZEN_NOW = new Date("2025-06-16T12:00:00.000Z");
 
 const ISO_DATE_RE =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
-
-/** Legacy shim — API now emits canonical names; kept so committed snapshots stay valid. */
-const FIELD_SHIM: Record<string, string> = {
-  attemptId: "activityId",
-};
 
 type Json = unknown;
 
@@ -51,13 +51,12 @@ function normalize(value: Json): Json {
   }
   if (Array.isArray(value)) return value.map(normalize);
   if (typeof value === "object") {
-    const shimmed: Record<string, Json> = {};
+    const normalized: Record<string, Json> = {};
     for (const key of Object.keys(value as Record<string, Json>)) {
-      const name = FIELD_SHIM[key] ?? key;
-      shimmed[name] = normalize((value as Record<string, Json>)[key]);
+      normalized[key] = normalize((value as Record<string, Json>)[key]);
     }
     return Object.fromEntries(
-      Object.entries(shimmed).sort(([a], [b]) => a.localeCompare(b)),
+      Object.entries(normalized).sort(([a], [b]) => a.localeCompare(b)),
     );
   }
   return value;
