@@ -1,7 +1,7 @@
 import { createApp } from "./app.ts";
 import { ensureMediaDir } from "@heybray/media";
 import { initializeDatabase } from "./init-db/init-db.ts";
-import { logger } from "@heybray/server-kit";
+import { logger, wireAuditLogging } from "@heybray/server-kit";
 import {
   getAuthConfigurationError,
   oidcAuthService,
@@ -22,6 +22,7 @@ async function start() {
     await initializeDatabase();
     await reconcileGamificationProjection();
     ensureMediaDir();
+    wireAuditLogging();
     oidcAuthService.logStartupStatus();
     await samlAuthService.logStartupStatus();
     if (isCheatModeEnabled()) {
