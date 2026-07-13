@@ -1,16 +1,30 @@
-import { Router, Response } from "express";
+import { Router, Response, type RequestHandler } from "express";
 import { authenticateToken, requirePasswordChanged, type AuthRequest } from "@heybray/identity";
 import { createLogger } from "@heybray/server-kit";
 import { GamificationService, type GamificationConfig } from "./service.ts";
 
 const log = createLogger("gamification");
 
+export interface GamificationRouterOptions {
+  /**
+   * Extra middleware run (after auth) immediately before the `/leaderboard`
+   * handler — e.g. an app-supplied `requireFeature(...)` gate. The package
+   * stays agnostic of what the middleware does (feature flags, entitlements,
+   * anything); it only knows the route exists and that auth must run first
+   * so the gate sees the authenticated user.
+   */
+  leaderboardMiddleware?: RequestHandler[];
+}
+
 /**
  * Builds the /api/points routes (same paths as the app's legacy points router).
  * The public query contract is unchanged: `scope=category&category=<slug>` maps
  * onto the service's generic `dimension-option` scope + option slug.
  */
-export function createGamificationRouter(config: GamificationConfig): Router {
+export function createGamificationRouter(
+  config: GamificationConfig,
+  options: GamificationRouterOptions = {},
+): Router {
   const service = new GamificationService(config);
   const router = Router();
 
@@ -63,7 +77,7 @@ export function createGamificationRouter(config: GamificationConfig): Router {
     }
   });
 
-  router.get("/leaderboard", async (req: AuthRequest, res: Response) => {
+  router.get("/leaderboard", ...(options.leaderboardMiddleware ?? []), async (req: AuthRequest, res: Response) => {
     try {
       const scope = req.query.scope === "category" ? "dimension-option" : "global";
       const period = req.query.period === "month" ? "month" : "all_time";

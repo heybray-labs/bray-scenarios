@@ -96,17 +96,23 @@ export function createApp(): express.Application {
     "/api/roleplay-classifications",
     createTaxonomyRouter({ managePermission: MANAGE_PERMISSION }),
   );
-  // Real, permanent EntitlementProvider usage (Phase 3 Step 6): gates the one
-  // route the client's leaderboard panel also gates via <FeatureGate>. A no-op
-  // with DISABLED_FEATURES unset (the default).
-  app.use("/api/points/leaderboard", requireFeature("leaderboard"));
   app.use(
     "/api/points",
-    createGamificationRouter({
-      contentTypes: [{ type: SCENARIO_CONTENT_TYPE, label: "Scenario" }],
-      masteryDimensionSlug: MASTERY_DIMENSION_SLUG,
-      managePermission: MANAGE_PERMISSION,
-    }),
+    createGamificationRouter(
+      {
+        contentTypes: [{ type: SCENARIO_CONTENT_TYPE, label: "Scenario" }],
+        masteryDimensionSlug: MASTERY_DIMENSION_SLUG,
+        managePermission: MANAGE_PERMISSION,
+      },
+      {
+        // Real, permanent EntitlementProvider usage (Phase 3 Step 6): gates the
+        // one route the client's leaderboard panel also gates via <FeatureGate>.
+        // createGamificationRouter runs authenticateToken/requirePasswordChanged
+        // ahead of this, so an unauthenticated caller still gets 401 (not a 403
+        // that leaks feature state), and RequestContext.userId is populated.
+        leaderboardMiddleware: [requireFeature("leaderboard")],
+      },
+    ),
   );
 
   // Both team routers share the same auth chain; apply it once here rather than
