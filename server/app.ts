@@ -13,7 +13,8 @@ import {
   MASTERY_DIMENSION_SLUG,
   SCENARIO_CONTENT_TYPE,
 } from "./gamification.ts";
-import { requestLogging, globalRateLimiter, getAppVersion, createMediaRouter } from "@heybray/server-kit";
+import { requestLogging, globalRateLimiter, getAppVersion } from "@heybray/server-kit";
+import { createMediaRouter } from "@heybray/media";
 import {
   authenticationRouter,
   usersRouter,

@@ -1,9 +1,10 @@
 import { eq, inArray } from "drizzle-orm";
-import { db, type MediaUsageHook } from "@heybray/server-kit";
+import type { MediaUsageHook } from "@heybray/media";
+import { db } from "./db.ts";
 import { roleplays } from "../shared/schemas/roleplay-core.ts";
 
 /**
- * App-side implementation of server-kit's MediaUsageHook: roleplay cover images
+ * App-side implementation of the media package's MediaUsageHook: roleplay cover images
  * reference media assets via roleplays.coverImageMediaId. This carries the
  * queries that previously lived inside the media service.
  */

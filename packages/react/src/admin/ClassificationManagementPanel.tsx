@@ -50,9 +50,23 @@ type ClassificationsResponse = {
   dimensions: ClassificationDimension[];
 };
 
-const QUERY_KEY = ["/api/roleplay-classifications?includeInactive=true"];
+interface ClassificationManagementPanelProps {
+  /** Singular content noun for user-facing copy (e.g. "scenario"). */
+  contentNoun: string;
+  /** Taxonomy admin API base path (e.g. "/api/roleplay-classifications"). */
+  taxonomyEndpoint: string;
+}
 
-export function ClassificationManagementPanel() {
+function buildClassificationsQueryKey(taxonomyEndpoint: string, includeInactive = false) {
+  return includeInactive
+    ? [`${taxonomyEndpoint}?includeInactive=true`]
+    : [taxonomyEndpoint];
+}
+
+export function ClassificationManagementPanel({
+  contentNoun,
+  taxonomyEndpoint,
+}: ClassificationManagementPanelProps) {
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [createDimension, setCreateDimension] = useState<ClassificationDimension | null>(null);
@@ -68,13 +82,15 @@ export function ClassificationManagementPanel() {
     option: ClassificationOption;
   } | null>(null);
 
+  const queryKey = buildClassificationsQueryKey(taxonomyEndpoint, true);
+
   const { data, isLoading, error } = useQuery<ClassificationsResponse>({
-    queryKey: QUERY_KEY,
+    queryKey,
   });
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/roleplay-classifications"] });
-    queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: [taxonomyEndpoint] });
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const createMutation = useMutation({
@@ -83,7 +99,7 @@ export function ClassificationManagementPanel() {
       label: string;
       color: string;
       icon: string;
-    }) => apiRequest("POST", "/api/roleplay-classifications/options", payload),
+    }) => apiRequest("POST", `${taxonomyEndpoint}/options`, payload),
     onSuccess: () => {
       invalidate();
       toast({ title: "Option created" });
@@ -107,7 +123,7 @@ export function ClassificationManagementPanel() {
       isActive?: boolean;
       color?: string;
       icon?: string;
-    }) => apiRequest("PATCH", `/api/roleplay-classifications/options/${id}`, body),
+    }) => apiRequest("PATCH", `${taxonomyEndpoint}/options/${id}`, body),
     onSuccess: () => {
       invalidate();
       toast({ title: "Option updated" });
@@ -122,12 +138,12 @@ export function ClassificationManagementPanel() {
 
   const reorderListMutation = useMutation({
     mutationFn: (payload: { dimensionSlug: string; orderedOptionIds: number[] }) =>
-      apiRequest("PATCH", "/api/roleplay-classifications/options/reorder", payload),
+      apiRequest("PATCH", `${taxonomyEndpoint}/options/reorder`, payload),
     onMutate: async ({ dimensionSlug, orderedOptionIds }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<ClassificationsResponse>(QUERY_KEY);
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<ClassificationsResponse>(queryKey);
       if (previous) {
-        queryClient.setQueryData<ClassificationsResponse>(QUERY_KEY, {
+        queryClient.setQueryData<ClassificationsResponse>(queryKey, {
           dimensions: previous.dimensions.map((dim) => {
             if (dim.slug !== dimensionSlug) return dim;
             const byId = new Map(dim.options.map((o) => [o.id, o]));
@@ -145,7 +161,7 @@ export function ClassificationManagementPanel() {
     },
     onError: (err: unknown, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
+        queryClient.setQueryData(queryKey, context.previous);
       }
       const message = err instanceof HttpError ? err.message : "Failed to reorder";
       toast({ title: "Could not reorder", description: message, variant: "destructive" });
@@ -154,7 +170,7 @@ export function ClassificationManagementPanel() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/roleplay-classifications/options/${id}`),
+    mutationFn: (id: number) => apiRequest("DELETE", `${taxonomyEndpoint}/options/${id}`),
     onSuccess: () => {
       invalidate();
       toast({ title: "Option deleted" });
@@ -184,19 +200,15 @@ export function ClassificationManagementPanel() {
 
   const dimensions = data?.dimensions ?? [];
 
-  // PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The
-  // "/api/roleplay-classifications" query key and the "scenario" copy in this
-  // panel are roleplay-specific; move them behind an app-supplied endpoint/copy
-  // adapter.
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
         <Tags className="mt-0.5 h-5 w-5 text-muted-foreground" />
         <div>
-          <p className="font-medium">Scenario classifications</p>
+          <p className="font-medium capitalize">{contentNoun} classifications</p>
           <p className="text-sm text-muted-foreground">
             Manage categories, tags, audience levels, and duration options used when browsing and
-            authoring scenarios. Drag options to reorder.
+            authoring {contentNoun}s. Drag options to reorder.
           </p>
         </div>
       </div>
@@ -390,8 +402,8 @@ export function ClassificationManagementPanel() {
                 <>Delete &ldquo;{confirmAction.option.label}&rdquo;? This cannot be undone.</>
               ) : confirmAction && confirmAction.option.usageCount > 0 ? (
                 <>
-                  Deactivate &ldquo;{confirmAction.option.label}&rdquo;? {confirmAction.option.usageCount}{" "}
-                  scenario(s) still use this value. Existing scenarios keep the link but new
+                  Deactivate &ldquo;{confirmAction.option.label}&rdquo;?                   {confirmAction.option.usageCount}{" "}
+                  {contentNoun}(s) still use this value. Existing {contentNoun}s keep the link but new
                   selections will hide it.
                 </>
               ) : (

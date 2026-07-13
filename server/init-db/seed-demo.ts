@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../db.ts";
 import { roles, users } from "@heybray/identity/schema";
-import { mediaAssets } from "@heybray/server-kit/schema";
+import { mediaAssets } from "@heybray/media/schema";
 import {
   roleplays,
   roleplaySettings,
@@ -26,7 +26,7 @@ import {
 import { createLogger } from "@heybray/server-kit";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { mediaService, ensureMediaDir } from "@heybray/server-kit";
+import { mediaService, ensureMediaDir } from "@heybray/media";
 import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
 import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 import {

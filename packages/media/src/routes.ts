@@ -7,14 +7,14 @@ import {
   MEDIA_MAX_BYTES,
   mediaPublicUrl,
 } from "./media.service.ts";
-import { createLogger } from "../logger.ts";
+import { createLogger } from "@heybray/server-kit";
 
 const platformLogger = createLogger("media");
 
 /**
- * Auth guards injected by the app. server-kit owns media but not auth (identity
- * depends on server-kit, so it cannot depend back on identity); the app wires
- * identity's middleware in when constructing the router.
+ * Auth guards injected by the app. The media package owns routes but not auth
+ * (identity depends on server-kit, so it cannot depend back on identity); the
+ * app wires identity's middleware in when constructing the router.
  */
 export interface MediaRouteGuards {
   authenticateToken: RequestHandler;

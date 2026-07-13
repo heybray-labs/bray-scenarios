@@ -3,16 +3,15 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { createReadStream, existsSync, mkdirSync } from "fs";
 import { desc, eq, inArray } from "drizzle-orm";
-import { db } from "../db/db-registry.ts";
-import { mediaAssets, type MediaAsset } from "../schema/media-assets.ts";
-import { createLogger } from "../logger.ts";
+import { db, createLogger } from "@heybray/server-kit";
+import { mediaAssets, type MediaAsset } from "./schema/media-assets.ts";
 
 const log = createLogger("media");
 
 /**
  * Seam for domains that reference media assets (e.g. an app's content covers).
- * server-kit owns media but must not know about app tables, so usage counting
- * and reference detachment are delegated to an app-registered implementation.
+ * The media package owns storage but must not know about app tables, so usage
+ * counting and reference detachment are delegated to an app-registered implementation.
  */
 export interface MediaUsageHook {
   /** Number of times each media id is referenced, keyed by media id. */

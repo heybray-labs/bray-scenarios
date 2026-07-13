@@ -126,13 +126,24 @@ const appSettingsPanels: SettingsPanel[] = [
     value: "media",
     label: "Media",
     requiresManage: true,
-    render: () => <MediaManagementPanel renderCover={(id) => <ScenarioCover mediaId={id} />} />,
+    render: () => (
+      <MediaManagementPanel
+        contentNoun="scenario"
+        contentInvalidateKey="/api/roleplays"
+        renderCover={(id) => <ScenarioCover mediaId={id} />}
+      />
+    ),
   },
   {
     value: "classifications",
     label: "Classifications",
     requiresManage: true,
-    render: () => <ClassificationManagementPanel />,
+    render: () => (
+      <ClassificationManagementPanel
+        contentNoun="scenario"
+        taxonomyEndpoint="/api/roleplay-classifications"
+      />
+    ),
   },
   {
     value: "homepage",

@@ -11,11 +11,23 @@ import { useToast } from "@heybray/ui/hooks/use-toast";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 interface MediaManagementPanelProps {
+  /** Singular content noun for user-facing copy (e.g. "scenario"). */
+  contentNoun: string;
+  /** Query key to invalidate when media is detached from content (e.g. "/api/roleplays"). */
+  contentInvalidateKey: string;
   /** Render an app-specific cover preview for a media asset (e.g. ScenarioCover). */
   renderCover: (mediaId: number) => ReactNode;
 }
 
-export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps) {
+function pluralize(noun: string, count: number): string {
+  return count === 1 ? noun : `${noun}s`;
+}
+
+export function MediaManagementPanel({
+  contentNoun,
+  contentInvalidateKey,
+  renderCover,
+}: MediaManagementPanelProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -28,17 +40,13 @@ export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps)
     mutationFn: (id: number) => apiRequest("DELETE", `/api/media/${id}`),
     onSuccess: (result: { detachedFromScenarios?: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/media"] });
-      // PHASE-2: generalize — see docs/platform-architecture.md §3/§7. The
-      // "/api/roleplays" invalidation key and the "scenario" copy throughout
-      // this panel are roleplay-specific; move them behind an app-supplied
-      // endpoint/copy adapter.
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      queryClient.invalidateQueries({ queryKey: [contentInvalidateKey] });
       const n = result?.detachedFromScenarios ?? 0;
       toast({
         title: "Image deleted",
         description:
           n > 0
-            ? `Detached from ${n} scenario${n === 1 ? "" : "s"}.`
+            ? `Detached from ${n} ${pluralize(contentNoun, n)}.`
             : undefined,
       });
     },
@@ -74,7 +82,7 @@ export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps)
     const uses = asset.usageCount ?? 0;
     const message =
       uses > 0
-        ? `Delete "${asset.originalFilename}"? It will be detached from ${uses} scenario${uses === 1 ? "" : "s"}.`
+        ? `Delete "${asset.originalFilename}"? It will be detached from ${uses} ${pluralize(contentNoun, uses)}.`
         : `Delete "${asset.originalFilename}"?`;
     if (!window.confirm(message)) return;
     deleteMutation.mutate(asset.id);
@@ -86,7 +94,7 @@ export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps)
         <div>
           <p className="text-sm font-medium">Media library</p>
           <p className="text-xs text-muted-foreground">
-            Cover images for scenarios. JPEG, PNG, or WebP · max 500 KB.
+            Cover images for {contentNoun}s. JPEG, PNG, or WebP · max 500 KB.
           </p>
         </div>
         <div>
@@ -132,7 +140,7 @@ export function MediaManagementPanel({ renderCover }: MediaManagementPanelProps)
                   <p className="text-[10px] text-muted-foreground">
                     {formatBytes(asset.sizeBytes)}
                     {asset.usageCount != null
-                      ? ` · used by ${asset.usageCount} scenario${asset.usageCount === 1 ? "" : "s"}`
+                      ? ` · used by ${asset.usageCount} ${pluralize(contentNoun, asset.usageCount)}`
                       : ""}
                   </p>
                 </div>

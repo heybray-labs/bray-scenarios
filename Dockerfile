@@ -8,6 +8,7 @@ COPY packages/gamification-react/package.json ./packages/gamification-react/
 COPY packages/dev-config/package.json ./packages/dev-config/
 COPY packages/identity/package.json ./packages/identity/
 COPY packages/llm/package.json ./packages/llm/
+COPY packages/media/package.json ./packages/media/
 COPY packages/react/package.json ./packages/react/
 COPY packages/server-kit/package.json ./packages/server-kit/
 COPY packages/taxonomy/package.json ./packages/taxonomy/
@@ -33,6 +34,7 @@ COPY packages/gamification-react/package.json ./packages/gamification-react/
 COPY packages/dev-config/package.json ./packages/dev-config/
 COPY packages/identity/package.json ./packages/identity/
 COPY packages/llm/package.json ./packages/llm/
+COPY packages/media/package.json ./packages/media/
 COPY packages/react/package.json ./packages/react/
 COPY packages/server-kit/package.json ./packages/server-kit/
 COPY packages/taxonomy/package.json ./packages/taxonomy/

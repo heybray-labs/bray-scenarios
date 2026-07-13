@@ -1,4 +1,6 @@
-import { createDb, setDatabase, setMediaUsageHook, serverKitSchema } from "@heybray/server-kit";
+import { createDb, setDatabase } from "@heybray/server-kit";
+import { setMediaUsageHook } from "@heybray/media";
+import { mediaSchema } from "@heybray/media/schema";
 import { identitySchema } from "@heybray/identity/schema";
 import { taxonomySchema } from "@heybray/taxonomy";
 import { gamificationSchema } from "@heybray/gamification";
@@ -50,7 +52,7 @@ const appSchema = {
 };
 
 const schema = {
-  ...serverKitSchema,
+  ...mediaSchema,
   ...identitySchema,
   ...taxonomySchema,
   ...gamificationSchema,

@@ -1,5 +1,5 @@
 {
-  "name": "@heybray/server-kit",
+  "name": "@heybray/media",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -8,12 +8,14 @@
   },
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
   },
   "dependencies": {
+    "@heybray/identity": "*",
+    "@heybray/server-kit": "*",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
-    "express-rate-limit": "^8.5.2",
-    "pg": "^8.16.3"
+    "multer": "^2.2.0"
   }
 }
