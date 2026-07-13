@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@heybray/ui/components/dialog";
 import { useAuth } from "@heybray/react/hooks/use-auth";
+import { FeatureGate } from "@heybray/react/extensions/use-feature";
 import { LeaderboardPanel } from "@heybray/gamification-react/points/LeaderboardPanel";
 import { RecentStarsPanel } from "@heybray/gamification-react/points/RecentStarsPanel";
 import { YourProgressPanel, ALL_CATEGORIES_SLUG } from "@heybray/gamification-react/points/YourProgressPanel";
@@ -81,9 +82,11 @@ export default function HomePage() {
               navigate(`/search?category=${encodeURIComponent(slug)}`);
             }}
           />
-          <LeaderboardPanel
-            categoryOptions={leaderboardCategoryOptions}
-          />
+          <FeatureGate featureKey="leaderboard">
+            <LeaderboardPanel
+              categoryOptions={leaderboardCategoryOptions}
+            />
+          </FeatureGate>
           <RecentStarsPanel />
         </aside>
       </div>

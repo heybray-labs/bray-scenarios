@@ -10,6 +10,7 @@ import {
 import { Button } from "@heybray/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@heybray/ui/components/tabs";
 import { useAuth } from "../hooks/use-auth.ts";
+import { useFeatureFlags } from "../extensions/use-feature.ts";
 import { Settings } from "lucide-react";
 
 export interface SettingsPanel {
@@ -17,6 +18,8 @@ export interface SettingsPanel {
   label: string;
   /** Hidden unless the user has the manage permission. */
   requiresManage?: boolean;
+  /** Hidden when this feature key is disabled (EntitlementProvider gate). */
+  requiredFeature?: string;
   /**
    * Render the panel body. `onDirtyChange` lets a panel report unsaved changes
    * so the modal can guard against accidental close.
@@ -43,7 +46,12 @@ export function SettingsModal({
   const [dirty, setDirty] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
 
-  const visiblePanels = panels.filter((p) => !p.requiresManage || canManage);
+  const featureFlags = useFeatureFlags(panels.map((p) => p.requiredFeature));
+  const visiblePanels = panels.filter(
+    (p) =>
+      (!p.requiresManage || canManage) &&
+      (!p.requiredFeature || featureFlags[p.requiredFeature] !== false),
+  );
 
   const requestClose = (next: boolean) => {
     if (!next && dirty) {

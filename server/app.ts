@@ -19,6 +19,7 @@ import {
   getAppVersion,
   tenantContextMiddleware,
   createFeaturesRouter,
+  requireFeature,
 } from "@heybray/server-kit";
 import { createMediaRouter } from "@heybray/media";
 import {
@@ -108,6 +109,10 @@ export function createApp(): express.Application {
     "/api/roleplay-classifications",
     createTaxonomyRouter({ managePermission: MANAGE_PERMISSION }),
   );
+  // Real, permanent EntitlementProvider usage (Phase 3 Step 6): gates the one
+  // route the client's leaderboard panel also gates via <FeatureGate>. A no-op
+  // with DISABLED_FEATURES unset (the default).
+  app.use("/api/points/leaderboard", requireFeature("leaderboard"));
   app.use(
     "/api/points",
     createGamificationRouter({

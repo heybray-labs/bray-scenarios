@@ -17,6 +17,7 @@ import RoleplayTaking from "@/pages/RoleplayTaking";
 import RoleplayResults from "@/pages/RoleplayResults";
 import RoleplayAttemptsPage from "@/pages/RoleplayAttemptsPage";
 import TeamStarMapPage from "@/pages/TeamStarMapPage";
+import "@/admin-panels";
 import logo from "@assets/logo.png";
 import loginHeroImage from "@assets/login-screen-image.png";
 

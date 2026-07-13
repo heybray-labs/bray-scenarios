@@ -3,23 +3,15 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Star, Search, LayoutGrid } from "lucide-react";
 import { MainLayout } from "@heybray/react/components/MainLayout";
-import { type SettingsPanel } from "@heybray/react/components/SettingsModal";
 import { AppBrandTitle } from "@heybray/react/components/AppBrandTitle";
-import { AboutPanel } from "@heybray/react/components/AboutPanel";
-import { UsersManagementPanel } from "@heybray/react/admin/UsersManagementPanel";
-import { TeamsManagementPanel } from "@heybray/react/admin/TeamsManagementPanel";
-import { MediaManagementPanel } from "@heybray/react/admin/MediaManagementPanel";
-import { ClassificationManagementPanel } from "@heybray/react/admin/ClassificationManagementPanel";
+import { getAdminPanels } from "@heybray/react/extensions/admin-registry";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { HttpError } from "@heybray/react/lib/http-error";
 import { useAppConfig } from "@heybray/react/config";
 import { Button } from "@heybray/ui/components/button";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
-import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
-import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
 import { PointsHistoryDialog } from "@heybray/gamification-react/points/PointsHistoryDialog";
-import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import logo from "@assets/logo.png";
 
 function AppBrand() {
@@ -112,52 +104,6 @@ function AppNavActions() {
   );
 }
 
-const appSettingsPanels: SettingsPanel[] = [
-  {
-    value: "ai",
-    label: "AI",
-    render: ({ open, onDirtyChange }) => (
-      <RoleplayConfigPanel key={open ? "open" : "closed"} onDirtyChange={onDirtyChange} />
-    ),
-  },
-  { value: "users", label: "Users", render: () => <UsersManagementPanel /> },
-  { value: "teams", label: "Teams", render: () => <TeamsManagementPanel /> },
-  {
-    value: "media",
-    label: "Media",
-    requiresManage: true,
-    render: () => (
-      <MediaManagementPanel
-        contentNoun="scenario"
-        contentInvalidateKey="/api/roleplays"
-        renderCover={(id) => <ScenarioCover mediaId={id} />}
-      />
-    ),
-  },
-  {
-    value: "classifications",
-    label: "Classifications",
-    requiresManage: true,
-    render: () => (
-      <ClassificationManagementPanel
-        contentNoun="scenario"
-        taxonomyEndpoint="/api/roleplay-classifications"
-      />
-    ),
-  },
-  {
-    value: "homepage",
-    label: "Homepage",
-    requiresManage: true,
-    render: () => <FeaturedScenariosPanel />,
-  },
-  {
-    value: "about",
-    label: "About",
-    render: () => <AboutPanel logoSrc={logo} />,
-  },
-];
-
 // The app's manage-permission string; supplied explicitly to the platform shell
 // rather than defaulted inside it.
 const MANAGE_PERMISSION = "roleplay:manage";
@@ -167,7 +113,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <MainLayout
       brand={<AppBrand />}
       actions={<AppNavActions />}
-      settingsPanels={appSettingsPanels}
+      settingsPanels={getAdminPanels()}
       managePermission={MANAGE_PERMISSION}
     >
       {children}
