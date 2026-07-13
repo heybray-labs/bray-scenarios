@@ -18,6 +18,7 @@ import {
   globalRateLimiter,
   getAppVersion,
   tenantContextMiddleware,
+  createFeaturesRouter,
 } from "@heybray/server-kit";
 import { createMediaRouter } from "@heybray/media";
 import {
@@ -91,6 +92,7 @@ export function createApp(): express.Application {
   });
 
   app.use("/api/auth", authenticationRouter);
+  app.use("/api/features", authenticateToken, createFeaturesRouter());
   app.use("/api/roleplays", roleplayRoutes);
   app.use("/api/roleplay-config", roleplayConfigRoutes);
   app.use("/api/users", usersRouter);
