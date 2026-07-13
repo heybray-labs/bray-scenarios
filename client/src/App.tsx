@@ -32,6 +32,9 @@ const appConfig: AppConfig = {
     issues: `${GITHUB_REPO_URL}/issues`,
     releases: `${GITHUB_REPO_URL}/releases`,
   },
+  routes: {
+    contentPath: (_contentType, contentId) => `/roleplays/${contentId}`,
+  },
 };
 
 const authBranding = {

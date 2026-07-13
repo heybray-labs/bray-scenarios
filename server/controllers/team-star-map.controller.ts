@@ -12,7 +12,7 @@ import type {
 } from "@heybray/gamification";
 
 export type MemberScenarioHistoryScenario = {
-  roleplayId: number;
+  contentId: number;
   title: string;
   coverImageMediaId: number | null;
   starLevel: 0 | 1 | 2 | 3;
@@ -42,9 +42,8 @@ export type MemberScenarioHistoryResponse = {
 /**
  * App-side adapter over the generic @heybray/gamification TeamStarMapService.
  * getStarMap / getMemberProgress pass through unchanged (identical shapes); the
- * scenario-history endpoint reshapes generic content entries into the roleplay-
- * shaped payload (adds coverImageMediaId, renames content→scenario) so the client
- * contract is preserved. getMemberScenarioAttempts stays fully app-side.
+ * scenario-history endpoint enriches generic content entries with app-owned
+ * coverImageMediaId. getMemberScenarioAttempts stays fully app-side.
  */
 export const teamStarMapController = {
   async getStarMap(user: UserWithRole, teamId: number | "all"): Promise<StarMapResponse> {
@@ -89,7 +88,7 @@ export const teamStarMapController = {
         total: category.total,
         starCounts: category.starCounts,
         scenarios: category.contents.map((content) => ({
-          roleplayId: content.contentId,
+          contentId: content.contentId,
           title: content.title,
           coverImageMediaId: coverByRoleplay.get(content.contentId) ?? null,
           starLevel: content.starLevel,

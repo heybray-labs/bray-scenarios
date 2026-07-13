@@ -3,8 +3,9 @@ import { useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { Badge } from "@heybray/ui/components/badge";
 import { apiRequest } from "@heybray/react/lib/queryClient";
-import { TierStars } from "@/components/points/TierStars";
-import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
+import { useAppConfig } from "@heybray/react/config";
+import { TierStars } from "./TierStars.tsx";
+import { HomeSidebarPanel } from "./HomeSidebarPanel.tsx";
 import { currentUserHighlightStyle, getRankColor } from "@heybray/react/lib/classification-display";
 import { initialsFromName } from "@heybray/react/lib/user-display";
 import { cn } from "@heybray/ui/utils";
@@ -16,8 +17,8 @@ type RecentStarItem = {
   id: number;
   userId: number;
   userName: string;
-  roleplayId: number;
-  scenarioTitle: string;
+  contentId: number;
+  contentTitle: string;
   tierName: string;
   starLevel: number;
   tierColor: string | null;
@@ -47,7 +48,13 @@ function formatRelativeTime(value: string) {
   return `${years}y ago`;
 }
 
-function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () => void }) {
+function RecentStarRow({
+  item,
+  onSelect,
+}: {
+  item: RecentStarItem;
+  onSelect: () => void;
+}) {
   const starLevel = Math.min(3, Math.max(0, item.starLevel)) as 0 | 1 | 2 | 3;
   const isGold = starLevel === 3;
   const goldColor = getRankColor(1);
@@ -89,7 +96,7 @@ function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () 
             </Badge>
           )}
         </div>
-        <p className="truncate text-xs text-muted-foreground">{item.scenarioTitle}</p>
+        <p className="truncate text-xs text-muted-foreground">{item.contentTitle}</p>
       </div>
 
       <div className="shrink-0 flex flex-col items-end gap-0.5">
@@ -115,6 +122,7 @@ function RecentStarRow({ item, onSelect }: { item: RecentStarItem; onSelect: () 
 }
 
 export function RecentStarsPanel({ className }: RecentStarsPanelProps) {
+  const { routes } = useAppConfig();
   const [, navigate] = useLocation();
 
   const { data, isLoading } = useQuery<{ items: RecentStarItem[] }>({
@@ -145,7 +153,7 @@ export function RecentStarsPanel({ className }: RecentStarsPanelProps) {
             <RecentStarRow
               key={item.id}
               item={item}
-              onSelect={() => navigate(`/roleplays/${item.roleplayId}`)}
+              onSelect={() => navigate(routes.contentPath("scenario", item.contentId))}
             />
           ))}
         </div>

@@ -18,7 +18,7 @@ import { Button } from "@heybray/ui/components/button";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
 import { RoleplayConfigPanel } from "@/components/RoleplayConfigPanel";
 import { FeaturedScenariosPanel } from "@/components/FeaturedScenariosPanel";
-import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
+import { PointsHistoryDialog } from "@heybray/gamification-react/points/PointsHistoryDialog";
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import logo from "@assets/logo.png";
 

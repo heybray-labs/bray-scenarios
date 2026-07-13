@@ -1,7 +1,7 @@
 import {
   CategoryMasteryBar,
   categoryStarred,
-} from "@/components/points/CategoryMasteryBar";
+} from "./CategoryMasteryBar.tsx";
 import { cn } from "@heybray/ui/utils";
 
 type CategoryMasteryRowProps = {

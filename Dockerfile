@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
+COPY packages/gamification/package.json ./packages/gamification/
+COPY packages/gamification-react/package.json ./packages/gamification-react/
 COPY packages/dev-config/package.json ./packages/dev-config/
 COPY packages/identity/package.json ./packages/identity/
 COPY packages/llm/package.json ./packages/llm/
@@ -26,6 +28,8 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
+COPY packages/gamification/package.json ./packages/gamification/
+COPY packages/gamification-react/package.json ./packages/gamification-react/
 COPY packages/dev-config/package.json ./packages/dev-config/
 COPY packages/identity/package.json ./packages/identity/
 COPY packages/llm/package.json ./packages/llm/

@@ -1,5 +1,5 @@
 import { cn } from "@heybray/ui/utils";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import { resolveRewardTierDisplay } from "@heybray/gamification/schema";
 import type { RewardTierRow } from "./scenario-progress-types";
 
 type NextTierInfo = {

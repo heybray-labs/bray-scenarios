@@ -9,10 +9,11 @@ import {
 } from "@heybray/ui/components/dialog";
 import { Button } from "@heybray/ui/components/button";
 import { apiRequest } from "@heybray/react/lib/queryClient";
+import { useAppConfig } from "@heybray/react/config";
 import { ChevronLeft, ChevronRight, SquareArrowOutUpRight, Star } from "lucide-react";
 import { cn } from "@heybray/ui/utils";
-import { RewardTierLabel } from "@/components/points/RewardTierLabel";
-import { starLevelFromTierName } from "@shared/schemas/points";
+import { RewardTierLabel } from "./RewardTierLabel.tsx";
+import { starLevelFromTierName } from "@heybray/gamification/schema";
 
 type PointsHistoryDialogProps = {
   open: boolean;
@@ -27,8 +28,8 @@ type HistoryItem = {
   tierStarLevel: number | null;
   description: string | null;
   createdAt: string;
-  roleplayId: number | null;
-  roleplayTitle: string | null;
+  contentId: number | null;
+  contentTitle: string | null;
 };
 
 function formatDateTime(value: string) {
@@ -39,6 +40,7 @@ function formatDateTime(value: string) {
 }
 
 export function PointsHistoryDialog({ open, onOpenChange }: PointsHistoryDialogProps) {
+  const { routes } = useAppConfig();
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -106,10 +108,10 @@ export function PointsHistoryDialog({ open, onOpenChange }: PointsHistoryDialogP
                     </td>
                     <td className="py-2 pr-3 font-medium align-top">
                       <span className="inline-flex items-center gap-1.5 max-w-full">
-                        <span className="line-clamp-2">{item.roleplayTitle ?? "Scenario"}</span>
-                        {item.roleplayId != null && (
+                        <span className="line-clamp-2">{item.contentTitle ?? "Scenario"}</span>
+                        {item.contentId != null && (
                           <Link
-                            href={`/roleplays/${item.roleplayId}`}
+                            href={routes.contentPath("scenario", item.contentId)}
                             className="shrink-0 text-muted-foreground hover:text-primary"
                             title="Open scenario"
                             onClick={() => onOpenChange(false)}

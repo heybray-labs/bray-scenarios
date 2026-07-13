@@ -11,13 +11,13 @@ import {
 import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { CardRibbon } from "@/components/roleplays/CardRibbon";
 import { ClassificationChip } from "@heybray/react/classifications/ClassificationChip";
-import { TierStars } from "@/components/points/TierStars";
+import { TierStars } from "@heybray/gamification-react/points/TierStars";
 import { cn } from "@heybray/ui/utils";
 import {
   computePointsAvailable,
   computeStarLevel,
   pointsLineStyle,
-} from "@/lib/reward-tier-utils";
+} from "@heybray/gamification-react/lib/reward-tier-utils";
 
 export type ScenarioBrowseCardData = {
   id: number;

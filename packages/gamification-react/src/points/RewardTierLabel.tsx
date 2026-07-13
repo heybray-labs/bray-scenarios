@@ -2,7 +2,7 @@ import { cn } from "@heybray/ui/utils";
 import {
   resolveRewardTierDisplay,
   resolveStarLevelFromTier,
-} from "@shared/schemas/points";
+} from "@heybray/gamification/schema";
 import { TierStars } from "./TierStars";
 
 type RewardTierLabelProps = {

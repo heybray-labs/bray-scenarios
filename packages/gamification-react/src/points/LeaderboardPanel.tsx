@@ -18,7 +18,7 @@ import { cn } from "@heybray/ui/utils";
 import { ClassificationOptionLabel } from "@heybray/react/classifications/ClassificationOptionLabel";
 import { currentUserHighlightStyle, getRankColor } from "@heybray/react/lib/classification-display";
 import { initialsFromName } from "@heybray/react/lib/user-display";
-import { HomeSidebarPanel } from "@/components/points/HomeSidebarPanel";
+import { HomeSidebarPanel } from "./HomeSidebarPanel.tsx";
 import {
   Trophy,
   Globe,

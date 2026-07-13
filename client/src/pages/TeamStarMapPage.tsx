@@ -8,9 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@heybray/ui/components/dropdown-menu";
-import { MemberProgressDrawer } from "@/components/teams/TeamStarMapComponents";
-import { StarMapSummaryCards } from "@/components/teams/StarMapSummaryCards";
-import { StarMapTable } from "@/components/teams/StarMapTable";
+import { MemberProgressDrawer } from "@heybray/gamification-react/teams/TeamStarMapComponents";
+import { StarMapSummaryCards } from "@heybray/gamification-react/teams/StarMapSummaryCards";
+import { StarMapTable } from "@heybray/gamification-react/teams/StarMapTable";
 import {
   ALL_TEAMS_ID,
   type DrawerSelection,
@@ -18,8 +18,9 @@ import {
   type SortDirection,
   type StarMapData,
   type TeamSummary,
-} from "@/components/teams/star-map-types";
-import { compareMembers } from "@/components/teams/star-map-utils";
+} from "@heybray/gamification-react/teams/star-map-types";
+import { compareMembers } from "@heybray/gamification-react/teams/star-map-utils";
+import { ScenarioListRow } from "@/components/roleplays/ScenarioListRow";
 import { PermissionDeniedScreen } from "@heybray/react/errors";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { apiRequest } from "@heybray/react/lib/queryClient";
@@ -210,6 +211,7 @@ export default function TeamStarMapPage() {
           userId={drawerSelection.userId}
           initialExpandedCategory={drawerSelection.categorySlug}
           onClose={() => setDrawerSelection(null)}
+          ScenarioListRowComponent={ScenarioListRow}
         />
       )}
     </AppLayout>

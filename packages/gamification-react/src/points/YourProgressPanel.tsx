@@ -3,17 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { useAuth } from "@heybray/react/hooks/use-auth";
-import { PointsHistoryDialog } from "@/components/points/PointsHistoryDialog";
+import { PointsHistoryDialog } from "./PointsHistoryDialog.tsx";
 import {
   ALL_CATEGORIES_SLUG,
   categoryStarred,
-} from "@/components/points/CategoryMasteryBar";
-import { CategoryMasteryRow as CategoryMasteryRowLayout } from "@/components/points/CategoryMasteryRow";
+} from "./CategoryMasteryBar.tsx";
+import { CategoryMasteryRow as CategoryMasteryRowLayout } from "./CategoryMasteryRow.tsx";
 import { initialsFromName } from "@heybray/react/lib/user-display";
 import { cn } from "@heybray/ui/utils";
 import { Flame } from "lucide-react";
 
-export { ALL_CATEGORIES_SLUG } from "@/components/points/CategoryMasteryBar";
+export { ALL_CATEGORIES_SLUG } from "./CategoryMasteryBar.tsx";
 
 type CategoryMasteryRowData = {
   slug: string;

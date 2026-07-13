@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback } from "@heybray/ui/components/avatar";
 import {
@@ -11,9 +11,9 @@ import {
   CategoryMasteryBar,
   categoryStarred,
   TIER_BAR_COLORS,
-} from "@/components/points/CategoryMasteryBar";
-import { ScenarioListRow } from "@/components/roleplays/ScenarioListRow";
-import { drawerPink } from "@/components/teams/drawer-pink-styles";
+} from "../points/CategoryMasteryBar.tsx";
+import { drawerPink } from "./drawer-pink-styles.ts";
+import type { ContentHistoryItem } from "./star-map-types.ts";
 import { cn } from "@heybray/ui/utils";
 import { ChevronDown, Loader2, X } from "lucide-react";
 
@@ -29,16 +29,14 @@ type MemberScenarioHistory = {
     label: string;
     total: number;
     starCounts: { gold: number; silver: number; bronze: number };
-    scenarios: Array<{
-      roleplayId: number;
-      title: string;
-      coverImageMediaId: number | null;
-      starLevel: number;
-      bestScore: number | null;
-      lastAttemptAt: string | null;
-      attemptCount: number;
-    }>;
+    scenarios: ContentHistoryItem[];
   }>;
+};
+
+export type ScenarioListRowProps = {
+  item: ContentHistoryItem;
+  teamId: number | "all";
+  memberUserId: number;
 };
 
 type MemberProgressDrawerProps = {
@@ -46,17 +44,21 @@ type MemberProgressDrawerProps = {
   userId: number | null;
   initialExpandedCategory?: string | null;
   onClose: () => void;
+  /** App-supplied row renderer (joins roleplay attempt transcript data). */
+  ScenarioListRowComponent: ComponentType<ScenarioListRowProps>;
 };
 
 function CategorySection({
   category,
   teamId,
   memberUserId,
+  ScenarioListRowComponent,
   defaultOpen,
 }: {
   category: MemberScenarioHistory["categories"][number];
   teamId: number | "all";
   memberUserId: number;
+  ScenarioListRowComponent: ComponentType<ScenarioListRowProps>;
   defaultOpen: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -104,8 +106,8 @@ function CategorySection({
           )}
         >
           {category.scenarios.map((scenario) => (
-            <ScenarioListRow
-              key={scenario.roleplayId}
+            <ScenarioListRowComponent
+              key={scenario.contentId}
               item={scenario}
               teamId={teamId}
               memberUserId={memberUserId}
@@ -122,6 +124,7 @@ export function MemberProgressDrawer({
   userId,
   initialExpandedCategory = null,
   onClose,
+  ScenarioListRowComponent,
 }: MemberProgressDrawerProps) {
   const { data, isLoading } = useQuery<MemberScenarioHistory>({
     queryKey: [`/api/teams/${teamId}/members/${userId}/scenario-history`],
@@ -204,6 +207,7 @@ export function MemberProgressDrawer({
                       category={category}
                       teamId={teamId}
                       memberUserId={data.userId}
+                      ScenarioListRowComponent={ScenarioListRowComponent}
                       defaultOpen={initialExpandedCategory === category.slug}
                     />
                   ))

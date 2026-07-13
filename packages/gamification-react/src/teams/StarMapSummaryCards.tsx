@@ -1,5 +1,5 @@
 import { Flame, Star, TrendingUp } from "lucide-react";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import { resolveRewardTierDisplay } from "@heybray/gamification/schema";
 import type { StarMapData } from "./star-map-types";
 
 function SummaryCard({

@@ -1,10 +1,10 @@
 import { CheckCircle2, TrendingUp, XCircle } from "lucide-react";
-import { TierStars } from "@/components/points/TierStars";
+import { TierStars } from "@heybray/gamification-react/points/TierStars";
 import { ScenarioNextTierStrip } from "@/components/roleplays/scenario-detail/ScenarioNextTierStrip";
 import type { RewardTierRow } from "@/components/roleplays/scenario-detail/scenario-progress-types";
 import { cn } from "@heybray/ui/utils";
-import { starLevelFromTierName } from "@shared/schemas/points";
-import { useAnimatedValue } from "./reveal-hooks";
+import { starLevelFromTierName } from "@heybray/gamification/schema";
+import { useAnimatedValue } from "@heybray/gamification-react/reveal/reveal-hooks";
 
 type ResultsRevealHeroProps = {
   score: number | null;

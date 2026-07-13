@@ -7,6 +7,11 @@ export interface AppConfigUrls {
   releases?: string;
 }
 
+export interface AppConfigRoutes {
+  /** Build a client route for a gamified content item (e.g. `/roleplays/${id}`). */
+  contentPath: (contentType: string, contentId: number) => string;
+}
+
 /**
  * Whitelabel seam: the small set of brand-level text/links a host app supplies.
  * Assets (logo, hero image) are passed as props where needed since they are
@@ -16,6 +21,7 @@ export interface AppConfig {
   displayName: string;
   tagline?: string;
   urls: AppConfigUrls;
+  routes: AppConfigRoutes;
 }
 
 const AppConfigContext = createContext<AppConfig | null>(null);

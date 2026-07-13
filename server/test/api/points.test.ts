@@ -63,8 +63,8 @@ describe("Points API", () => {
       expect(item).toHaveProperty("id");
       expect(item).toHaveProperty("userId");
       expect(item).toHaveProperty("userName");
-      expect(item).toHaveProperty("roleplayId");
-      expect(item).toHaveProperty("scenarioTitle");
+      expect(item).toHaveProperty("contentId");
+      expect(item).toHaveProperty("contentTitle");
       expect(item).toHaveProperty("tierName");
       expect(item).toHaveProperty("starLevel");
       expect(item).toHaveProperty("tierColor");

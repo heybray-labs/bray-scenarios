@@ -3,20 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useAuthenticatedImage } from "@heybray/react/hooks/use-authenticated-image";
-import { TierStars } from "@/components/points/TierStars";
-import { drawerPink } from "@/components/teams/drawer-pink-styles";
+import { useAppConfig } from "@heybray/react/config";
+import { TierStars } from "@heybray/gamification-react/points/TierStars";
+import { drawerPink } from "@heybray/gamification-react/teams/drawer-pink-styles";
+import type { ContentHistoryItem } from "@heybray/gamification-react/teams/star-map-types";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { cn } from "@heybray/ui/utils";
 
-export type ScenarioListRowItem = {
-  roleplayId: number;
-  title: string;
-  coverImageMediaId?: number | null;
-  starLevel?: number;
-  bestScore?: number | null;
-  lastAttemptAt?: string | null;
-  attemptCount?: number;
-};
+export type ScenarioListRowItem = ContentHistoryItem;
 
 type ScenarioAttempt = {
   id: number;
@@ -75,6 +69,7 @@ type ScenarioListRowProps = {
 };
 
 export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowProps) {
+  const { routes } = useAppConfig();
   const [, navigate] = useLocation();
   const [expanded, setExpanded] = useState(false);
   const starLevel = (item.starLevel ?? 0) as 0 | 1 | 2 | 3;
@@ -82,12 +77,12 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
 
   const { data, isLoading } = useQuery<{ attempts: ScenarioAttempt[] }>({
     queryKey: [
-      `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.roleplayId}/attempts`,
+      `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.contentId}/attempts`,
     ],
     queryFn: () =>
       apiRequest(
         "GET",
-        `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.roleplayId}/attempts`,
+        `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.contentId}/attempts`,
       ),
     enabled: expanded && attempted,
   });
@@ -165,7 +160,9 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
                 key={attempt.id}
                 type="button"
                 onClick={() =>
-                  navigate(`/roleplays/${item.roleplayId}/results/${attempt.id}`)
+                  navigate(
+                    `${routes.contentPath("scenario", item.contentId)}/results/${attempt.id}`,
+                  )
                 }
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",

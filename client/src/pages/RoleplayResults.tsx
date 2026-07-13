@@ -33,11 +33,11 @@ import { ScenarioCover } from "@/components/roleplays/ScenarioCover";
 import { AttemptPips } from "@/components/roleplays/scenario-detail/AttemptPips";
 import { FinalAttemptDialog } from "@/components/roleplays/scenario-detail/FinalAttemptDialog";
 import type { RewardTierRow } from "@/components/roleplays/scenario-detail/scenario-progress-types";
-import { FieldBlock } from "@/components/roleplays/results/FieldBlock";
+import { FieldBlock } from "@heybray/gamification-react/reveal/FieldBlock";
 import { ResultsRevealHero } from "@/components/roleplays/results/ResultsRevealHero";
-import { usePrefersReducedMotion } from "@/components/roleplays/results/reveal-hooks";
-import { RESULT_STAGES } from "@/components/roleplays/results/stages";
-import { StagePanel } from "@/components/roleplays/results/StagePanel";
+import { usePrefersReducedMotion } from "@heybray/gamification-react/reveal/reveal-hooks";
+import { RESULT_STAGES } from "@heybray/gamification-react/reveal/stages";
+import { StagePanel } from "@heybray/gamification-react/reveal/StagePanel";
 import { TranscriptThread } from "@/components/roleplays/transcript/TranscriptThread";
 
 export default function RoleplayResults() {

@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { cn } from "@heybray/ui/utils";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import { resolveRewardTierDisplay } from "@heybray/gamification/schema";
 
 type TierStarsProps = {
   level: 0 | 1 | 2 | 3;

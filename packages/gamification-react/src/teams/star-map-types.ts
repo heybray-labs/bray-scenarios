@@ -1,3 +1,13 @@
+export type ContentHistoryItem = {
+  contentId: number;
+  title: string;
+  coverImageMediaId: number | null;
+  starLevel: number;
+  bestScore: number | null;
+  lastAttemptAt: string | null;
+  attemptCount: number;
+};
+
 export type TeamSummary = {
   id: number;
   name: string;

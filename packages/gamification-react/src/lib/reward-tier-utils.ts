@@ -2,7 +2,7 @@ import {
   deriveStarLevel,
   maxRewardPoints,
   resolveRewardTierDisplay,
-} from "@shared/schemas/points";
+} from "@heybray/gamification/schema";
 
 type TierLike = {
   minScorePercent: number;

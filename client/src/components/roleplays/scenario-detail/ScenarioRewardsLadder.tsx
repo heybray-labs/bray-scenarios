@@ -1,9 +1,9 @@
 import { Award } from "lucide-react";
-import { RewardTierLabel } from "@/components/points/RewardTierLabel";
-import { TierStars } from "@/components/points/TierStars";
+import { RewardTierLabel } from "@heybray/gamification-react/points/RewardTierLabel";
+import { TierStars } from "@heybray/gamification-react/points/TierStars";
 import { ScenarioDetailCard } from "./ScenarioDetailCard";
 import { classificationChipStyle } from "@heybray/react/lib/classification-display";
-import { resolveRewardTierDisplay } from "@shared/schemas/points";
+import { resolveRewardTierDisplay } from "@heybray/gamification/schema";
 import type { RewardTierRow } from "./scenario-progress-types";
 
 type ScenarioRewardsLadderProps = {

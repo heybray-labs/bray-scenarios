@@ -42,8 +42,8 @@ import {
 import {
   DEFAULT_REWARD_TIERS as SHARED_DEFAULT_REWARD_TIERS,
   tierNameFromStarLevel,
-} from "@shared/schemas/points";
-import { TierStars } from "@/components/points/TierStars";
+} from "@heybray/gamification/schema";
+import { TierStars } from "@heybray/gamification-react/points/TierStars";
 
 interface RoleplayBuilderDialogProps {
   roleplayId: number | null;

@@ -8,5 +8,6 @@ export default {
     "./src/**/*.{js,jsx,ts,tsx}",
     "../packages/ui/src/**/*.{ts,tsx}",
     "../packages/react/src/**/*.{ts,tsx}",
+    "../packages/gamification-react/src/**/*.{ts,tsx}",
   ],
 } satisfies Config;

@@ -207,8 +207,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
 {
   "items": [
     {
+      "activityId": 1,
       "amount": 50,
-      "attemptId": 1,
       "contentId": 1,
       "contentTitle": "Handling an Angry Customer",
       "createdAt": "<timestamp>",
@@ -220,8 +220,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 3,
     },
     {
+      "activityId": 3,
       "amount": 25,
-      "attemptId": 3,
       "contentId": 2,
       "contentTitle": "Negotiating a Raise",
       "createdAt": "<timestamp>",
@@ -233,8 +233,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 2,
     },
     {
+      "activityId": 4,
       "amount": 25,
-      "attemptId": 4,
       "contentId": 3,
       "contentTitle": "Delivering Bad News to Your Team",
       "createdAt": "<timestamp>",
@@ -246,8 +246,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 2,
     },
     {
+      "activityId": 5,
       "amount": 50,
-      "attemptId": 5,
       "contentId": 4,
       "contentTitle": "Cold Call Sales Pitch",
       "createdAt": "<timestamp>",
@@ -259,8 +259,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 3,
     },
     {
+      "activityId": 6,
       "amount": 50,
-      "attemptId": 6,
       "contentId": 5,
       "contentTitle": "Breaking Difficult Medical News",
       "createdAt": "<timestamp>",
@@ -272,8 +272,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 3,
     },
     {
+      "activityId": 7,
       "amount": 25,
-      "attemptId": 7,
       "contentId": 6,
       "contentTitle": "Conducting a Performance Review",
       "createdAt": "<timestamp>",
@@ -285,8 +285,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 2,
     },
     {
+      "activityId": 8,
       "amount": 25,
-      "attemptId": 8,
       "contentId": 7,
       "contentTitle": "Mediating a Workplace Conflict",
       "createdAt": "<timestamp>",
@@ -298,8 +298,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 2,
     },
     {
+      "activityId": 9,
       "amount": 25,
-      "attemptId": 9,
       "contentId": 8,
       "contentTitle": "Upselling Premium Features",
       "createdAt": "<timestamp>",
@@ -311,8 +311,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 2,
     },
     {
+      "activityId": 10,
       "amount": 50,
-      "attemptId": 10,
       "contentId": 9,
       "contentTitle": "Interviewing a Skeptical Candidate",
       "createdAt": "<timestamp>",
@@ -324,8 +324,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 3,
     },
     {
+      "activityId": 11,
       "amount": 10,
-      "attemptId": 11,
       "contentId": 10,
       "contentTitle": "Explaining a Product Delay",
       "createdAt": "<timestamp>",
@@ -337,8 +337,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 1,
     },
     {
+      "activityId": 12,
       "amount": 50,
-      "attemptId": 12,
       "contentId": 11,
       "contentTitle": "New Hire Check-in",
       "createdAt": "<timestamp>",
@@ -350,8 +350,8 @@ exports[`Gamification golden output > GET /api/points/me/history (page 1) 1`] = 
       "tierStarLevel": 3,
     },
     {
+      "activityId": 14,
       "amount": 50,
-      "attemptId": 14,
       "contentId": 12,
       "contentTitle": "Renewing an At-Risk Enterprise Contract",
       "createdAt": "<timestamp>",

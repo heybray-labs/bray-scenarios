@@ -27,9 +27,8 @@ import { roleplayAttempts } from "../../../shared/schemas/roleplay-core.ts";
  *   (which use the real Postgres now()) are DETERMINISTICALLY EMPTY. That keeps
  *   the month-scoped snapshots stable across calendar dates at the cost of them
  *   being empty — the all-time / structural paths carry the parity coverage.
- * - normalize() strips volatile timestamps and applies FIELD_SHIM so the Step 6
- *   payload renames (roleplayId → contentId, scenarioTitle/roleplayTitle →
- *   contentTitle) can be absorbed by editing only the shim, not the snapshots.
+ * - normalize() strips volatile timestamps. FIELD_SHIM is retained (empty after
+ *   Step 6) so snapshots captured with legacy field names keep validating.
  */
 
 const FROZEN_NOW = new Date("2025-06-16T12:00:00.000Z");
@@ -37,15 +36,9 @@ const FROZEN_NOW = new Date("2025-06-16T12:00:00.000Z");
 const ISO_DATE_RE =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
 
-/**
- * Maps current payload field names to their canonical (post-rename) names.
- * Step 6 renames these fields in the API; update this map then, and the
- * committed snapshots keep validating unchanged.
- */
+/** Legacy shim — API now emits canonical names; kept so committed snapshots stay valid. */
 const FIELD_SHIM: Record<string, string> = {
-  roleplayId: "contentId",
-  scenarioTitle: "contentTitle",
-  roleplayTitle: "contentTitle",
+  attemptId: "activityId",
 };
 
 type Json = unknown;

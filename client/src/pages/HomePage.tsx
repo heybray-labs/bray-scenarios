@@ -12,9 +12,9 @@ import {
   DialogTitle,
 } from "@heybray/ui/components/dialog";
 import { useAuth } from "@heybray/react/hooks/use-auth";
-import { LeaderboardPanel } from "@/components/points/LeaderboardPanel";
-import { RecentStarsPanel } from "@/components/points/RecentStarsPanel";
-import { YourProgressPanel, ALL_CATEGORIES_SLUG } from "@/components/points/YourProgressPanel";
+import { LeaderboardPanel } from "@heybray/gamification-react/points/LeaderboardPanel";
+import { RecentStarsPanel } from "@heybray/gamification-react/points/RecentStarsPanel";
+import { YourProgressPanel, ALL_CATEGORIES_SLUG } from "@heybray/gamification-react/points/YourProgressPanel";
 import { HeroFeaturedCarousel } from "@/components/roleplays/browse/HeroFeaturedCarousel";
 import { HomepageCarouselRows } from "@/components/roleplays/browse/HomepageCarouselRows";
 import { useScenarioAdminActions } from "@/hooks/use-scenario-admin-actions";

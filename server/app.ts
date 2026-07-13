@@ -6,8 +6,13 @@ import { fileURLToPath } from "url";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
 import { createTaxonomyRouter } from "@heybray/taxonomy";
-import pointsRoutes from "./routes/points.ts";
+import { createGamificationRouter } from "@heybray/gamification";
 import teamStarMapRoutes from "./routes/team-star-map.ts";
+import {
+  MANAGE_PERMISSION,
+  MASTERY_DIMENSION_SLUG,
+  SCENARIO_CONTENT_TYPE,
+} from "./gamification.ts";
 import { requestLogging, globalRateLimiter, getAppVersion, createMediaRouter } from "@heybray/server-kit";
 import {
   authenticationRouter,
@@ -22,10 +27,6 @@ import {
   getSamlProviderName,
   type AuthProtocol,
 } from "@heybray/identity";
-
-// The permission string that gates management actions in the platform packages.
-// It lives in app config here, not inside the packages.
-const MANAGE_PERMISSION = "roleplay:manage";
 
 function getAuthProtocolLabel(protocol: AuthProtocol): string {
   switch (protocol) {
@@ -98,7 +99,14 @@ export function createApp(): express.Application {
     "/api/roleplay-classifications",
     createTaxonomyRouter({ managePermission: MANAGE_PERMISSION }),
   );
-  app.use("/api/points", pointsRoutes);
+  app.use(
+    "/api/points",
+    createGamificationRouter({
+      contentTypes: [{ type: SCENARIO_CONTENT_TYPE, label: "Scenario" }],
+      masteryDimensionSlug: MASTERY_DIMENSION_SLUG,
+      managePermission: MANAGE_PERMISSION,
+    }),
+  );
 
   // Both team routers share the same auth chain; apply it once here rather than
   // twice (each sub-router previously ran authenticateToken + requirePasswordChanged
