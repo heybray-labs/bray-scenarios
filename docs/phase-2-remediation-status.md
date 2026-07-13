@@ -15,9 +15,40 @@ Tracks execution of `docs/phase-2-remediation.md`. One fix per commit.
 
 Green after Fix 5: `npm run typecheck` ✅, `npm run build --workspace=client` ✅.
 
-## Pending
+Full suite at HEAD (`3d35a78`, run 2026-07-13): `npm test` ✅ — 13 files, 123 passed /
+6 pre-existing SAML skips, including `gamification-regrade.test.ts` (2),
+`schema-parity.test.ts` (6), and the golden suite (10).
 
-### Fix 4b — Upgrade-path test (release gate) — **NOT YET RUN**
+### Fix 4b — Upgrade-path test — **RUN 2026-07-13, PASSED** ✅
+
+Executed per the data-parity variant below (isolated `APP_INSTANCE_PREFIX=upgradetest`
+compose stack, ports 3101/55432; old side = worktree at `2e111b3`, seeded via
+`bin/seed-demo-docker.sh`; new side = `main` rebuilt on the SAME `pgdata` volume).
+
+Results:
+- In-place boot applied `0008_gamification_generalization` and `0009_scenario_binding`
+  against the seeded pre-Phase-2 data — **all in-migration backfill assertions passed**
+  (any failure would have aborted boot). Boot `reconcile()` reported zero drift.
+- `bin/upgrade-verify.sh` → "Upgrade verified."
+- Endpoint diffs (`jq -S` normalized, old vs new):
+  - `/api/points/leaderboard?scope=category&category=hr` — **zero diff**
+  - `/api/points/me/stats` — **zero diff**
+  - `/api/teams/all/star-map` — **zero diff**
+  - `/api/teams/all/members/:id/scenario-history` — rename-only
+    (`roleplayId`→`contentId`), zero data differences
+  - `/api/points/leaderboard?scope=global` — identical point totals; two users tied at
+    195 points appear in swapped order. **Not a regression**: both old
+    (`points.controller.ts`) and new (`service.ts`) order only by `SUM(amount) DESC`
+    with no tie-break, so tie order was always plan-dependent. Follow-up (optional,
+    behavior-affecting for ties only): add a deterministic tie-break
+    (e.g. `, userId ASC`) to the leaderboard ORDER BY and rank CTEs.
+
+Test stack, volumes, and the `2e111b3` worktree were removed after the run.
+
+**Phase 2 is closed.** Remaining roadmap: future migration `0010` (drop legacy tables +
+`point_transactions.roleplay_id`/`attempt_id` + `reward_tiers.legacy_id`), then Phase 3.
+
+## Original Fix 4b procedure (as planned)
 
 Deferred to a manual run (per decision on 2026-07-13). Docker is available, but the
 literal brief step ("check out the latest `v*` tag") does **not** work as written — see
