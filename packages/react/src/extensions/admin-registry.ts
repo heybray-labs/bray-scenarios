@@ -8,8 +8,20 @@ import type { SettingsPanel } from "../components/SettingsModal.tsx";
  */
 const panels: SettingsPanel[] = [];
 
+/**
+ * Registration is idempotent by `value`: re-registering a panel (e.g. because
+ * `admin-panels.ts` re-executes under Vite HMR) replaces the existing entry
+ * in place rather than appending a duplicate — otherwise the Settings modal
+ * would accumulate repeated tabs with duplicate React keys until a hard
+ * refresh.
+ */
 export function registerAdminPanel(panel: SettingsPanel): void {
-  panels.push(panel);
+  const existingIndex = panels.findIndex((p) => p.value === panel.value);
+  if (existingIndex === -1) {
+    panels.push(panel);
+  } else {
+    panels[existingIndex] = panel;
+  }
 }
 
 /** Sorted by registration order. */
