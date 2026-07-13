@@ -57,6 +57,13 @@
       "when": 1783252891757,
       "tag": "0007_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783252891758,
+      "tag": "0008_gamification_generalization",
+      "breakpoints": true
     }
   ]
 }
