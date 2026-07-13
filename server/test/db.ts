@@ -3,6 +3,11 @@ import { db, pool } from "../db.ts";
 
 const TABLES_TO_TRUNCATE = [
   "point_transactions",
+  "user_content_tier_awards",
+  "reward_tiers",
+  "activity_log",
+  "gamification_content",
+  "content_classification_links",
   "user_scenario_tier_rewards",
   "scenario_reward_tiers",
   "roleplay_criterion_scores",

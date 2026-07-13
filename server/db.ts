@@ -1,6 +1,7 @@
 import { createDb, setDatabase, setMediaUsageHook, serverKitSchema } from "@heybray/server-kit";
 import { identitySchema } from "@heybray/identity/schema";
-import { taxonomySchema, setClassificationLinks } from "@heybray/taxonomy";
+import { taxonomySchema } from "@heybray/taxonomy";
+import { gamificationSchema } from "@heybray/gamification";
 import {
   roleplays,
   roleplaySettings,
@@ -11,6 +12,8 @@ import {
   roleplayCriterionScores,
   homepageFeaturedScenarios,
 } from "../shared/schemas/roleplay-core.ts";
+// Legacy table, unread since Phase 2 (kept registered so drizzle knows it exists
+// until it is dropped in a follow-up release).
 import { roleplayClassificationLinks } from "../shared/schemas/roleplay-classification-links.ts";
 import {
   roleplayAppConfig,
@@ -18,6 +21,8 @@ import {
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
 } from "../shared/schemas/agent/roleplay-app-config.ts";
+// Legacy gamification tables, unread since Phase 2 (superseded by the
+// @heybray/gamification tables). Kept registered until dropped in a follow-up.
 import {
   scenarioRewardTiers,
   userScenarioTierRewards,
@@ -44,10 +49,15 @@ const appSchema = {
   pointTransactions,
 };
 
-const schema = { ...serverKitSchema, ...identitySchema, ...taxonomySchema, ...appSchema };
+const schema = {
+  ...serverKitSchema,
+  ...identitySchema,
+  ...taxonomySchema,
+  ...gamificationSchema,
+  ...appSchema,
+};
 
 const { db, pool } = createDb(schema);
 setDatabase(db);
-setClassificationLinks(roleplayClassificationLinks);
 setMediaUsageHook(roleplayMediaUsage);
 export { db, pool };

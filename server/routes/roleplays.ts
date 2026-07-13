@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db.ts";
 import { roleplayAttempts } from "../../shared/schemas/roleplay-core.ts";
 import { roleplaySystemController } from "../controllers/roleplay-system.controller.ts";
-import { pointsController } from "../controllers/points.controller.ts";
+import { scenarioResultsController } from "../controllers/scenario-results.controller.ts";
 import { canViewMemberAttempt } from "@heybray/identity";
 import { roleplayConfigService } from "../services/roleplay-config.service.ts";
 import { RoleplayNotConfiguredError, describeRoleplayModelError } from "../roleplay/model-factory.ts";
@@ -521,7 +521,10 @@ router.get("/:id/my-progress", async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
     if (!(await getRoleplayForUser(req, res, roleplayId))) return;
-    const progress = await pointsController.getScenarioProgress(req.user!.id, roleplayId);
+    const progress = await scenarioResultsController.getScenarioProgress(
+      req.user!.id,
+      roleplayId,
+    );
     res.json(progress);
   } catch (error) {
     res.status(500).json({ error: "Failed to get progress" });

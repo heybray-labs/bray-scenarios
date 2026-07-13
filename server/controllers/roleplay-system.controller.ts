@@ -57,7 +57,6 @@ import {
 import { findCheatDirectiveInMessages, isCheatModeEnabled, extractCheatDirective } from "../config/cheat-mode.ts";
 import { generateLiveHint } from "../roleplay/coaching.ts";
 import { emitRoleplayEvent } from "../roleplay/roleplay-events.ts";
-import { classificationService } from "@heybray/taxonomy";
 import type {
   MissingImportClassificationOption,
   RoleplayClassificationInput,
@@ -67,19 +66,21 @@ import {
   IMPORT_PROMPT_DIMENSIONS,
   classificationDimensions,
   classificationOptions,
+  contentClassificationLinks,
 } from "@heybray/taxonomy/schema";
-import { roleplayClassificationLinks } from "../../shared/schemas/roleplay-classification-links.ts";
 import {
-  scenarioRewardTiers,
-  userScenarioTierRewards,
+  rewardTiers as gamRewardTiers,
+  userContentTierAwards,
   pointTransactions,
   resolveRewardTierDisplay,
   normalizeRewardTiers,
   tierNameFromStarLevel,
   deriveStarLevel,
   type RewardTierInput,
-} from "../../shared/schemas/points.ts";
-import { pointsController } from "./points.controller.ts";
+} from "@heybray/gamification/schema";
+import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
+import { scenarioResultsController } from "./scenario-results.controller.ts";
+import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 
 const log = createLogger("roleplay");
 
@@ -272,11 +273,12 @@ export class RoleplaySystemController {
         case "gold": {
           const starLevel = myStatus === "bronze" ? 1 : myStatus === "silver" ? 2 : 3;
           filters.push(sql`EXISTS (
-            SELECT 1 FROM user_scenario_tier_rewards ustr
-            INNER JOIN scenario_reward_tiers srt ON srt.id = ustr.highest_tier_id
-            WHERE ustr.user_id = ${userId}
-              AND ustr.roleplay_id = ${roleplays.id}
-              AND srt.star_level = ${starLevel}
+            SELECT 1 FROM user_content_tier_awards ucta
+            INNER JOIN reward_tiers rt ON rt.id = ucta.highest_tier_id
+            WHERE ucta.user_id = ${userId}
+              AND ucta.content_type = 'scenario'
+              AND ucta.content_id = ${roleplays.id}
+              AND rt.star_level = ${starLevel}
           )`);
           break;
         }
@@ -298,11 +300,12 @@ export class RoleplaySystemController {
           break;
         case "below_gold":
           filters.push(sql`NOT EXISTS (
-            SELECT 1 FROM user_scenario_tier_rewards ustr
-            INNER JOIN scenario_reward_tiers srt ON srt.id = ustr.highest_tier_id
-            WHERE ustr.user_id = ${userId}
-              AND ustr.roleplay_id = ${roleplays.id}
-              AND srt.star_level = 3
+            SELECT 1 FROM user_content_tier_awards ucta
+            INNER JOIN reward_tiers rt ON rt.id = ucta.highest_tier_id
+            WHERE ucta.user_id = ${userId}
+              AND ucta.content_type = 'scenario'
+              AND ucta.content_id = ${roleplays.id}
+              AND rt.star_level = 3
           )`);
           break;
       }
@@ -341,8 +344,8 @@ export class RoleplaySystemController {
 
     const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
     const [classificationMap, rewardTierMap] = await Promise.all([
-      classificationService.getClassificationsForRoleplays(roleplayIds),
-      pointsController.getRewardTiersForRoleplays(roleplayIds),
+      scenarioClassifications.getClassificationsForRoleplays(roleplayIds),
+      gamification.getRewardTiersForContents(SCENARIO_CONTENT_TYPE, roleplayIds),
     ]);
 
     const items = rows.map(({ roleplay, difficulty }) =>
@@ -390,8 +393,8 @@ export class RoleplaySystemController {
       .from(roleplayCriteria)
       .where(eq(roleplayCriteria.roleplayId, roleplayId))
       .orderBy(roleplayCriteria.orderIndex);
-    const rewardTiers = await pointsController.getRewardTiersForRoleplay(roleplayId);
-    const classifications = await classificationService.getClassificationsForRoleplay(roleplayId);
+    const rewardTiers = await gamification.getRewardTiers(SCENARIO_CONTENT_TYPE, roleplayId);
+    const classifications = await scenarioClassifications.getRoleplayClassifications(roleplayId);
     return { ...withCoverImageUrl(roleplay), settings, persona, criteria, rewardTiers, classifications };
   }
 
@@ -404,7 +407,7 @@ export class RoleplaySystemController {
       await roleplayConfigService.validateRoleplayModelSettings(payload.settings);
     }
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // Strip server-owned fields from client payload
       const {
         id: _id,
@@ -529,25 +532,37 @@ export class RoleplaySystemController {
         }
       }
 
-      // Reward tiers (reconcile: upsert provided, delete missing)
+      // Reward tiers (reconcile: upsert provided, delete missing) — written to the
+      // platform reward_tiers table keyed by (content_type, content_id).
       if (payload.rewardTiers !== undefined) {
         if (!payload.rewardTiers.length) {
           await tx
-            .delete(scenarioRewardTiers)
-            .where(eq(scenarioRewardTiers.roleplayId, rid));
+            .delete(gamRewardTiers)
+            .where(
+              and(
+                eq(gamRewardTiers.contentType, SCENARIO_CONTENT_TYPE),
+                eq(gamRewardTiers.contentId, rid),
+              ),
+            );
         } else {
           const normalizedTiers = normalizeRewardTiers(payload.rewardTiers);
           const existingTiers = await tx
             .select()
-            .from(scenarioRewardTiers)
-            .where(eq(scenarioRewardTiers.roleplayId, rid));
+            .from(gamRewardTiers)
+            .where(
+              and(
+                eq(gamRewardTiers.contentType, SCENARIO_CONTENT_TYPE),
+                eq(gamRewardTiers.contentId, rid),
+              ),
+            );
           const keptTierIds: number[] = [];
           let tierOrderIndex = 0;
           for (const tier of normalizedTiers) {
             const starLevel = tier.starLevel ?? tierOrderIndex + 1;
             const display = resolveRewardTierDisplay({ starLevel });
             const data = {
-              roleplayId: rid,
+              contentType: SCENARIO_CONTENT_TYPE,
+              contentId: rid,
               tierName: tierNameFromStarLevel(starLevel),
               minScorePercent: tier.minScorePercent,
               rewardPoints: tier.rewardPoints,
@@ -561,12 +576,12 @@ export class RoleplaySystemController {
               : existingTiers.find((e) => e.starLevel === starLevel);
             if (existingMatch) {
               await tx
-                .update(scenarioRewardTiers)
+                .update(gamRewardTiers)
                 .set(data)
-                .where(eq(scenarioRewardTiers.id, existingMatch.id));
+                .where(eq(gamRewardTiers.id, existingMatch.id));
               keptTierIds.push(existingMatch.id);
             } else {
-              const [ins] = await tx.insert(scenarioRewardTiers).values(data).returning();
+              const [ins] = await tx.insert(gamRewardTiers).values(data).returning();
               keptTierIds.push(ins.id);
             }
           }
@@ -575,19 +590,30 @@ export class RoleplaySystemController {
             .map((e) => e.id);
           if (tiersToDelete.length) {
             await tx
-              .delete(scenarioRewardTiers)
-              .where(inArray(scenarioRewardTiers.id, tiersToDelete));
+              .delete(gamRewardTiers)
+              .where(inArray(gamRewardTiers.id, tiersToDelete));
           }
         }
       }
 
       if (payload.classifications) {
-        await classificationService.setRoleplayClassifications(rid, payload.classifications, tx);
+        await scenarioClassifications.setRoleplayClassifications(rid, payload.classifications, tx);
       }
 
-      const classifications = await classificationService.getClassificationsForRoleplay(rid);
+      const classifications = await scenarioClassifications.getRoleplayClassifications(rid);
       return { ...withCoverImageUrl(saved), classifications };
     });
+
+    await gamification.syncContent([
+      {
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: result.id as number,
+        title: result.title as string,
+        isActive: (result.status as string) === "published",
+      },
+    ]);
+
+    return result;
   }
 
   async deleteRoleplay(roleplayId: number): Promise<boolean> {
@@ -595,6 +621,9 @@ export class RoleplaySystemController {
       .delete(roleplays)
       .where(eq(roleplays.id, roleplayId))
       .returning();
+    if (result.length > 0) {
+      await gamification.onContentDeleted(SCENARIO_CONTENT_TYPE, roleplayId);
+    }
     return result.length > 0;
   }
 
@@ -976,11 +1005,11 @@ export class RoleplaySystemController {
 
   async previewImport(scenarios: TransferScenario[]): Promise<ImportPreviewResult> {
     const inputs = scenarios.map(classificationInputFromScenario);
-    const missing = await classificationService.findMissingImportOptions(
+    const missing = await scenarioClassifications.findMissingImportOptions(
       inputs,
       IMPORT_PROMPT_DIMENSIONS,
     );
-    const autoImportTags = await classificationService.findMissingImportOptions(
+    const autoImportTags = await scenarioClassifications.findMissingImportOptions(
       inputs,
       ["tags"],
     );
@@ -1005,7 +1034,7 @@ export class RoleplaySystemController {
     const coverPathToMediaId = new Map<string, number>();
     const inputs = scenarios.map(classificationInputFromScenario);
 
-    const autoTagCount = await classificationService.ensureAutoImportTags(inputs);
+    const autoTagCount = await scenarioClassifications.ensureAutoImportTags(inputs);
     if (autoTagCount > 0) {
       warnings.push(
         `Added ${autoTagCount} missing tag ${autoTagCount === 1 ? "value" : "values"} from import`,
@@ -1013,7 +1042,7 @@ export class RoleplaySystemController {
     }
 
     if (options?.createMissingClassifications) {
-      const createdCount = await classificationService.ensurePromptImportOptions(inputs);
+      const createdCount = await scenarioClassifications.ensurePromptImportOptions(inputs);
       if (createdCount > 0) {
         warnings.push(
           `Added ${createdCount} missing classification ${createdCount === 1 ? "value" : "values"} from import`,
@@ -1046,7 +1075,7 @@ export class RoleplaySystemController {
 
       let resolvedClassifications: RoleplayClassificationInput | undefined;
       try {
-        resolvedClassifications = await classificationService.resolveImportClassifications(
+        resolvedClassifications = await scenarioClassifications.resolveImportClassifications(
           classificationsInput,
         );
       } catch (error) {
@@ -1125,6 +1154,16 @@ export class RoleplaySystemController {
       })
       .where(eq(roleplays.id, roleplayId))
       .returning();
+    if (updated) {
+      await gamification.syncContent([
+        {
+          contentType: SCENARIO_CONTENT_TYPE,
+          contentId: updated.id,
+          title: updated.title,
+          isActive: true,
+        },
+      ]);
+    }
     return updated ?? null;
   }
 
@@ -1134,6 +1173,16 @@ export class RoleplaySystemController {
       .set({ status: "draft", published: false, updatedAt: new Date() })
       .where(eq(roleplays.id, roleplayId))
       .returning();
+    if (updated) {
+      await gamification.syncContent([
+        {
+          contentType: SCENARIO_CONTENT_TYPE,
+          contentId: updated.id,
+          title: updated.title,
+          isActive: false,
+        },
+      ]);
+    }
     return updated ?? null;
   }
 
@@ -1249,15 +1298,20 @@ export class RoleplaySystemController {
   async getUserPointsEarnedByRoleplay(userId: number) {
     const rows = await db
       .select({
-        roleplayId: userScenarioTierRewards.roleplayId,
-        totalPointsAwarded: userScenarioTierRewards.totalPointsAwarded,
+        contentId: userContentTierAwards.contentId,
+        totalPointsAwarded: userContentTierAwards.totalPointsAwarded,
       })
-      .from(userScenarioTierRewards)
-      .where(eq(userScenarioTierRewards.userId, userId));
+      .from(userContentTierAwards)
+      .where(
+        and(
+          eq(userContentTierAwards.userId, userId),
+          eq(userContentTierAwards.contentType, SCENARIO_CONTENT_TYPE),
+        ),
+      );
 
     const map = new Map<number, number>();
     for (const row of rows) {
-      map.set(row.roleplayId, row.totalPointsAwarded);
+      map.set(row.contentId, row.totalPointsAwarded);
     }
     return map;
   }
@@ -1343,7 +1397,7 @@ export class RoleplaySystemController {
 
     const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
     const classificationMap =
-      await classificationService.getClassificationsForRoleplays(roleplayIds);
+      await scenarioClassifications.getClassificationsForRoleplays(roleplayIds);
 
     return rows.map(({ roleplay, difficulty }) => {
       const classifications = classificationMap.get(roleplay.id);
@@ -1417,28 +1471,29 @@ export class RoleplaySystemController {
 
     const rows = await db
       .select({
-        roleplayId: pointTransactions.roleplayId,
+        contentId: pointTransactions.contentId,
       })
       .from(pointTransactions)
-      .innerJoin(roleplays, eq(roleplays.id, pointTransactions.roleplayId))
+      .innerJoin(roleplays, eq(roleplays.id, pointTransactions.contentId))
       .where(
         and(
           eq(roleplays.status, "published"),
+          eq(pointTransactions.contentType, SCENARIO_CONTENT_TYPE),
           gte(pointTransactions.createdAt, since),
-          sql`${pointTransactions.roleplayId} IS NOT NULL`,
+          sql`${pointTransactions.contentId} IS NOT NULL`,
         ),
       )
-      .groupBy(pointTransactions.roleplayId)
+      .groupBy(pointTransactions.contentId)
       .orderBy(desc(sql`SUM(${pointTransactions.amount})`))
       .limit(limit);
 
     return rows
-      .map((row) => row.roleplayId)
+      .map((row) => row.contentId)
       .filter((id): id is number => id != null);
   }
 
   async getRecommendedRoleplayIds(userId: number, limit = 20): Promise<number[]> {
-    const mastery = await pointsController.getCategoryMasteryRankings(userId);
+    const mastery = await gamification.getMasteryRankings(userId);
     const topCategory = mastery[0];
     if (!topCategory) return [];
 
@@ -1460,7 +1515,7 @@ export class RoleplaySystemController {
    * below-gold work (retries first, then unattempted gaps).
    */
   async getRoomForImprovementRoleplayIds(userId: number, limit = 20): Promise<number[]> {
-    const mastery = await pointsController.getCategoryMasteryRankings(userId);
+    const mastery = await gamification.getMasteryRankings(userId);
     if (!mastery.length) return [];
 
     const engagementRows = await db
@@ -1472,12 +1527,15 @@ export class RoleplaySystemController {
       .from(roleplayAttempts)
       .innerJoin(roleplays, eq(roleplays.id, roleplayAttempts.roleplayId))
       .innerJoin(
-        roleplayClassificationLinks,
-        eq(roleplayClassificationLinks.roleplayId, roleplays.id),
+        contentClassificationLinks,
+        and(
+          eq(contentClassificationLinks.contentType, SCENARIO_CONTENT_TYPE),
+          eq(contentClassificationLinks.contentId, roleplays.id),
+        ),
       )
       .innerJoin(
         classificationOptions,
-        eq(classificationOptions.id, roleplayClassificationLinks.optionId),
+        eq(classificationOptions.id, contentClassificationLinks.optionId),
       )
       .innerJoin(
         classificationDimensions,
@@ -1672,7 +1730,7 @@ export class RoleplaySystemController {
     for (const [roleplayId, attempt] of bestAttempts) {
       if (inProgressIds.has(roleplayId)) continue;
       const score = parseFloat(String(attempt.score ?? "0"));
-      const tiers = await pointsController.getRewardTiersForRoleplay(roleplayId);
+      const tiers = await gamification.getRewardTiers(SCENARIO_CONTENT_TYPE, roleplayId);
       if (!tiers.length) continue;
       const starLevel = deriveStarLevel(score, tiers);
       if (starLevel >= 3) continue;
@@ -1717,7 +1775,7 @@ export class RoleplaySystemController {
 
     for (const row of inProgressRows) {
       if (items.length >= limit) break;
-      const tiers = await pointsController.getRewardTiersForRoleplay(row.roleplayId);
+      const tiers = await gamification.getRewardTiers(SCENARIO_CONTENT_TYPE, row.roleplayId);
       const best = bestAttempts.get(row.roleplayId);
       const bestScore = best ? parseFloat(String(best.score ?? "0")) : null;
       const starLevel = deriveStarLevel(bestScore, tiers);
@@ -1751,7 +1809,7 @@ export class RoleplaySystemController {
 
     for (const candidate of retryCandidates) {
       if (items.length >= limit) break;
-      const tiers = await pointsController.getRewardTiersForRoleplay(candidate.roleplayId);
+      const tiers = await gamification.getRewardTiers(SCENARIO_CONTENT_TYPE, candidate.roleplayId);
       const starLevel = deriveStarLevel(candidate.bestScore, tiers);
       const sortedAsc = [...tiers].sort((a, b) => a.starLevel - b.starLevel);
       const nextTierRow = sortedAsc.find((t) => t.minScorePercent > candidate.bestScore) ?? null;
@@ -2231,22 +2289,17 @@ export class RoleplaySystemController {
       durationMs: Date.now() - gradeStart,
     });
 
-    let pointsAward: Awaited<ReturnType<typeof pointsController.awardPointsForAttempt>> = null;
-    if (gradingStatus === "auto_graded") {
-      const [updatedAttempt] = await db
-        .select()
-        .from(roleplayAttempts)
-        .where(eq(roleplayAttempts.id, attemptId))
-        .limit(1);
-      if (updatedAttempt) {
-        pointsAward = await pointsController.awardPointsForAttempt(
-          updatedAttempt,
-          roleplay?.title ?? "Roleplay",
-          userId,
-          overallScore,
-        );
-      }
-    }
+    // Always log the completion (streaks / last-active); award points only when auto-graded.
+    const pointsAward = await gamification.recordResult({
+      userId,
+      contentType: SCENARIO_CONTENT_TYPE,
+      contentId: roleplayId,
+      activityId: attemptId,
+      scorePercent: gradingStatus === "auto_graded" ? overallScore : null,
+      passed: isPassed,
+      occurredAt: completedAt,
+      eligibleForAward: gradingStatus === "auto_graded",
+    });
 
     const results = await this.getResults(attemptId, userId);
     if (!results) return null;
@@ -2291,8 +2344,8 @@ export class RoleplaySystemController {
 
     const messages = await this.getAttemptMessages(attemptId);
 
-    const pointsForAttempt = await pointsController.getPointsForAttempt(attemptId);
-    const resultsContext = await pointsController.getResultsContext(
+    const pointsForAttempt = await gamification.getPointsForActivity(attemptId);
+    const resultsContext = await scenarioResultsController.getResultsContext(
       attempt,
       userId,
       criterionScores,

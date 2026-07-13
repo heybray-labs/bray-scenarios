@@ -8,11 +8,10 @@ import {
   IMPORT_AUTO_DIMENSIONS,
   IMPORT_PROMPT_DIMENSIONS,
   type ClassificationDimensionWithOptions,
+  type ClassificationOptionRef,
   type MissingImportClassificationOption,
-  type RoleplayClassificationInput,
-  type RoleplayClassifications,
 } from "./schema/classifications.ts";
-import { classificationLinks as roleplayClassificationLinks } from "./schema/links-registry.ts";
+import { contentClassificationLinks } from "./schema/content-links.ts";
 import {
   assertValidOptionDisplay,
   DIMENSION_DISPLAY_DEFAULTS,
@@ -22,13 +21,22 @@ import {
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// PHASE-2: generalize — see docs/platform-architecture.md §3/§7.
-// emptyClassifications() and mapLinksToClassifications() below hardcode the
-// roleplay dimension set (category / audience_level / duration / tags) and the
-// switch silently drops any unknown dimension.
-function emptyClassifications(): RoleplayClassifications {
-  return { category: null, audienceLevel: null, duration: null, tags: [] };
-}
+/**
+ * A content item's classifications keyed by dimension slug. Single-cardinality
+ * dimensions map to one option ref; multi-cardinality dimensions map to an array.
+ * The consuming app reshapes this into its own domain payload (see the app-side
+ * adapter, e.g. server/lib/scenario-classifications.ts).
+ */
+export type ContentClassifications = Record<
+  string,
+  ClassificationOptionRef | ClassificationOptionRef[]
+>;
+
+/** Write input: dimension slug → option slug(s) (or null/undefined to clear). */
+export type ContentClassificationInput = Record<
+  string,
+  string | string[] | null | undefined
+>;
 
 function toOptionRef(
   slug: string,
@@ -36,45 +44,9 @@ function toOptionRef(
   color: string | null,
   icon: string | null,
   dimensionSlug: string,
-) {
+): ClassificationOptionRef {
   const display = resolveOptionDisplay({ color, icon }, dimensionSlug);
   return { slug, label, color: display.color, icon: display.icon };
-}
-
-function mapLinksToClassifications(
-  rows: Array<{
-    dimensionSlug: string;
-    optionSlug: string;
-    optionLabel: string;
-    optionColor: string | null;
-    optionIcon: string | null;
-  }>,
-): RoleplayClassifications {
-  const result = emptyClassifications();
-  for (const row of rows) {
-    const entry = toOptionRef(
-      row.optionSlug,
-      row.optionLabel,
-      row.optionColor,
-      row.optionIcon,
-      row.dimensionSlug,
-    );
-    switch (row.dimensionSlug) {
-      case "category":
-        result.category = entry;
-        break;
-      case "audience_level":
-        result.audienceLevel = entry;
-        break;
-      case "duration":
-        result.duration = entry;
-        break;
-      case "tags":
-        result.tags.push(entry);
-        break;
-    }
-  }
-  return result;
 }
 
 function mapOptionRow(
@@ -121,12 +93,12 @@ export class ClassificationService {
         isActive: classificationOptions.isActive,
         color: classificationOptions.color,
         icon: classificationOptions.icon,
-        usageCount: count(roleplayClassificationLinks.roleplayId),
+        usageCount: count(contentClassificationLinks.contentId),
       })
       .from(classificationOptions)
       .leftJoin(
-        roleplayClassificationLinks,
-        eq(roleplayClassificationLinks.optionId, classificationOptions.id),
+        contentClassificationLinks,
+        eq(contentClassificationLinks.optionId, classificationOptions.id),
       )
       .where(includeInactive ? undefined : eq(classificationOptions.isActive, true))
       .groupBy(classificationOptions.id)
@@ -160,87 +132,97 @@ export class ClassificationService {
     return this.loadDimensionsWithOptions(true);
   }
 
-  async getClassificationsForRoleplays(roleplayIds: number[]): Promise<Map<number, RoleplayClassifications>> {
-    const result = new Map<number, RoleplayClassifications>();
-    if (!roleplayIds.length) return result;
+  /**
+   * Generic, dimension-driven read: returns each content item's classifications
+   * keyed by dimension slug. Multi-cardinality dimensions produce arrays.
+   */
+  async getContentClassifications(
+    contentType: string,
+    contentIds: number[],
+  ): Promise<Map<number, ContentClassifications>> {
+    const result = new Map<number, ContentClassifications>();
+    if (!contentIds.length) return result;
 
-    for (const id of roleplayIds) {
-      result.set(id, emptyClassifications());
-    }
+    for (const id of contentIds) result.set(id, {});
+
+    const dimensions = await db
+      .select({ slug: classificationDimensions.slug, cardinality: classificationDimensions.cardinality })
+      .from(classificationDimensions);
+    const cardinalityBySlug = new Map(dimensions.map((d) => [d.slug, d.cardinality]));
 
     const rows = await db
       .select({
-        roleplayId: roleplayClassificationLinks.roleplayId,
+        contentId: contentClassificationLinks.contentId,
         dimensionSlug: classificationDimensions.slug,
         optionSlug: classificationOptions.slug,
         optionLabel: classificationOptions.label,
         optionColor: classificationOptions.color,
         optionIcon: classificationOptions.icon,
       })
-      .from(roleplayClassificationLinks)
+      .from(contentClassificationLinks)
       .innerJoin(
         classificationOptions,
-        eq(classificationOptions.id, roleplayClassificationLinks.optionId),
+        eq(classificationOptions.id, contentClassificationLinks.optionId),
       )
       .innerJoin(
         classificationDimensions,
         eq(classificationDimensions.id, classificationOptions.dimensionId),
       )
-      .where(inArray(roleplayClassificationLinks.roleplayId, roleplayIds))
+      .where(
+        and(
+          eq(contentClassificationLinks.contentType, contentType),
+          inArray(contentClassificationLinks.contentId, contentIds),
+        ),
+      )
       .orderBy(asc(classificationOptions.sortOrder));
 
     for (const row of rows) {
-      const current = result.get(row.roleplayId) ?? emptyClassifications();
-      const mapped = mapLinksToClassifications([
-        {
-          dimensionSlug: row.dimensionSlug,
-          optionSlug: row.optionSlug,
-          optionLabel: row.optionLabel,
-          optionColor: row.optionColor,
-          optionIcon: row.optionIcon,
-        },
-      ]);
-      if (mapped.category) current.category = mapped.category;
-      if (mapped.audienceLevel) current.audienceLevel = mapped.audienceLevel;
-      if (mapped.duration) current.duration = mapped.duration;
-      if (mapped.tags.length) current.tags.push(...mapped.tags);
-      result.set(row.roleplayId, current);
+      const entry = result.get(row.contentId) ?? {};
+      const ref = toOptionRef(
+        row.optionSlug,
+        row.optionLabel,
+        row.optionColor,
+        row.optionIcon,
+        row.dimensionSlug,
+      );
+      const isMulti = cardinalityBySlug.get(row.dimensionSlug) === "multiple";
+      if (isMulti) {
+        const arr = (entry[row.dimensionSlug] as ClassificationOptionRef[] | undefined) ?? [];
+        arr.push(ref);
+        entry[row.dimensionSlug] = arr;
+      } else {
+        entry[row.dimensionSlug] = ref;
+      }
+      result.set(row.contentId, entry);
     }
 
     return result;
   }
 
-  async getClassificationsForRoleplay(roleplayId: number): Promise<RoleplayClassifications> {
-    const map = await this.getClassificationsForRoleplays([roleplayId]);
-    return map.get(roleplayId) ?? emptyClassifications();
+  async getContentClassification(
+    contentType: string,
+    contentId: number,
+  ): Promise<ContentClassifications> {
+    const map = await this.getContentClassifications(contentType, [contentId]);
+    return map.get(contentId) ?? {};
   }
 
-  async setRoleplayClassifications(
-    roleplayId: number,
-    input: RoleplayClassificationInput,
+  async setContentClassifications(
+    contentType: string,
+    contentId: number,
+    input: ContentClassificationInput,
     tx: DbTx | typeof db = db,
   ) {
-    const slugMap: Record<string, string | string[] | null | undefined> = {
-      category: input.category,
-      audience_level: input.audienceLevel,
-      duration: input.duration,
-      tags: input.tags,
-    };
-
     const dimensions = await tx.select().from(classificationDimensions);
     const dimBySlug = new Map(dimensions.map((d) => [d.slug, d]));
 
     const optionIds: number[] = [];
 
-    for (const [dimSlug, value] of Object.entries(slugMap)) {
+    for (const [dimSlug, value] of Object.entries(input)) {
       const dimension = dimBySlug.get(dimSlug);
       if (!dimension) continue;
 
-      const slugs = Array.isArray(value)
-        ? value.filter(Boolean)
-        : value
-          ? [value]
-          : [];
+      const slugs = Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
 
       if (dimension.cardinality === "single" && slugs.length > 1) {
         throw new Error(`Dimension "${dimSlug}" allows only one value`);
@@ -266,49 +248,51 @@ export class ClassificationService {
     }
 
     await tx
-      .delete(roleplayClassificationLinks)
-      .where(eq(roleplayClassificationLinks.roleplayId, roleplayId));
+      .delete(contentClassificationLinks)
+      .where(
+        and(
+          eq(contentClassificationLinks.contentType, contentType),
+          eq(contentClassificationLinks.contentId, contentId),
+        ),
+      );
 
     if (optionIds.length) {
-      await tx.insert(roleplayClassificationLinks).values(
-        optionIds.map((optionId) => ({ roleplayId, optionId })),
+      await tx.insert(contentClassificationLinks).values(
+        optionIds.map((optionId) => ({ contentType, contentId, optionId })),
       );
     }
   }
 
+  /**
+   * Validates an import's option slugs against the active taxonomy, returning the
+   * normalized input (dimension slug → option slug(s)). Throws on unknown values.
+   */
   async resolveImportClassifications(
-    input: RoleplayClassificationInput,
-  ): Promise<RoleplayClassificationInput> {
+    input: ContentClassificationInput,
+  ): Promise<ContentClassificationInput> {
     const dimensions = await this.getDimensionsWithAllOptions();
-    const resolve = (dimSlug: string, slug: string | null | undefined) => {
-      if (!slug) return null;
-      const dim = dimensions.find((d) => d.slug === dimSlug);
-      const opt = dim?.options.find((o) => o.slug === slug && o.isActive);
-      if (!opt) {
-        throw new Error(`Unknown ${dimSlug} value "${slug}" in import`);
-      }
-      return slug;
-    };
+    const dimBySlug = new Map(dimensions.map((d) => [d.slug, d]));
+    const result: ContentClassificationInput = {};
 
-    const tags = (input.tags ?? []).map((tag) => {
-      const dim = dimensions.find((d) => d.slug === "tags");
-      const opt = dim?.options.find((o) => o.slug === tag && o.isActive);
-      if (!opt) {
-        throw new Error(`Unknown tag "${tag}" in import`);
+    for (const [dimSlug, value] of Object.entries(input)) {
+      const dim = dimBySlug.get(dimSlug);
+      const slugs = Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
+      const resolved: string[] = [];
+      for (const slug of slugs) {
+        const opt = dim?.options.find((o) => o.slug === slug && o.isActive);
+        if (!opt) {
+          throw new Error(`Unknown ${dimSlug} value "${slug}" in import`);
+        }
+        resolved.push(slug);
       }
-      return tag;
-    });
+      result[dimSlug] = dim?.cardinality === "multiple" ? resolved : (resolved[0] ?? null);
+    }
 
-    return {
-      category: resolve("category", input.category),
-      audienceLevel: resolve("audience_level", input.audienceLevel),
-      duration: resolve("duration", input.duration),
-      tags,
-    };
+    return result;
   }
 
   async findMissingImportOptions(
-    inputs: RoleplayClassificationInput[],
+    inputs: ContentClassificationInput[],
     dimensionSlugs: readonly string[] = [
       ...IMPORT_PROMPT_DIMENSIONS,
       ...IMPORT_AUTO_DIMENSIONS,
@@ -338,11 +322,9 @@ export class ClassificationService {
     };
 
     for (const input of inputs) {
-      noteMissing("category", input.category);
-      noteMissing("audience_level", input.audienceLevel);
-      noteMissing("duration", input.duration);
-      for (const tag of input.tags ?? []) {
-        noteMissing("tags", tag);
+      for (const [dimSlug, value] of Object.entries(input)) {
+        const slugs = Array.isArray(value) ? value : value ? [value] : [];
+        for (const slug of slugs) noteMissing(dimSlug, slug);
       }
     }
 
@@ -353,13 +335,13 @@ export class ClassificationService {
     });
   }
 
-  async ensureAutoImportTags(inputs: RoleplayClassificationInput[]): Promise<number> {
+  async ensureAutoImportTags(inputs: ContentClassificationInput[]): Promise<number> {
     const missingTags = await this.findMissingImportOptions(inputs, IMPORT_AUTO_DIMENSIONS);
     if (!missingTags.length) return 0;
     return this.ensureImportOptions(missingTags);
   }
 
-  async ensurePromptImportOptions(inputs: RoleplayClassificationInput[]): Promise<number> {
+  async ensurePromptImportOptions(inputs: ContentClassificationInput[]): Promise<number> {
     const missing = await this.findMissingImportOptions(inputs, IMPORT_PROMPT_DIMENSIONS);
     if (!missing.length) return 0;
     return this.ensureImportOptions(missing);
@@ -592,8 +574,8 @@ export class ClassificationService {
   async deleteOption(optionId: number) {
     const [usage] = await db
       .select({ count: count() })
-      .from(roleplayClassificationLinks)
-      .where(eq(roleplayClassificationLinks.optionId, optionId));
+      .from(contentClassificationLinks)
+      .where(eq(contentClassificationLinks.optionId, optionId));
     if (Number(usage?.count ?? 0) > 0) {
       throw new Error("Cannot delete an option that is in use by scenarios");
     }
@@ -604,8 +586,8 @@ export class ClassificationService {
   async getOptionUsageCount(optionId: number): Promise<number> {
     const [row] = await db
       .select({ count: count() })
-      .from(roleplayClassificationLinks)
-      .where(eq(roleplayClassificationLinks.optionId, optionId));
+      .from(contentClassificationLinks)
+      .where(eq(contentClassificationLinks.optionId, optionId));
     return Number(row?.count ?? 0);
   }
 }

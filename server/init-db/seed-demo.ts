@@ -16,18 +16,19 @@ import {
   roleplayCriterionScores,
 } from "../../shared/schemas/roleplay-core.ts";
 import {
-  scenarioRewardTiers,
-  userScenarioTierRewards,
+  rewardTiers as gamRewardTiers,
   pointTransactions,
+  userContentTierAwards,
+  activityLog,
   resolveRewardTierDisplay,
   tierNameFromStarLevel,
-} from "../../shared/schemas/points.ts";
+} from "@heybray/gamification/schema";
 import { createLogger } from "@heybray/server-kit";
 import { assertDatabaseConnection } from "./assert-db-connection.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { classificationService } from "@heybray/taxonomy";
 import { mediaService, ensureMediaDir } from "@heybray/server-kit";
-import { pointsController } from "../controllers/points.controller.ts";
+import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
+import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 import {
   DEMO_SCENARIOS,
   DEMO_SCENARIO_TITLES,
@@ -173,7 +174,7 @@ async function seedScenarios(adminUserId: number) {
       })
       .returning();
 
-    await classificationService.setRoleplayClassifications(roleplay.id, {
+    await scenarioClassifications.setRoleplayClassifications(roleplay.id, {
       category: categoryLabelToSlug(scenario.category),
       audienceLevel: scenario.audienceLevel,
       duration: scenario.duration,
@@ -214,8 +215,9 @@ async function seedScenarios(adminUserId: number) {
     for (let i = 0; i < scenario.rewardTiers.length; i++) {
       const tier = scenario.rewardTiers[i];
       const display = resolveRewardTierDisplay(tier);
-      await db.insert(scenarioRewardTiers).values({
-        roleplayId: roleplay.id,
+      await db.insert(gamRewardTiers).values({
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: roleplay.id,
         tierName: tier.tierName ?? tierNameFromStarLevel(tier.starLevel ?? i + 1),
         minScorePercent: tier.minScorePercent,
         rewardPoints: tier.rewardPoints,
@@ -225,6 +227,15 @@ async function seedScenarios(adminUserId: number) {
         icon: null,
       });
     }
+
+    await gamification.syncContent([
+      {
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: roleplay.id,
+        title: roleplay.title,
+        isActive: true,
+      },
+    ]);
 
     const existingCoverMediaId = await resolveCoverMediaId(scenario.slug);
     let coverMediaId = existingCoverMediaId;
@@ -441,30 +452,45 @@ async function seedAttempts(
           });
         }
 
-        await pointsController.awardPointsForAttempt(
-          attempt,
-          scenario.title,
-          learner.userId,
-          targetScore,
-        );
+        await gamification.recordResult({
+          userId: learner.userId,
+          contentType: SCENARIO_CONTENT_TYPE,
+          contentId: roleplayId,
+          activityId: attempt.id,
+          scorePercent: targetScore,
+          passed: targetScore >= 70,
+          occurredAt: completedAt,
+          eligibleForAward: true,
+        });
 
         await db
           .update(pointTransactions)
           .set({ createdAt: completedAt })
           .where(
             and(
-              eq(pointTransactions.attemptId, attempt.id),
+              eq(pointTransactions.activityId, attempt.id),
               eq(pointTransactions.userId, learner.userId),
             ),
           );
 
         await db
-          .update(userScenarioTierRewards)
+          .update(userContentTierAwards)
           .set({ updatedAt: completedAt })
           .where(
             and(
-              eq(userScenarioTierRewards.userId, learner.userId),
-              eq(userScenarioTierRewards.roleplayId, roleplayId),
+              eq(userContentTierAwards.userId, learner.userId),
+              eq(userContentTierAwards.contentType, SCENARIO_CONTENT_TYPE),
+              eq(userContentTierAwards.contentId, roleplayId),
+            ),
+          );
+
+        await db
+          .update(activityLog)
+          .set({ occurredAt: completedAt })
+          .where(
+            and(
+              eq(activityLog.activityId, attempt.id),
+              eq(activityLog.userId, learner.userId),
             ),
           );
 

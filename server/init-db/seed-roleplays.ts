@@ -8,7 +8,7 @@ import {
 } from "../../shared/schemas/roleplay-core.ts";
 import { createLogger } from "@heybray/server-kit";
 import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import { classificationService } from "@heybray/taxonomy";
+import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 
 const log = createLogger("seed-roleplays");
 
@@ -320,7 +320,7 @@ async function seedRoleplays() {
       })
       .returning();
 
-    await classificationService.setRoleplayClassifications(roleplay.id, {
+    await scenarioClassifications.setRoleplayClassifications(roleplay.id, {
       category: categoryLabelToSlug(scenario.category),
       audienceLevel: scenario.audienceLevel,
       duration: scenario.duration,

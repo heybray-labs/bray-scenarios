@@ -11,7 +11,11 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { users } from "@heybray/identity/schema";
-import { classificationOptions } from "@heybray/taxonomy/schema";
+
+// content_classification_links is owned by @heybray/taxonomy (Phase 2). Re-export
+// it so gamification consumers can keep importing it from this package's schema.
+export { contentClassificationLinks } from "@heybray/taxonomy/schema";
+export type { ContentClassificationLink } from "@heybray/taxonomy/schema";
 
 /**
  * Content-polymorphic gamification tables (Phase 2). `content_id` deliberately
@@ -103,20 +107,6 @@ export const gamificationContent = pgTable(
   ],
 );
 
-export const contentClassificationLinks = pgTable(
-  "content_classification_links",
-  {
-    contentType: text("content_type").notNull().default("scenario"),
-    contentId: integer("content_id").notNull(),
-    optionId: integer("option_id")
-      .notNull()
-      .references(() => classificationOptions.id, { onDelete: "cascade" }),
-  },
-  (table) => [
-    primaryKey({ columns: [table.contentType, table.contentId, table.optionId] }),
-  ],
-);
-
 /**
  * The package's content-polymorphic view of the shared `point_transactions`
  * table. It maps the columns added in migration 0008 (content_type/content_id/
@@ -142,4 +132,3 @@ export type RewardTier = typeof rewardTiers.$inferSelect;
 export type UserContentTierAward = typeof userContentTierAwards.$inferSelect;
 export type ActivityLogRow = typeof activityLog.$inferSelect;
 export type GamificationContentRow = typeof gamificationContent.$inferSelect;
-export type ContentClassificationLink = typeof contentClassificationLinks.$inferSelect;

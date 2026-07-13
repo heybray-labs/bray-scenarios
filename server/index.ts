@@ -8,6 +8,7 @@ import {
   samlAuthService,
 } from "@heybray/identity";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
+import { reconcileGamificationProjection } from "./gamification.ts";
 
 const app = createApp();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -19,6 +20,7 @@ async function start() {
       logger.error("Authentication configuration error", undefined, { message: authConfigError });
     }
     await initializeDatabase();
+    await reconcileGamificationProjection();
     ensureMediaDir();
     oidcAuthService.logStartupStatus();
     await samlAuthService.logStartupStatus();

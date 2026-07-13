@@ -6,14 +6,15 @@ import {
   userContentTierAwards,
   activityLog,
   gamificationContent,
-  contentClassificationLinks,
 } from "./tables.ts";
 
-/** Aggregated schema object for registration in the app's `createDb` call. */
+/**
+ * Aggregated schema object for registration in the app's `createDb` call.
+ * content_classification_links is contributed by taxonomySchema, not here.
+ */
 export const gamificationSchema = {
   rewardTiers,
   userContentTierAwards,
   activityLog,
   gamificationContent,
-  contentClassificationLinks,
 };

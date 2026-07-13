@@ -10,9 +10,8 @@ import { createInsertSchema } from "drizzle-zod";
 import { users } from "@heybray/identity/schema";
 import { roleplays, roleplayAttempts } from "./roleplay-core.ts";
 
-// PHASE-2: the pure reward-tier helpers now live in @heybray/gamification/schema.
-// These re-exports keep existing importers working during the transition and are
-// removed in Step 6 once all call sites import from the package directly.
+// Legacy tables, unread since Phase 2 (superseded by @heybray/gamification tables).
+// Dropped in a follow-up release. Pure helpers re-exported below until Step 6.
 export {
   CANONICAL_TIER_NAMES,
   REWARD_TIER_DISPLAY_PRESETS,
