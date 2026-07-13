@@ -323,7 +323,7 @@ Every phase ends with Scenarios shippable: CI green, Docker image releasable, DB
 - **Risks:** import-churn regressions (mitigated by strict typecheck + existing API smoke tests); vite/tsx resolution of workspace TS (keep alias-style resolution until packages build).
 - **Done when:** CI green, zero behavior change, git history shows moves not rewrites.
 
-### Phase 2 — Gamification decoupling *(highest-risk phase)*
+### Phase 2 — Gamification decoupling *(complete)*
 - Migrations `0008+`: create `reward_tiers`, `user_content_tier_awards`; add `content_type`/`content_id`/`activity_id` to `point_transactions`; create `activity_log` (backfill from completed `roleplay_attempts`) and `gamification_content` (backfill from `roleplays`); rename `roleplay_classification_links` → `content_classification_links` + `content_type` column. Backfills are pure SQL with count/sum assertions in-migration; old tables kept (unread) for one release, dropped later.
 - App binding migration adds cascade FKs onto `roleplays`.
 - Rewrite `points.controller.ts` → `GamificationService` in `packages/gamification`; split `team.controller.ts` (CRUD → identity, star map → gamification); config-inject `masteryDimensionSlug` and `managePermission`; grading pipeline calls `recordResult`; roleplay controllers upsert `gamification_content` on publish/rename/delete.
@@ -331,12 +331,16 @@ Every phase ends with Scenarios shippable: CI green, Docker image releasable, DB
 - **Risks:** live-data backfill correctness (assertions + `bin/upgrade-verify.sh` extension); leaderboard rank CTE parity (golden-output tests against a seeded DB before/after).
 - **Done when:** feature parity on leaderboards/mastery/star map/results reveal/points history against seeded demo data; upgrade from v1.1.x tested via docker-compose.
 
-#### Carried debt from Phase 1 (accepted, marked `// PHASE-2:` in code)
-These were deliberately left roleplay-shaped in Phase 1 and must be generalized as part of this phase (each site carries a `// PHASE-2:` marker pointing back here):
-- `packages/taxonomy/src/schema/links-registry.ts` — the fallback join table and `ClassificationLinksTable` type are roleplay-shaped (`roleplay_id` / `roleplay_classification_links`); generalize to the `content_classification_links` shape.
-- `packages/taxonomy/src/service.ts` — `emptyClassifications()` / `mapLinksToClassifications()` hardcode the `category` / `audience_level` / `duration` / `tags` dimension set and silently drop unknown dimensions; drive off the configured dimension set instead.
-- `packages/react/src/admin/{MediaManagementPanel,ClassificationManagementPanel}.tsx` — hardcoded `/api/roleplays` (and `/api/roleplay-classifications`) invalidation keys and "scenario" copy; introduce an app-supplied **endpoint/copy adapter** so the panels are content-type agnostic.
-- `packages/llm/src/model-factory.ts` — the "Roleplay will omit…" user-facing string is app copy; add **error-copy injection** so the app supplies wording.
+#### Carried debt from Phase 1 — resolved in Phase 2
+These were deliberately left roleplay-shaped in Phase 1; each carried a `// PHASE-2:` marker until this phase closed them:
+- ✅ `packages/taxonomy/src/schema/links-registry.ts` deleted — taxonomy now owns `content_classification_links` outright.
+- ✅ `packages/taxonomy/src/service.ts` rewritten dimension-driven; the roleplay app adapter reshapes to the existing `{category, audienceLevel, duration, tags}` API payload.
+- ✅ `packages/react/src/admin/{MediaManagementPanel,ClassificationManagementPanel}.tsx` take `{ contentNoun, contentInvalidateKey, taxonomyEndpoint }` props from the app (`AppLayout.tsx`).
+- ✅ `packages/llm/src/model-factory.ts` — app supplies temperature-error copy via `createModelFactory({ describeTemperatureFallback })`.
+- ✅ `packages/server-kit` ↔ `packages/identity` cycle broken — media extracted to `@heybray/media` (`server-kit ← identity ← media`, `server-kit ← media`).
+
+#### Deferred to a follow-up release *(not Phase 2)*
+- Migration `0010`: drop legacy tables/columns after one release on the new schema — `scenario_reward_tiers`, `user_scenario_tier_rewards`, `roleplay_classification_links`, `point_transactions.roleplay_id`/`attempt_id`, `reward_tiers.legacy_id`. Old tables remain registered in `server/db.ts` (unread) until then.
 
 ### Phase 3 — Extension seams
 - Implement the §5 interfaces with OSS defaults; convert SettingsModal panels and app admin panels to the AdminRegistry; route the three auth protocols through AuthProviderRegistry; emit audit events; wire no-op `requireFeature` tags on premium-candidate routes.
@@ -393,11 +397,13 @@ These were deliberately left roleplay-shaped in Phase 1 and must be generalized 
 
 | Concern | Where it is today |
 |---|---|
-| Gamification schema coupling | `shared/schemas/points.ts` (FKs at lines 18–20, 41–43, 61–62) |
-| Hardcoded `"category"` dimension | `server/controllers/points.controller.ts:295,351,943,1028`; `server/controllers/team.controller.ts:476,607` |
-| Hardcoded `"roleplay:manage"` | `server/controllers/team.controller.ts:80` |
-| Domain-typed award flow | `server/controllers/points.controller.ts:97` (`awardPointsForAttempt`) |
-| Schema aggregation to decompose | `server/db.ts` |
+| Gamification service | `packages/gamification/` (`GamificationService`, `TeamStarMapService`, `createGamificationRouter`) |
+| Gamification client UI | `packages/gamification-react/` (points panels, star map, reveal pieces) |
+| Legacy gamification tables (unread) | `shared/schemas/points.ts` — registered in `server/db.ts` until migration `0010` |
+| Mastery dimension config | `server/gamification.ts` (`MASTERY_DIMENSION_SLUG`) |
+| Scenario results composition | `server/controllers/scenario-results.controller.ts` |
+| Media package | `packages/media/` (`MediaService`, `createMediaRouter`, `mediaSchema`) |
+| Schema aggregation | `server/db.ts` (`identitySchema`, `taxonomySchema`, `gamificationSchema`, `mediaSchema`, `appSchema`) |
 | Migration runner + baseline stamping | `server/init-db/run-migrations.ts` (`stampBaselineIfLegacyDatabase`, line 61) |
 | Whitelabel constants | `client/src/lib/app-config.ts` |
 | Auth protocol switch | `server/config/auth-config.ts` (`AUTH_PROTOCOL`) |
