@@ -1,4 +1,4 @@
-import { db } from "@heybray/server-kit";
+import { db, createLogger } from "@heybray/server-kit";
 import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { users } from "@heybray/identity/schema";
 import {
@@ -99,6 +99,8 @@ export type ReconcileReport = {
   deactivated: number;
 };
 
+const log = createLogger("gamification");
+
 export class GamificationService {
   private readonly contentTypeList: string[];
 
@@ -157,6 +159,42 @@ export class GamificationService {
       input.scorePercent ?? 0,
       input.activityId ?? null,
     );
+  }
+
+  /**
+   * Update the logged result for an existing activity (e.g. a manual re-grade).
+   * Does NOT award points — award eligibility is decided once, at recordResult
+   * time. Tolerant no-op (warns, never throws) when no matching row exists.
+   */
+  async updateResult(input: {
+    contentType: string;
+    contentId: number;
+    activityId: number;
+    scorePercent: number | null;
+    passed: boolean | null;
+  }): Promise<void> {
+    const updated = await db
+      .update(activityLog)
+      .set({
+        scorePercent: input.scorePercent != null ? String(input.scorePercent) : null,
+        passed: input.passed ?? null,
+      })
+      .where(
+        and(
+          eq(activityLog.contentType, input.contentType),
+          eq(activityLog.contentId, input.contentId),
+          eq(activityLog.activityId, input.activityId),
+        ),
+      )
+      .returning({ id: activityLog.id });
+
+    if (!updated.length) {
+      log.warn("updateResult matched no activity_log row", {
+        contentType: input.contentType,
+        contentId: input.contentId,
+        activityId: input.activityId,
+      });
+    }
   }
 
   private async awardPoints(

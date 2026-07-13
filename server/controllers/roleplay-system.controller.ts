@@ -2448,16 +2448,29 @@ export class RoleplaySystemController {
           .limit(1)
       : [undefined];
     const passThreshold = settings?.passThreshold ?? 70;
+    const isPassed = overall >= passThreshold;
 
     await db
       .update(roleplayAttempts)
       .set({
         score: String(overall),
-        isPassed: overall >= passThreshold,
+        isPassed,
         gradingStatus: "graded",
         gradedAt: new Date(),
       })
       .where(eq(roleplayAttempts.id, updated.attemptId!));
+
+    // Reflect the manual re-grade in the activity log so stats/star-map read the
+    // corrected score. Does NOT award points — manual grades never have.
+    if (attempt) {
+      await gamification.updateResult({
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: attempt.roleplayId,
+        activityId: updated.attemptId!,
+        scorePercent: overall,
+        passed: isPassed,
+      });
+    }
 
     return { criterionScore: updated, overallScore: overall };
   }
