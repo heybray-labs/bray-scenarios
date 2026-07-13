@@ -11,3 +11,4 @@ export * from "./extensions/event-bus.ts";
 export * from "./extensions/audit.ts";
 export * from "./extensions/entitlements.ts";
 export * from "./extensions/admin-registry.ts";
+export * from "./extensions/notifications.ts";
