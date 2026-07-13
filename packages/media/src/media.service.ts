@@ -1,10 +1,9 @@
-import fs from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
-import { createReadStream, existsSync, mkdirSync } from "fs";
+import path from "path";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, createLogger } from "@heybray/server-kit";
 import { mediaAssets, type MediaAsset } from "./schema/media-assets.ts";
+import { getMediaDir, getStorageProvider, StorageNotFoundError } from "./storage.ts";
 
 const log = createLogger("media");
 
@@ -41,18 +40,6 @@ const MIME_TO_EXT: Record<string, string> = {
   "image/png": ".png",
   "image/webp": ".webp",
 };
-
-export function getMediaDir(): string {
-  return process.env.MEDIA_DIR || path.resolve(process.cwd(), "data/media");
-}
-
-export function ensureMediaDir(): string {
-  const dir = getMediaDir();
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-}
 
 export function mediaPublicUrl(id: number): string {
   return `/api/media/${id}`;
@@ -142,12 +129,10 @@ export class MediaService {
   ): Promise<MediaAsset> {
     validateMimeAndSize(options.mimeType, buffer.length);
 
-    const dir = ensureMediaDir();
     const ext = MIME_TO_EXT[options.mimeType] ?? "";
     const storageKey = options.storageKey ?? `${randomUUID()}${ext}`;
-    const filePath = path.join(dir, storageKey);
 
-    await fs.writeFile(filePath, buffer);
+    await getStorageProvider().put(storageKey, buffer);
 
     try {
       const [created] = await db
@@ -162,7 +147,7 @@ export class MediaService {
         .returning();
       return created;
     } catch (error) {
-      await fs.unlink(filePath).catch(() => undefined);
+      await getStorageProvider().delete(storageKey).catch(() => undefined);
       throw error;
     }
   }
@@ -172,17 +157,19 @@ export class MediaService {
   }
 
   openReadStream(asset: MediaAsset) {
-    const filePath = this.resolvePath(asset);
-    if (!existsSync(filePath)) {
-      throw new MediaNotFoundError("Media file missing on disk");
+    try {
+      return getStorageProvider().getStream(asset.storageKey);
+    } catch (error) {
+      if (error instanceof StorageNotFoundError) {
+        throw new MediaNotFoundError("Media file missing on disk");
+      }
+      throw error;
     }
-    return createReadStream(filePath);
   }
 
   async readFile(asset: MediaAsset): Promise<Buffer> {
-    const filePath = this.resolvePath(asset);
     try {
-      return await fs.readFile(filePath);
+      return await getStorageProvider().getBuffer(asset.storageKey);
     } catch {
       throw new MediaNotFoundError("Media file missing on disk");
     }
@@ -199,13 +186,14 @@ export class MediaService {
 
     await db.delete(mediaAssets).where(eq(mediaAssets.id, id));
 
-    const filePath = this.resolvePath(asset);
-    await fs.unlink(filePath).catch((err) => {
-      log.warn("Failed to delete media file", {
-        storageKey: asset.storageKey,
-        error: err instanceof Error ? err.message : String(err),
+    await getStorageProvider()
+      .delete(asset.storageKey)
+      .catch((err) => {
+        log.warn("Failed to delete media file", {
+          storageKey: asset.storageKey,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
-    });
 
     return { usageCount };
   }
