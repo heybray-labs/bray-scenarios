@@ -49,14 +49,18 @@ The foundation everything else plugs into.
 - DB: pool/drizzle factory extracted from `server/db.ts`; `resolve-database-url.ts`.
 - Migrations runner: `runMigrations(sources)` generalized from `server/init-db/run-migrations.ts` (see *Migrations pattern* below).
 - Env handling: zod-validated env loading composed from per-package schema fragments (see §6).
-- Media: `media_assets` schema (`shared/schemas/media-assets.ts`), media service/routes, behind the **StorageProvider** seam. Media is small and universal; folding it here avoids a micro-package.
 - The extension-point interfaces (§5) and a typed in-process event bus.
 
 #### `@heybray/identity` — depends on `server-kit`
 
 - Schemas: `users.ts` (incl. 2FA columns), `roles.ts` (string-array permissions), `teams.ts`, `user-identities.ts`, `auth-exchange-codes.ts` → exported at `@heybray/identity/schema`.
-- Server: `server/middleware/auth.ts`, `server/config/auth-config.ts` (`AUTH_PROTOCOL` = local | oidc | saml), services `oidc-auth`, `saml-auth`, `sso-exchange`, `sso-user-resolution`, auth/user/team routes, user controller, and the team-CRUD half of `team.controller.ts` (the star-map half moves to gamification).
+- Server: `server/middleware/auth.ts`, `packages/identity/src/auth-config.ts` (`AUTH_PROTOCOL` = local | oidc | saml), services `oidc-auth`, `saml-auth`, `sso-exchange`, `sso-user-resolution`, auth/user/team routes, user controller, and the team-CRUD half of `team.controller.ts` (the star-map half moves to gamification).
 - Teams live here deliberately: they are org structure, not gamification. Gamification *consumes* team membership.
+
+#### `@heybray/media` — depends on `server-kit`, `identity`
+
+- Schema: `media_assets` (`packages/media/src/schema/media-assets.ts`) → exported at `@heybray/media/schema`.
+- Media service/routes behind the **StorageProvider** seam (`FilesystemStorageProvider` default). Split out as its own package (rather than folded into `server-kit`, as originally planned here) once media's ownership checks needed `identity`'s user data — see the Phase 2 carried-debt note below.
 
 #### `@heybray/taxonomy` — depends on `server-kit`
 
@@ -342,10 +346,20 @@ These were deliberately left roleplay-shaped in Phase 1; each carried a `// PHAS
 #### Deferred to a follow-up release *(not Phase 2)*
 - Migration `0010`: drop legacy tables/columns after one release on the new schema — `scenario_reward_tiers`, `user_scenario_tier_rewards`, `roleplay_classification_links`, `point_transactions.roleplay_id`/`attempt_id`, `reward_tiers.legacy_id`. Old tables remain registered in `server/db.ts` (unread) until then.
 
-### Phase 3 — Extension seams
+### Phase 3 — Extension seams *(complete)*
 - Implement the §5 interfaces with OSS defaults; convert SettingsModal panels and app admin panels to the AdminRegistry; route the three auth protocols through AuthProviderRegistry; emit audit events; wire no-op `requireFeature` tags on premium-candidate routes.
 - **Risks:** low; purely additive.
-- **Done when:** Scenarios runs entirely through the registries; a toy "disable leaderboard" EntitlementProvider proves the gate end-to-end, then is removed.
+- **Done when:** Scenarios runs entirely through the registries; a toy "disable leaderboard" EntitlementProvider proves the gate end-to-end, then is removed. ✅ Verified manually per `docs/phase-3-implementation.md` Step 10; results recorded in `docs/phase-3-verification.md`. The toy gate (`requireFeature("leaderboard")` / `FeatureGate`) was kept as the one permanent seam usage rather than removed, since it's the cheapest possible proof that the seam stays exercised going forward.
+
+#### Deferred to a follow-up release *(not Phase 3)*
+These are the OSS defaults' real, enterprise-grade implementations — all Phase 6, not gaps in Phase 3:
+- `AuthProviderRegistry` route-splitting: `packages/identity/src/routes/authentication.ts` stays one file covering local/OIDC/SAML; per-provider route modules (needed for LDAP/multi-IdP) are deferred until an enterprise package actually needs them (Step 7's scope reduction).
+- `AdminRegistry` server-side module registration (`registerAdminModule`): ships defined-but-unused; nothing in Scenarios currently needs dynamic route mounting.
+- Real `StorageProvider` S3 implementation (default remains `FilesystemStorageProvider`).
+- Real `NotificationTransport` SES implementation (default remains `LogNotificationTransport`; Scenarios sends no email today).
+- Real `AuditSink` DB-persisted implementation + admin UI (default remains `LogAuditSink`).
+- Real `EntitlementProvider` Stripe-backed implementation (default remains `EnvEntitlements`/`DISABLED_FEATURES`).
+- Real `TenantResolver` (default remains `NullTenantResolver`; no `tenant_id` columns exist yet).
 
 ### Phase 4 — Lift to `bray-platform` + publish + consume
 - `git filter-repo` (history-preserving) `packages/` into the new monorepo; add tsup builds, changesets, turbo, `examples/basic-app`, CLA action, license headers; publish `0.x` to npm.
@@ -406,5 +420,5 @@ These were deliberately left roleplay-shaped in Phase 1; each carried a `// PHAS
 | Schema aggregation | `server/db.ts` (`identitySchema`, `taxonomySchema`, `gamificationSchema`, `mediaSchema`, `appSchema`) |
 | Migration runner + baseline stamping | `server/init-db/run-migrations.ts` (`stampBaselineIfLegacyDatabase`, line 61) |
 | Whitelabel constants | `client/src/lib/app-config.ts` |
-| Auth protocol switch | `server/config/auth-config.ts` (`AUTH_PROTOCOL`) |
+| Auth protocol switch | `packages/identity/src/auth-config.ts` (`AUTH_PROTOCOL`) |
 | Enterprise precedents | WebAppTemplate: `client/src/AppExtensions.tsx`, `client/src/components/FeatureGate.tsx`, `shared/schemas/stripe-features.ts`, `server/middleware/{tenant,audit}.ts` |

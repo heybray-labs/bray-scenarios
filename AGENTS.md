@@ -1,8 +1,8 @@
 # Agent Guide — bray-scenarios
 
 Read this before making changes. For the platform rework, also read
-`docs/platform-architecture.md` (the approved design) and the current phase brief
-(`docs/phase-1-implementation.md`). **Implement one phase at a time — never blend phases.**
+`docs/platform-architecture.md` (the approved design) and the current phase brief in `docs/`.
+**Implement one phase at a time — never blend phases.**
 
 ## What this repo is
 
