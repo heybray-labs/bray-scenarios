@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import bcrypt from "bcrypt";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "../db.ts";
@@ -477,7 +477,7 @@ async function seedAttempts(
   return { attemptCount, completedCount, inProgressCount };
 }
 
-async function seedDemo() {
+export async function seedDemo() {
   await assertDatabaseConnection();
   await ensureRoles();
   await seedClassifications();
@@ -516,10 +516,17 @@ async function seedDemo() {
   console.log("Log in as admin@demo.local for scenario management screenshots.\n");
 }
 
-seedDemo()
-  .then(() => pool.end())
-  .catch((err) => {
-    log.error("Demo seed failed", err instanceof Error ? err : undefined);
-    console.error(err);
-    pool.end().finally(() => process.exit(1));
-  });
+// Only run + close the pool when invoked directly as a script (npm run db:seed-demo).
+// When imported (e.g. by the gamification golden test), callers control the pool.
+const isDirectRun =
+  process.argv[1] != null && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  seedDemo()
+    .then(() => pool.end())
+    .catch((err) => {
+      log.error("Demo seed failed", err instanceof Error ? err : undefined);
+      console.error(err);
+      pool.end().finally(() => process.exit(1));
+    });
+}

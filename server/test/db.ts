@@ -2,6 +2,9 @@ import { sql } from "drizzle-orm";
 import { db, pool } from "../db.ts";
 
 const TABLES_TO_TRUNCATE = [
+  "point_transactions",
+  "user_scenario_tier_rewards",
+  "scenario_reward_tiers",
   "roleplay_criterion_scores",
   "roleplay_messages",
   "roleplay_attempts",
