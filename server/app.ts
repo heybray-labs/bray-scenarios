@@ -13,7 +13,12 @@ import {
   MASTERY_DIMENSION_SLUG,
   SCENARIO_CONTENT_TYPE,
 } from "./gamification.ts";
-import { requestLogging, globalRateLimiter, getAppVersion } from "@heybray/server-kit";
+import {
+  requestLogging,
+  globalRateLimiter,
+  getAppVersion,
+  tenantContextMiddleware,
+} from "@heybray/server-kit";
 import { createMediaRouter } from "@heybray/media";
 import {
   authenticationRouter,
@@ -68,6 +73,7 @@ export function createApp(): express.Application {
     }),
   );
   app.use(express.json());
+  app.use(tenantContextMiddleware());
   app.use("/api", globalRateLimiter);
   app.use(requestLogging);
 

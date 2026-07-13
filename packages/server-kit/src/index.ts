@@ -6,3 +6,4 @@ export * from "./middleware/rate-limit.ts";
 export * from "./db/resolve-database-url.ts";
 export * from "./db/create-db.ts";
 export * from "./db/db-registry.ts";
+export * from "./extensions/request-context.ts";
