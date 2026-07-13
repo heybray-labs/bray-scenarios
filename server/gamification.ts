@@ -35,16 +35,18 @@ export async function reconcileGamificationProjection(): Promise<ReconcileReport
       id: roleplays.id,
       title: roleplays.title,
       status: roleplays.status,
-      published: roleplays.published,
     })
     .from(roleplays);
 
+  // is_active derives from status alone, matching the 0008 backfill and
+  // syncContent. A legacy row with status='published' but published=false must
+  // stay active, or the first boot would deactivate it and log spurious drift.
   const report = await gamification.reconcile(
     rows.map((r) => ({
       contentType: SCENARIO_CONTENT_TYPE,
       contentId: r.id,
       title: r.title,
-      isActive: r.status === "published" && !!r.published,
+      isActive: r.status === "published",
     })),
   );
 
