@@ -452,7 +452,7 @@ router.put("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest
 router.delete("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const success = await roleplaySystemController.deleteRoleplay(roleplayId);
+    const success = await roleplaySystemController.deleteRoleplay(roleplayId, req.user!.id);
     if (!success) return res.status(404).json({ error: "Roleplay not found" });
     res.json({ message: "Deleted" });
   } catch (error) {
@@ -485,7 +485,7 @@ router.post("/:id/duplicate", requirePermission("roleplay:manage"), async (req: 
 router.post("/:id/publish", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const roleplay = await roleplaySystemController.publishRoleplay(roleplayId);
+    const roleplay = await roleplaySystemController.publishRoleplay(roleplayId, req.user!.id);
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {
@@ -497,7 +497,7 @@ router.post("/:id/publish", requirePermission("roleplay:manage"), async (req: Au
 router.post("/:id/unpublish", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
-    const roleplay = await roleplaySystemController.unpublishRoleplay(roleplayId);
+    const roleplay = await roleplaySystemController.unpublishRoleplay(roleplayId, req.user!.id);
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {

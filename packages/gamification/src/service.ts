@@ -1,4 +1,4 @@
-import { db, createLogger } from "@heybray/server-kit";
+import { db, createLogger, eventBus } from "@heybray/server-kit";
 import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { users } from "@heybray/identity/schema";
 import {
@@ -150,15 +150,33 @@ export class GamificationService {
       occurredAt: input.occurredAt,
     });
 
+    eventBus.emit("activity.recorded", {
+      userId: input.userId,
+      contentType: input.contentType,
+      contentId: input.contentId,
+    });
+
     if (!input.eligibleForAward) return null;
 
-    return this.awardPoints(
+    const result = await this.awardPoints(
       input.contentType,
       input.contentId,
       input.userId,
       input.scorePercent ?? 0,
       input.activityId ?? null,
     );
+
+    if (result && result.pointsAwarded > 0 && result.tierName) {
+      eventBus.emit("points.awarded", {
+        userId: input.userId,
+        contentType: input.contentType,
+        contentId: input.contentId,
+        points: result.pointsAwarded,
+        tierName: result.tierName,
+      });
+    }
+
+    return result;
   }
 
   /**

@@ -6,7 +6,7 @@ import {
   roleplayAllowedGraderModels,
 } from "../../shared/schemas/agent/roleplay-app-config.ts";
 import { roleplaySettings } from "../../shared/schemas/roleplay-core.ts";
-import { encryptSecret, decryptSecret } from "@heybray/server-kit";
+import { encryptSecret, decryptSecret, eventBus } from "@heybray/server-kit";
 import { platformLogger } from "@heybray/server-kit";
 import { LlmNotConfiguredError, type LlmProvider } from "@heybray/llm";
 import { eq } from "drizzle-orm";
@@ -312,6 +312,7 @@ export class RoleplayConfigService {
 
   async upsertProviderKeys(
     keys: Partial<Record<RoleplayProvider, string>>,
+    actorId?: number,
   ): Promise<RoleplayProviderKeyStatus[]> {
     await this.ensureConfigRow();
     for (const provider of PROVIDERS) {
@@ -334,6 +335,9 @@ export class RoleplayConfigService {
           encryptedApiKey: encrypted,
         });
       }
+      if (actorId != null) {
+        eventBus.emit("llm.provider.key.changed", { actorId, provider, action: "upserted" });
+      }
     }
     const configRows = await db.select().from(roleplayAppConfig).limit(1);
     if (configRows.length) {
@@ -345,16 +349,22 @@ export class RoleplayConfigService {
     return this.getProviderKeys();
   }
 
-  async setAllowlists(input: {
-    persona: RoleplayModelRef[];
-    grader: RoleplayModelRef[];
-  }): Promise<{ persona: RoleplayModelRef[]; grader: RoleplayModelRef[] }> {
+  async setAllowlists(
+    input: {
+      persona: RoleplayModelRef[];
+      grader: RoleplayModelRef[];
+    },
+    actorId?: number,
+  ): Promise<{ persona: RoleplayModelRef[]; grader: RoleplayModelRef[] }> {
     const models = input.persona.map(normalizeModelRef);
-    await this.setUnifiedAllowlist(models);
+    await this.setUnifiedAllowlist(models, actorId);
     return { persona: models, grader: models };
   }
 
-  async setUnifiedAllowlist(models: RoleplayModelRef[]): Promise<RoleplayModelRef[]> {
+  async setUnifiedAllowlist(
+    models: RoleplayModelRef[],
+    actorId?: number,
+  ): Promise<RoleplayModelRef[]> {
     await this.ensureConfigRow();
     const normalized = models.map(normalizeModelRef);
 
@@ -378,14 +388,21 @@ export class RoleplayConfigService {
         .where(eq(roleplayAppConfig.id, configRows[0].id));
     }
 
+    if (actorId != null) {
+      eventBus.emit("llm.allowlist.changed", { actorId });
+    }
+
     return normalized;
   }
 
-  async removeProviderKeys(providers: RoleplayProvider[]): Promise<void> {
+  async removeProviderKeys(providers: RoleplayProvider[], actorId?: number): Promise<void> {
     for (const provider of providers) {
       await db
         .delete(roleplayProviderKeys)
         .where(eq(roleplayProviderKeys.provider, provider));
+      if (actorId != null) {
+        eventBus.emit("llm.provider.key.changed", { actorId, provider, action: "removed" });
+      }
     }
     const configRows = await db.select().from(roleplayAppConfig).limit(1);
     if (configRows.length) {
@@ -396,21 +413,24 @@ export class RoleplayConfigService {
     }
   }
 
-  async updateFullConfig(input: RoleplayConfigUpdateInput): Promise<RoleplayFullConfigPublic> {
+  async updateFullConfig(
+    input: RoleplayConfigUpdateInput,
+    actorId?: number,
+  ): Promise<RoleplayFullConfigPublic> {
     await this.ensureConfigRow();
 
     if (input.removeProviders?.length) {
-      await this.removeProviderKeys(input.removeProviders);
+      await this.removeProviderKeys(input.removeProviders, actorId);
     }
 
     if (input.keys) {
-      await this.upsertProviderKeys(input.keys);
+      await this.upsertProviderKeys(input.keys, actorId);
     }
 
     const models = input.models.map(normalizeModelRef);
     const removeSet = new Set(input.removeProviders ?? []);
     const filtered = models.filter((m) => !removeSet.has(m.provider));
-    await this.setUnifiedAllowlist(filtered);
+    await this.setUnifiedAllowlist(filtered, actorId);
 
     return this.getFullConfig();
   }

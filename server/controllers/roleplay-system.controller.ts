@@ -32,7 +32,7 @@ import {
   withCoverImageUrl,
 } from "@heybray/media";
 import { users } from "@heybray/identity/schema";
-import { createLogger } from "@heybray/server-kit";
+import { createLogger, eventBus } from "@heybray/server-kit";
 import {
   createRoleplayChatModel,
   RoleplayNotConfiguredError,
@@ -616,13 +616,18 @@ export class RoleplaySystemController {
     return result;
   }
 
-  async deleteRoleplay(roleplayId: number): Promise<boolean> {
+  async deleteRoleplay(roleplayId: number, actorId?: number): Promise<boolean> {
     const result = await db
       .delete(roleplays)
       .where(eq(roleplays.id, roleplayId))
       .returning();
     if (result.length > 0) {
       await gamification.onContentDeleted(SCENARIO_CONTENT_TYPE, roleplayId);
+      eventBus.emit("content.deleted", {
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: roleplayId,
+        actorId,
+      });
     }
     return result.length > 0;
   }
@@ -1137,7 +1142,7 @@ export class RoleplaySystemController {
     return { created, warnings };
   }
 
-  async publishRoleplay(roleplayId: number) {
+  async publishRoleplay(roleplayId: number, actorId?: number) {
     const [existing] = await db
       .select({ publishedAt: roleplays.publishedAt })
       .from(roleplays)
@@ -1163,11 +1168,16 @@ export class RoleplaySystemController {
           isActive: true,
         },
       ]);
+      eventBus.emit("content.published", {
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: updated.id,
+        actorId,
+      });
     }
     return updated ?? null;
   }
 
-  async unpublishRoleplay(roleplayId: number) {
+  async unpublishRoleplay(roleplayId: number, actorId?: number) {
     const [updated] = await db
       .update(roleplays)
       .set({ status: "draft", published: false, updatedAt: new Date() })
@@ -1182,6 +1192,11 @@ export class RoleplaySystemController {
           isActive: false,
         },
       ]);
+      eventBus.emit("content.unpublished", {
+        contentType: SCENARIO_CONTENT_TYPE,
+        contentId: updated.id,
+        actorId,
+      });
     }
     return updated ?? null;
   }

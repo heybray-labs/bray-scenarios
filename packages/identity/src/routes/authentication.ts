@@ -22,7 +22,7 @@ import { completeExchange } from "../services/sso-exchange.service.ts";
 import { roles } from "../schema/roles.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createLogger, db } from "@heybray/server-kit";
+import { createLogger, db, eventBus } from "@heybray/server-kit";
 import { getRequestCookie } from "../cookies.ts";
 
 const log = createLogger("auth");
@@ -127,6 +127,7 @@ router.post("/login", authRateLimiter, async (req, res) => {
         requestId: (req as AuthRequest).requestId,
       });
       log.debug("Login failed detail", { email });
+      eventBus.emit("auth.login.failed", { email, reason: "unknown_user" });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -136,6 +137,7 @@ router.post("/login", authRateLimiter, async (req, res) => {
         userId: user.id,
         requestId: (req as AuthRequest).requestId,
       });
+      eventBus.emit("auth.login.failed", { email, reason: "sso_only_account" });
       return res.status(401).json({ message: "This account uses SSO sign-in" });
     }
 
@@ -146,6 +148,7 @@ router.post("/login", authRateLimiter, async (req, res) => {
         userId: user.id,
         requestId: (req as AuthRequest).requestId,
       });
+      eventBus.emit("auth.login.failed", { email, reason: "invalid_password" });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -162,6 +165,7 @@ router.post("/login", authRateLimiter, async (req, res) => {
       requestId: (req as AuthRequest).requestId,
     });
     log.debug("Login success detail", { email });
+    eventBus.emit("auth.login.succeeded", { userId: user.id });
 
     res.json({
       token,
@@ -261,6 +265,7 @@ router.post("/change-password", authenticateToken, authRateLimiter, async (req: 
     await userController.updatePassword(userId, hashed);
 
     log.info("Password changed", { userId, requestId: req.requestId });
+    eventBus.emit("user.password.changed", { userId });
 
     const userWithRole = await userController.getUserWithRole(userId);
     res.json({ user: userWithRole });

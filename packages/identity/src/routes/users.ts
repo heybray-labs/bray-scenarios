@@ -12,7 +12,7 @@ import { adminCreateUserSchema, updateUserRoleSchema } from "../schema/users.ts"
 import { isSsoEnabled } from "../auth-config.ts";
 import { roles } from "../schema/roles.ts";
 import { eq } from "drizzle-orm";
-import { createLogger, db } from "@heybray/server-kit";
+import { createLogger, db, eventBus } from "@heybray/server-kit";
 
 const log = createLogger("users");
 const router = Router();
@@ -127,6 +127,12 @@ router.patch("/:id/role", async (req: AuthRequest, res) => {
       role,
       actorId,
       requestId: req.requestId,
+    });
+    eventBus.emit("user.role.changed", {
+      actorId,
+      targetUserId: targetId,
+      previousRole: currentRole ?? "unknown",
+      newRole: role,
     });
 
     const userWithRole = await userController.getUserWithRole(targetId);

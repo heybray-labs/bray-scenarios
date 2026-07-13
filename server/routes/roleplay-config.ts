@@ -68,7 +68,7 @@ router.put("/", async (req: AuthRequest, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
     }
-    const config = await roleplayConfigService.updateFullConfig(parsed.data);
+    const config = await roleplayConfigService.updateFullConfig(parsed.data, req.user!.id);
     res.json(config);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Internal server error" });
@@ -81,7 +81,7 @@ router.put("/keys", async (req: AuthRequest, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
     }
-    const keys = await roleplayConfigService.upsertProviderKeys(parsed.data);
+    const keys = await roleplayConfigService.upsertProviderKeys(parsed.data, req.user!.id);
     res.json({ keys });
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Internal server error" });
@@ -94,7 +94,7 @@ router.put("/allowlists", async (req: AuthRequest, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: "Validation failed", details: parsed.error.errors });
     }
-    const allowlists = await roleplayConfigService.setAllowlists(parsed.data);
+    const allowlists = await roleplayConfigService.setAllowlists(parsed.data, req.user!.id);
     res.json(allowlists);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Internal server error" });
