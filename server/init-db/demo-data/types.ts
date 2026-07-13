@@ -1,4 +1,4 @@
-import type { RewardTierInput } from "../../../shared/schemas/points.ts";
+import type { RewardTierInput } from "@heybray/gamification/schema";
 
 export type ScoreBandId = "high" | "mid" | "low";
 

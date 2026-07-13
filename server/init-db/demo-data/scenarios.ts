@@ -1,7 +1,7 @@
 import { makeScoreBand } from "./score-band-helpers.ts";
 import { SCENARIO_BRIEFS } from "./scenario-briefs.ts";
 import type { DemoScenario, ScoreBandContent, ScoreBandId } from "./types.ts";
-import { DEFAULT_REWARD_TIERS } from "../../../shared/schemas/points.ts";
+import { DEFAULT_REWARD_TIERS } from "@heybray/gamification/schema";
 
 type DemoScenarioBase = Omit<DemoScenario, "description" | "playbook" | "rewardTiers">;
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeRewardTiers, tierNameFromStarLevel } from "./points.ts";
+import { normalizeRewardTiers, tierNameFromStarLevel } from "@heybray/gamification/schema";
 
 export const ROLEPLAY_TRANSFER_FORMAT = "bray-scenarios";
 export const ROLEPLAY_TRANSFER_VERSION = 2;
