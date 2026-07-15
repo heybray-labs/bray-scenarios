@@ -72,8 +72,12 @@ export function createApp(): express.Application {
 
   app.get("/api/about", (_req, res) => {
     const authProtocol = getAuthProtocol();
+    const rootPackageJson = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../package.json",
+    );
     res.json({
-      version: getAppVersion(),
+      version: getAppVersion(rootPackageJson),
       authProtocol,
       authProtocolLabel: getActiveAuthProvider().label,
     });

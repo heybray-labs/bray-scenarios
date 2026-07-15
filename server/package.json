@@ -16,10 +16,13 @@
     "db:seed-demo": "tsx --env-file=../.env init-db/seed-demo.ts"
   },
   "dependencies": {
-    "@langchain/anthropic": "^1.5.1",
+    "@heybray/gamification": "^0.1.1",
+    "@heybray/identity": "^0.1.1",
+    "@heybray/llm": "^0.1.1",
+    "@heybray/media": "^0.1.1",
+    "@heybray/server-kit": "^0.1.2",
+    "@heybray/taxonomy": "^0.1.1",
     "@langchain/core": "^1.2.1",
-    "@langchain/google-genai": "^2.2.0",
-    "@langchain/openai": "^1.5.3",
     "@node-saml/node-saml": "^5.1.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
