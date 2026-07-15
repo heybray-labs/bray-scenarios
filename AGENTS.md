@@ -11,6 +11,7 @@ Open-source (AGPL-3.0) gamified role-play training app. npm-workspaces monorepo:
 - `client/` — React 18 + Vite 6 + wouter + TanStack Query + Tailwind + shadcn-style UI
 - `server/` — Express, REST under `/api`, serves the built SPA in production
 - `shared/schemas/` — Drizzle table definitions + zod schemas + shared types, imported by both sides (NOT a workspace)
+- `@heybray/*` — published platform packages from [heybray-labs/bray-platform](https://github.com/heybray-labs/bray-platform) (identity, gamification, UI kit, etc.); pinned in `client/package.json` and `server/package.json`, resolved from npm
 - `bin/` — dev/test/quickstart/upgrade shell scripts
 - `server/drizzle/` — hand-authored SQL migrations
 - Deploy: single Docker container (API + SPA) + Postgres via docker-compose; GHCR images

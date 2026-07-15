@@ -34,7 +34,7 @@ The platform is born from working, deployed code rather than a speculative API. 
 
 ## 2. Package inventory
 
-**npm scope: `@heybray`** (matches the `heybray-labs` GitHub org). ⚠️ *Pre-Phase-4 task: verify scope availability on npmjs.com; fallback `@braykit`.* Working name for the platform repo: **`bray-platform`**.
+**npm scope: `@heybray`** (matches the `heybray-labs` GitHub org). Verified available on npmjs.com (Phase 4). Platform repo: **`heybray-labs/bray-platform`**.
 
 Granularity philosophy: **one package per independently versionable boundary, not per module** — 8 runtime packages + 1 dev-tooling package. Too many packages creates release friction; too few destroys the boundary discipline that makes the enterprise layer possible. Server and client are separate packages because they have disjoint peer dependencies (express/drizzle vs react). Drizzle schemas ship inside their owning *server* package via a `/schema` subpath export; the client can import types from them (it already depends on `drizzle-orm` today via `@shared`).
 
@@ -92,7 +92,7 @@ Small but a clean, low-churn boundary that both gamification and app content rel
 - `client/src/components/ui/*` (shadcn primitives), `components/errors`, `components/icons`, `lib/utils.ts` (`cn`).
 - A **Tailwind preset** exporting the token scale as CSS variables (extracted from `client/index.css` + `client/tailwind.config.ts`). Whitelabeling = overriding the `:root` variable block (§6).
 
-#### `@heybray/react` — app runtime plumbing, depends on `ui`
+#### `@heybray/react` — app runtime plumbing, depends on `ui`, `identity`
 
 - `AppConfigProvider` replacing the hardcoded constants in `client/src/lib/app-config.ts`.
 - `lib/{queryClient,http-error,auth,user-display,media}.ts`, `ProtectedRoute`.
@@ -122,6 +122,8 @@ server:  server-kit ◄── identity ◄──┐
 
 client:  ui ◄── react ◄── gamification-react
          ui ◄─────────────gamification-react
+         identity ◄── react   (type-only imports from @heybray/identity/schema;
+                               intentional — not removed in Phase 4)
 ```
 
 An app (Scenarios) depends on all of them plus its own domain code (roleplay schemas, grading pipeline, roleplay pages).
@@ -361,11 +363,11 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 - Real `EntitlementProvider` Stripe-backed implementation (default remains `EnvEntitlements`/`DISABLED_FEATURES`).
 - Real `TenantResolver` (default remains `NullTenantResolver`; no `tenant_id` columns exist yet).
 
-### Phase 4 — Lift to `bray-platform` + publish + consume
+### Phase 4 — Lift to `bray-platform` + publish + consume *(complete)*
 - `git filter-repo` (history-preserving) `packages/` into the new monorepo; add tsup builds, changesets, turbo, `examples/basic-app`, CLA action, license headers; publish `0.x` to npm.
 - Scenarios: replace workspace deps with published versions; delete `packages/`. Cross-repo dev friction handled with `npm pack` verification and `npm link`/yalc for active work (documented in platform CONTRIBUTING).
 - **Risks:** dual-repo iteration slowdown (mitigated: the strangler ordering means the API is already stable); source-vs-dist differences (mitigated: `examples/basic-app` consumes built dist in CI).
-- **Done when:** Scenarios `main` depends only on published `@heybray/*`; a platform-only bugfix reaches Scenarios via a version-bump PR.
+- **Done when:** Scenarios `main` depends only on published `@heybray/*`; a platform-only bugfix reaches Scenarios via a version-bump PR. ✅ Verified: initial `0.1.0` publish + `server-kit@0.1.2` getAppVersion() fix consumed via `npm install` with full test suite green.
 
 ### Phase 5 — App #2 validation *(forces the standalone app-shape decision)*
 - Build a deliberately small second gamified app (e.g. a flashcard/quiz trainer) on the chassis: new content type, own tiers/leaderboards/star map for free.
@@ -396,7 +398,7 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 
 ### Open questions
 
-1. `@heybray` npm scope availability (check before Phase 4; fallback `@braykit`).
+1. ~~`@heybray` npm scope availability~~ — resolved in Phase 4 (`@heybray/*` published on npmjs.com).
 2. Do `teams` stay in identity long-term, or become their own package when enterprise adds org hierarchies? (Start in identity.)
 3. Should `activity_log` eventually get materialized per-user weekly rollups for scale, or is row-scan fine at OSS deployment sizes? (Defer; the service interface hides it.)
 4. Leaderboard display-name policy: currently `firstName || email`, which exposes email addresses to all users. The generalization is the natural moment to add a display-name/opt-out policy hook.
@@ -411,14 +413,16 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 
 | Concern | Where it is today |
 |---|---|
-| Gamification service | `packages/gamification/` (`GamificationService`, `TeamStarMapService`, `createGamificationRouter`) |
-| Gamification client UI | `packages/gamification-react/` (points panels, star map, reveal pieces) |
-| Legacy gamification tables (unread) | `shared/schemas/points.ts` — registered in `server/db.ts` until migration `0010` |
+| Gamification service | `@heybray/gamification` on npm (`GamificationService`, `TeamStarMapService`, `createGamificationRouter`) |
+| Gamification client UI | `@heybray/gamification-react` on npm (points panels, star map, reveal pieces) |
+| Legacy gamification tables (unread) | `server/legacy-schema/points-legacy.ts` — registered in `server/db.ts` until migration `0010` |
 | Mastery dimension config | `server/gamification.ts` (`MASTERY_DIMENSION_SLUG`) |
 | Scenario results composition | `server/controllers/scenario-results.controller.ts` |
-| Media package | `packages/media/` (`MediaService`, `createMediaRouter`, `mediaSchema`) |
+| Media package | `@heybray/media` on npm (`MediaService`, `createMediaRouter`, `mediaSchema`) |
 | Schema aggregation | `server/db.ts` (`identitySchema`, `taxonomySchema`, `gamificationSchema`, `mediaSchema`, `appSchema`) |
 | Migration runner + baseline stamping | `server/init-db/run-migrations.ts` (`stampBaselineIfLegacyDatabase`, line 61) |
-| Whitelabel constants | `client/src/lib/app-config.ts` |
-| Auth protocol switch | `packages/identity/src/auth-config.ts` (`AUTH_PROTOCOL`) |
+| Drizzle-kit package schemas | `server/drizzle-packages-schema.ts` (re-exports published `@heybray/*/schema` tables) |
+| Whitelabel constants | `client/src/lib/app-config.ts` (via `@heybray/react/config` `AppConfigProvider`) |
+| Auth protocol switch | `@heybray/identity` (`AUTH_PROTOCOL` env) |
+| Platform source repo | `heybray-labs/bray-platform` (development home for all `@heybray/*` packages) |
 | Enterprise precedents | WebAppTemplate: `client/src/AppExtensions.tsx`, `client/src/components/FeatureGate.tsx`, `shared/schemas/stripe-features.ts`, `server/middleware/{tenant,audit}.ts` |

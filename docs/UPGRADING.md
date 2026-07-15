@@ -149,6 +149,8 @@ When changing tables in `shared/schemas/`:
 
 **Production and Docker** apply migrations automatically on startup via [`server/init-db/run-migrations.ts`](../server/init-db/run-migrations.ts). **Local dev** uses `db:generate` + `db:migrate`, or `db:init` (same programmatic migrator plus seed). `npm run db:push` is a dev-only escape hatch for quick schema experiments — do not use it for releases.
 
+**Platform package updates:** since Phase 4, generic platform code lives in published `@heybray/*` npm packages (see `heybray-labs/bray-platform`), not in this repo. A platform-only bugfix arrives here as a version-bump PR — update the pinned ranges in `client/package.json` and/or `server/package.json`, run `npm install`, and restart. No Scenarios source edit is required unless the app wires new APIs.
+
 For destructive changes (column renames, data moves), write a multi-step migration in one PR: add new column → backfill data → drop old column.
 
 ## Upgrading from pre-migration releases

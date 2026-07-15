@@ -81,6 +81,17 @@ docker pull ghcr.io/heybray-labs/bray-scenarios:1.2.0
 
 Use a PAT (classic or fine-grained) with `read:packages` scope, or the deploy environment's own GitHub App/token if it authenticates as a collaborator on the repo.
 
+## Platform packages (`@heybray/*`)
+
+Scenarios and the platform ship on **separate release trains**:
+
+| What | Repo | How it releases |
+|---|---|---|
+| **Scenarios app** (this repo) | `heybray-labs/bray-scenarios` | Version tag → Docker image on GHCR (sections above) |
+| **Platform packages** | `heybray-labs/bray-platform` | Changesets → npm publish under `@heybray/*` |
+
+A Scenarios release does **not** publish platform code. To ship a platform bugfix to Scenarios, cut a patch release in `bray-platform`, then bump the pinned `@heybray/*` versions in this repo's `package-lock.json` via a normal PR (`npm install` + test). See `bray-platform`'s own releasing docs for the npm side.
+
 ## Token permissions
 
 Both jobs that need write access (`docker-publish`, `github-release`) declare their own permissions at the top of [`release.yml`](../.github/workflows/release.yml):
