@@ -3,6 +3,7 @@ import { getTableColumns, sql } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "../db.ts";
 import {
+  rewardTiers,
   userContentTierAwards,
   activityLog,
   gamificationContent,
@@ -80,6 +81,7 @@ async function assertExactParity(tableName: string, table: PgTable): Promise<voi
 
 describe("schema parity (drizzle defs vs migrated DB)", () => {
   const exactTables: Array<[string, PgTable]> = [
+    ["reward_tiers", rewardTiers],
     ["user_content_tier_awards", userContentTierAwards],
     ["activity_log", activityLog],
     ["gamification_content", gamificationContent],
@@ -92,8 +94,4 @@ describe("schema parity (drizzle defs vs migrated DB)", () => {
       await assertExactParity(tableName, table);
     });
   }
-
-  // Published @heybray/gamification schema still includes legacy_id until Part D
-  // bumps the pin after the platform release drops the column.
-  it.todo("reward_tiers columns exactly match the drizzle definition (Part D pin bump)");
 });

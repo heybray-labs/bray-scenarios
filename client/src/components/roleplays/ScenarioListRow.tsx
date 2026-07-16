@@ -75,15 +75,11 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
   const starLevel = (item.starLevel ?? 0) as 0 | 1 | 2 | 3;
   const attempted = (item.attemptCount ?? 0) > 0;
 
+  const attemptsPath = `/api/teams/${teamId}/members/${memberUserId}/contents/${item.contentId}/attempts`;
+
   const { data, isLoading } = useQuery<{ attempts: ScenarioAttempt[] }>({
-    queryKey: [
-      `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.contentId}/attempts`,
-    ],
-    queryFn: () =>
-      apiRequest(
-        "GET",
-        `/api/teams/${teamId}/members/${memberUserId}/roleplays/${item.contentId}/attempts`,
-      ),
+    queryKey: [attemptsPath],
+    queryFn: () => apiRequest("GET", attemptsPath),
     enabled: expanded && attempted,
   });
 
@@ -105,7 +101,7 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
       className={cn(
         "rounded-lg border overflow-hidden",
         attempted
-          ? cn("border", drawerPink.scenarioRow)
+          ? cn("border", drawerPink.contentRow)
           : "bg-card border-border opacity-50",
       )}
     >
@@ -115,7 +111,7 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
         onClick={() => attempted && setExpanded((v) => !v)}
         className={cn(
           "flex w-full items-center gap-3 px-3 py-2.5 text-left",
-          attempted && cn("transition-colors cursor-pointer", drawerPink.scenarioRowHover),
+          attempted && cn("transition-colors cursor-pointer", drawerPink.contentRowHover),
           !attempted && "cursor-default",
         )}
       >

@@ -32,7 +32,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "tsx": "^4.20.5"
+    "tsx": "^4.20.5",
+    "@heybray/gamification": "^0.3.0"
   },
   "overrides": {
     "esbuild": "0.28.1"

@@ -11,7 +11,7 @@ import type {
   MemberContentHistoryResponse,
 } from "@heybray/gamification";
 
-export type MemberScenarioHistoryScenario = {
+export type MemberContentHistoryItem = {
   contentId: number;
   title: string;
   coverImageMediaId: number | null;
@@ -21,29 +21,41 @@ export type MemberScenarioHistoryScenario = {
   attemptCount: number;
 };
 
-export type MemberScenarioHistoryCategory = {
+export type MemberContentHistoryCategory = {
   slug: string;
   label: string;
   total: number;
   starCounts: { gold: number; silver: number; bronze: number };
-  scenarios: MemberScenarioHistoryScenario[];
+  contents: MemberContentHistoryItem[];
 };
 
-export type MemberScenarioHistoryResponse = {
+export type MemberContentHistoryPayload = {
   userId: number;
   name: string;
   avatarInitials: string;
   teamName: string | null;
   totalPoints: number;
   passRate: number;
+  categories: MemberContentHistoryCategory[];
+};
+
+/** @deprecated Legacy response shape — categories use `scenarios` instead of `contents`. */
+export type MemberScenarioHistoryScenario = MemberContentHistoryItem;
+
+/** @deprecated Legacy response shape — categories use `scenarios` instead of `contents`. */
+export type MemberScenarioHistoryCategory = Omit<MemberContentHistoryCategory, "contents"> & {
+  scenarios: MemberContentHistoryItem[];
+};
+
+/** @deprecated Legacy response shape — use MemberContentHistoryPayload. */
+export type MemberScenarioHistoryResponse = Omit<MemberContentHistoryPayload, "categories"> & {
   categories: MemberScenarioHistoryCategory[];
 };
 
 /**
  * App-side adapter over the generic @heybray/gamification TeamStarMapService.
- * getStarMap / getMemberProgress pass through unchanged (identical shapes); the
- * scenario-history endpoint enriches generic content entries with app-owned
- * coverImageMediaId. getMemberScenarioAttempts stays fully app-side.
+ * getStarMap / getMemberProgress pass through unchanged (identical shapes); content
+ * history enriches generic entries with app-owned coverImageMediaId.
  */
 export const teamStarMapController = {
   async getStarMap(user: UserWithRole, teamId: number | "all"): Promise<StarMapResponse> {
@@ -54,11 +66,11 @@ export const teamStarMapController = {
     return teamStarMap.getMemberProgress(user, teamId, memberUserId);
   },
 
-  async getMemberScenarioHistory(
+  async getMemberContentHistory(
     user: UserWithRole,
     teamId: number | "all",
     memberUserId: number,
-  ): Promise<MemberScenarioHistoryResponse> {
+  ): Promise<MemberContentHistoryPayload> {
     const generic: MemberContentHistoryResponse = await teamStarMap.getMemberContentHistory(
       user,
       teamId,
@@ -87,7 +99,7 @@ export const teamStarMapController = {
         label: category.label,
         total: category.total,
         starCounts: category.starCounts,
-        scenarios: category.contents.map((content) => ({
+        contents: category.contents.map((content) => ({
           contentId: content.contentId,
           title: content.title,
           coverImageMediaId: coverByRoleplay.get(content.contentId) ?? null,
@@ -100,11 +112,27 @@ export const teamStarMapController = {
     };
   },
 
-  async getMemberScenarioAttempts(
+  /** @deprecated Legacy alias — returns `scenarios` key for back-compat clients. */
+  async getMemberScenarioHistory(
     user: UserWithRole,
     teamId: number | "all",
     memberUserId: number,
-    roleplayId: number,
+  ): Promise<MemberScenarioHistoryResponse> {
+    const neutral = await this.getMemberContentHistory(user, teamId, memberUserId);
+    return {
+      ...neutral,
+      categories: neutral.categories.map(({ contents, ...category }) => ({
+        ...category,
+        scenarios: contents,
+      })),
+    };
+  },
+
+  async getMemberContentAttempts(
+    user: UserWithRole,
+    teamId: number | "all",
+    memberUserId: number,
+    contentId: number,
   ) {
     await assertMemberTeamAccess(user, teamId, memberUserId);
 
@@ -123,7 +151,7 @@ export const teamStarMapController = {
       .where(
         and(
           eq(roleplayAttempts.userId, memberUserId),
-          eq(roleplayAttempts.roleplayId, roleplayId),
+          eq(roleplayAttempts.roleplayId, contentId),
           eq(roleplayAttempts.status, "completed"),
         ),
       )
@@ -142,5 +170,15 @@ export const teamStarMapController = {
         starLevel: Math.min(3, Math.max(0, starLevel)) as 0 | 1 | 2 | 3,
       };
     });
+  },
+
+  /** @deprecated Legacy alias for getMemberContentAttempts. */
+  async getMemberScenarioAttempts(
+    user: UserWithRole,
+    teamId: number | "all",
+    memberUserId: number,
+    roleplayId: number,
+  ) {
+    return this.getMemberContentAttempts(user, teamId, memberUserId, roleplayId);
   },
 };

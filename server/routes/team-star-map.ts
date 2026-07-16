@@ -35,6 +35,13 @@ const memberUserIdParamSchema = z.object({
   userId: z.coerce.number().int().positive(),
 });
 
+const memberContentParamSchema = z.object({
+  id: z.union([z.literal("all"), z.coerce.number().int().positive()]),
+  userId: z.coerce.number().int().positive(),
+  contentId: z.coerce.number().int().positive(),
+});
+
+/** @deprecated Legacy param shape — roleplayId is the scenario content id. */
 const memberRoleplayParamSchema = z.object({
   id: z.union([z.literal("all"), z.coerce.number().int().positive()]),
   userId: z.coerce.number().int().positive(),
@@ -87,6 +94,30 @@ router.get(
 );
 
 router.get(
+  "/:id/members/:userId/content-history",
+  requireTeamViewAccess,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id, userId } = memberUserIdParamSchema.parse(req.params);
+      const data = await teamStarMapController.getMemberContentHistory(req.user!, id, userId);
+      res.json(data);
+    } catch (error) {
+      if (error instanceof TeamAccessError) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", details: error.errors });
+      }
+      log.error("Failed to get member content history", error instanceof Error ? error : undefined, {
+        requestId: req.requestId,
+      });
+      res.status(500).json({ message: "Failed to get member content history" });
+    }
+  },
+);
+
+/** @deprecated Legacy alias for content-history — response uses `scenarios` key. */
+router.get(
   "/:id/members/:userId/scenario-history",
   requireTeamViewAccess,
   async (req: AuthRequest, res) => {
@@ -109,6 +140,35 @@ router.get(
   },
 );
 
+router.get(
+  "/:id/members/:userId/contents/:contentId/attempts",
+  requireTeamViewAccess,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id, userId, contentId } = memberContentParamSchema.parse(req.params);
+      const attempts = await teamStarMapController.getMemberContentAttempts(
+        req.user!,
+        id,
+        userId,
+        contentId,
+      );
+      res.json({ attempts });
+    } catch (error) {
+      if (error instanceof TeamAccessError) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", details: error.errors });
+      }
+      log.error("Failed to get member content attempts", error instanceof Error ? error : undefined, {
+        requestId: req.requestId,
+      });
+      res.status(500).json({ message: "Failed to get member content attempts" });
+    }
+  },
+);
+
+/** @deprecated Legacy alias for contents/:contentId/attempts. */
 router.get(
   "/:id/members/:userId/roleplays/:roleplayId/attempts",
   requireTeamViewAccess,
