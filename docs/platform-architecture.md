@@ -24,7 +24,7 @@ Scenarios is the first of several planned gamified apps. All of them share the s
 3. **Licensing:** AGPL-3.0 for all OSS tiers, with the owner retaining copyright. A CLA is required for outside contributions so the owner can legally ship contributed code in the proprietary tier (see §6).
 4. **Sequencing:** strangler extraction. Scenarios stays the source of truth and keeps shipping. It is restructured in-repo into platform-shaped packages, boundaries are proven, then the packages are lifted into the platform repo and published.
 5. **Core scope:** identity & access, generalized gamification engine, LLM provider layer, and app chassis & UI kit are all core.
-6. **App shape for premium bundling:** deliberately undecided. The design keeps that door open cheaply; the decision is forced at Phase 5 (standalone app shape) and Phase 6 (premium bundling shape). See §7.
+6. **App shape for premium bundling:** deliberately undecided. **Standalone app shape resolved in Phase 5** → template repo (see `bray-platform/docs/app-shape-decision.md`). Premium bundling shape still forced at Phase 6. See §7.
 
 ### Why strangler extraction
 
@@ -369,16 +369,17 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 - **Risks:** dual-repo iteration slowdown (mitigated: the strangler ordering means the API is already stable); source-vs-dist differences (mitigated: `examples/basic-app` consumes built dist in CI).
 - **Done when:** Scenarios `main` depends only on published `@heybray/*`; a platform-only bugfix reaches Scenarios via a version-bump PR. ✅ Verified: initial `0.1.0` publish + `server-kit@0.1.2` getAppVersion() fix consumed via `npm install` with full test suite green.
 
-### Phase 5 — App #2 validation *(forces the standalone app-shape decision)*
-- Build a deliberately small second gamified app (e.g. a flashcard/quiz trainer) on the chassis: new content type, own tiers/leaderboards/star map for free.
-- Lock the *standalone* app composition shape here: scaffold template (`create-bray-app`) vs feature-package. Premium bundling shape may still wait.
-- **Done when:** app #2 boots with under ~a week of platform-side changes; every platform change it forced becomes a changeset.
+### Phase 5 — App #2 validation *(complete — ADR pending ratification)*
+- Built [`heybray-labs/bray-flashcards`](https://github.com/heybray-labs/bray-flashcards): flashcard/quiz trainer on published `@heybray/*` only — content type `deck`, mastery dimension `topic`, permission `deck:manage`, whitelabel UI.
+- **Standalone app-shape decision:** [**template repo**](https://github.com/heybray-labs/bray-platform/blob/main/docs/app-shape-decision.md) (evolve `examples/basic-app` → `bray-app-template`). Single-package layout (`server/` + `src/`, one `package.json`) — not Scenarios' workspace split. `create-bray-app` generator deferred; feature-package bundling remains a Phase 6 question.
+- Platform round-trip: **2 changesets / 4 package publishes** (`@heybray/gamification@0.2.0`, `@heybray/gamification-react@0.2.0`, `@heybray/react@0.1.2`, `@heybray/taxonomy@0.1.2`). One gap deferred (`legacy_id`, FL-005). Effort **well under** the ~1-week platform budget; dominant cost was chassis boilerplate (~39% of app source files near-verbatim from Scenarios).
+- **Done when:** app #2 green suite + friction log + ADR written. ✅ Verified per `bray-flashcards/docs/phase-5-verification.md`. **Owner ratification of ADR still open** before treating the decision as locked.
 
 ### Phase 6 — Enterprise packages + premium app *(forces the premium bundling decision)*
 - Mine WebAppTemplate: tenancy (TenantResolver + scoping wrappers), Stripe entitlements (EntitlementProvider + FeatureGate), audit DB sink + UI, SES NotificationTransport, S3 StorageProvider, API keys/rate-limit tiers, global admin console — each a private package implementing a Phase-3 seam.
 - Premium app composes OSS apps + enterprise packages. **Decision forced at phase start:** apps as importable feature packages (premium imports `@heybray/scenarios-server` + `-client`) vs a fork-compose repo. Recommendation on current evidence: **feature packages** — after Phase 3, an "app" is already just `{ serverModule, clientRoutes, adminPanels, migrations }` thanks to the registries.
 
-**Where the deferred app-shape decision bites:** Phase 1 (cheap optional prep: `packages/scenarios-shared`), Phase 5 (standalone shape), Phase 6 (premium bundling shape — hard deadline).
+**Where the deferred app-shape decision bites:** Phase 1 (cheap optional prep: `packages/scenarios-shared`), ~~Phase 5 (standalone shape)~~ **resolved — template repo**, Phase 6 (premium bundling shape — hard deadline).
 
 ---
 
