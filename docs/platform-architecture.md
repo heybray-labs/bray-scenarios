@@ -289,7 +289,7 @@ Designed now, implemented with OSS defaults now, enterprise implementations late
 
 - npm workspaces (already in use) + **Changesets** for versioning/publishing + **Turborepo** in the platform repo for build/test caching. No Nx/Lerna.
 - Packages build to ESM `dist/` + `.d.ts` with tsup (or plain tsc). Required because published consumers cannot rely on tsx source-running (Scenarios currently runs raw `.ts` via tsx). During in-repo phases, workspace symlinks + tsx keep the current no-build dev loop.
-- Independent semver per package; everything `0.x` until Phase 5 proves the API with app #2, then `1.0.0` across the board. Breaking DB change = major + documented expand/contract; runtime API break = major + migration notes in the changelog.
+- Independent semver per package. **The 0.x era closed 2026-07-17:** every `@heybray/*` package shipped **1.0.0** together (pre-Phase-6 cleanup Part F). From 1.0.0 onward: breaking DB schema change = **major** + documented expand/contract; runtime API break = **major** + migration notes in the changelog. Deprecated wire-path aliases from the 0.3.x neutralization remain supported until a future major explicitly removes them.
 
 ### Publishing & CI
 
@@ -374,6 +374,11 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 - **Standalone app-shape decision (ratified):** [**template repo**](https://github.com/heybray-labs/bray-platform/blob/main/docs/app-shape-decision.md) (evolve `examples/basic-app` → `bray-app-template`). Single-package layout (`server/` + `src/`, one `package.json`) — not Scenarios' workspace split. `create-bray-app` generator deferred; feature-package bundling remains a Phase 6 question.
 - Platform round-trip: **2 changesets / 4 package publishes** (`@heybray/gamification@0.2.0`, `@heybray/gamification-react@0.2.0`, `@heybray/react@0.1.2`, `@heybray/taxonomy@0.1.2`). One gap deferred (`legacy_id`, FL-005). Effort **well under** the ~1-week platform budget; dominant cost was chassis boilerplate (~39% of app source files near-verbatim from Scenarios).
 - **Done when:** app #2 green suite + friction log + ADR written + owner ratified. ✅ Verified per `bray-flashcards/docs/phase-5-verification.md`; ADR ratified 2026-07-16.
+
+### Pre-Phase-6 cleanup + 1.0.0 policy lock *(complete)*
+- Closed residual debt before Phase 6: CI publish with provenance restored; Scenarios migration `0010` drops legacy gamification tables/columns; platform `0.3.x` neutralizes star-map wire vocabulary and drops `reward_tiers.legacy_id`; apps adopt `0.3.x`; Flashcards grep deviation closed; **`heybray-labs/bray-app-template`** extracted as the ratified standalone starter.
+- **1.0.0 ratified 2026-07-17:** all 10 `@heybray/*` packages published together via Changesets PR [#8](https://github.com/heybray-labs/bray-platform/pull/8) with npm provenance. Consumer pins bumped to `^1.0.0` in Scenarios, Flashcards, and Template; Scenarios uses root `overrides` + hoisted devDependencies to keep a single `server-kit` instance for `setDatabase` / `GamificationService`.
+- **Done when:** published 1.0.0 with provenance; all three consumers green on `^1.0.0`; architecture §6 records the stability policy. ✅ Verified per `docs/pre-phase-6-cleanup-report.md`.
 
 ### Phase 6 — Enterprise packages + premium app *(forces the premium bundling decision)*
 - Mine WebAppTemplate: tenancy (TenantResolver + scoping wrappers), Stripe entitlements (EntitlementProvider + FeatureGate), audit DB sink + UI, SES NotificationTransport, S3 StorageProvider, API keys/rate-limit tiers, global admin console — each a private package implementing a Phase-3 seam.
