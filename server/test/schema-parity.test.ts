@@ -3,7 +3,6 @@ import { getTableColumns, sql } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { db } from "../db.ts";
 import {
-  rewardTiers,
   userContentTierAwards,
   activityLog,
   gamificationContent,
@@ -16,10 +15,6 @@ import { contentClassificationLinks } from "@heybray/taxonomy/schema";
  * covers migration 0000, so `drizzle-kit generate` was never a valid "no diff"
  * gate here. This test replaces it: it compares each canonical drizzle table
  * definition against the physically-migrated columns in the test DB.
- *
- * point_transactions is the deliberate exception — its canonical definition
- * (in @heybray/gamification/schema) omits the still-physical roleplay_id/
- * attempt_id columns, which migration 0010 will drop in a future release.
  */
 
 type ColumnShape = { type: string; nullable: boolean };
@@ -71,42 +66,34 @@ async function physicalColumns(tableName: string): Promise<Map<string, ColumnSha
   return map;
 }
 
+async function assertExactParity(tableName: string, table: PgTable): Promise<void> {
+  const drizzle = drizzleColumns(table);
+  const physical = await physicalColumns(tableName);
+
+  expect(physical.size).toBeGreaterThan(0);
+  expect([...physical.keys()].sort()).toEqual([...drizzle.keys()].sort());
+
+  for (const [column, shape] of drizzle) {
+    expect(physical.get(column), `${tableName}.${column}`).toEqual(shape);
+  }
+}
+
 describe("schema parity (drizzle defs vs migrated DB)", () => {
   const exactTables: Array<[string, PgTable]> = [
-    ["reward_tiers", rewardTiers],
     ["user_content_tier_awards", userContentTierAwards],
     ["activity_log", activityLog],
     ["gamification_content", gamificationContent],
     ["content_classification_links", contentClassificationLinks],
+    ["point_transactions", pointTransactions],
   ];
 
   for (const [tableName, table] of exactTables) {
     it(`${tableName} columns exactly match the drizzle definition`, async () => {
-      const drizzle = drizzleColumns(table);
-      const physical = await physicalColumns(tableName);
-
-      expect(physical.size).toBeGreaterThan(0);
-      expect([...physical.keys()].sort()).toEqual([...drizzle.keys()].sort());
-
-      for (const [column, shape] of drizzle) {
-        expect(physical.get(column), `${tableName}.${column}`).toEqual(shape);
-      }
+      await assertExactParity(tableName, table);
     });
   }
 
-  it("point_transactions: drizzle columns are a subset; extras are only the legacy 0010 columns", async () => {
-    const drizzle = drizzleColumns(pointTransactions);
-    const physical = await physicalColumns("point_transactions");
-
-    expect(physical.size).toBeGreaterThan(0);
-
-    for (const [column, shape] of drizzle) {
-      expect(physical.get(column), `point_transactions.${column}`).toEqual(shape);
-    }
-
-    // Flip this to exact equality (like the tables above) once migration 0010
-    // drops roleplay_id/attempt_id from point_transactions.
-    const extras = [...physical.keys()].filter((c) => !drizzle.has(c)).sort();
-    expect(extras).toEqual(["attempt_id", "roleplay_id"]);
-  });
+  // Published @heybray/gamification schema still includes legacy_id until Part D
+  // bumps the pin after the platform release drops the column.
+  it.todo("reward_tiers columns exactly match the drizzle definition (Part D pin bump)");
 });

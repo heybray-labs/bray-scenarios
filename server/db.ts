@@ -14,24 +14,12 @@ import {
   roleplayCriterionScores,
   homepageFeaturedScenarios,
 } from "../shared/schemas/roleplay-core.ts";
-// Legacy table, unread since Phase 2 (kept registered so drizzle knows it exists
-// until it is dropped in a follow-up release). Defined outside the drizzle glob.
-import { roleplayClassificationLinks } from "./legacy-schema/classification-links-legacy.ts";
 import {
   roleplayAppConfig,
   roleplayProviderKeys,
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
 } from "../shared/schemas/agent/roleplay-app-config.ts";
-// Legacy gamification tables, unread since Phase 2 (superseded by the
-// @heybray/gamification tables). Kept registered until dropped in a follow-up.
-// Defined outside the drizzle glob so drizzle-kit sees only the canonical
-// point_transactions in @heybray/gamification/schema.
-import {
-  scenarioRewardTiers,
-  userScenarioTierRewards,
-  pointTransactions,
-} from "./legacy-schema/points-legacy.ts";
 import { roleplayMediaUsage } from "./media-usage.ts";
 
 const appSchema = {
@@ -43,14 +31,10 @@ const appSchema = {
   roleplayMessages,
   roleplayCriterionScores,
   homepageFeaturedScenarios,
-  roleplayClassificationLinks,
   roleplayAppConfig,
   roleplayProviderKeys,
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
-  scenarioRewardTiers,
-  userScenarioTierRewards,
-  pointTransactions,
 };
 
 const schema = {

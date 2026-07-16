@@ -180,10 +180,11 @@ export class RoleplaySystemController {
     const addClassificationInFilter = (dimensionSlug: string, slugs: string[]) => {
       if (!slugs.length) return;
       filters.push(sql`EXISTS (
-        SELECT 1 FROM roleplay_classification_links rcl
-        INNER JOIN classification_options co ON co.id = rcl.option_id
+        SELECT 1 FROM content_classification_links ccl
+        INNER JOIN classification_options co ON co.id = ccl.option_id
         INNER JOIN classification_dimensions cd ON cd.id = co.dimension_id
-        WHERE rcl.roleplay_id = ${roleplays.id}
+        WHERE ccl.content_type = 'scenario'
+          AND ccl.content_id = ${roleplays.id}
           AND cd.slug = ${dimensionSlug}
           AND co.slug IN (${sql.join(slugs.map((slug) => sql`${slug}`), sql`, `)})
       )`);

@@ -71,6 +71,13 @@
       "when": 1783252891759,
       "tag": "0009_scenario_binding",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783252891760,
+      "tag": "0010_drop_legacy_gamification",
+      "breakpoints": true
     }
   ]
 }
