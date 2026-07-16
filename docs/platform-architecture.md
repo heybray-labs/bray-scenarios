@@ -369,11 +369,11 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 - **Risks:** dual-repo iteration slowdown (mitigated: the strangler ordering means the API is already stable); source-vs-dist differences (mitigated: `examples/basic-app` consumes built dist in CI).
 - **Done when:** Scenarios `main` depends only on published `@heybray/*`; a platform-only bugfix reaches Scenarios via a version-bump PR. ✅ Verified: initial `0.1.0` publish + `server-kit@0.1.2` getAppVersion() fix consumed via `npm install` with full test suite green.
 
-### Phase 5 — App #2 validation *(complete — ADR pending ratification)*
+### Phase 5 — App #2 validation *(complete)*
 - Built [`heybray-labs/bray-flashcards`](https://github.com/heybray-labs/bray-flashcards): flashcard/quiz trainer on published `@heybray/*` only — content type `deck`, mastery dimension `topic`, permission `deck:manage`, whitelabel UI.
-- **Standalone app-shape decision:** [**template repo**](https://github.com/heybray-labs/bray-platform/blob/main/docs/app-shape-decision.md) (evolve `examples/basic-app` → `bray-app-template`). Single-package layout (`server/` + `src/`, one `package.json`) — not Scenarios' workspace split. `create-bray-app` generator deferred; feature-package bundling remains a Phase 6 question.
+- **Standalone app-shape decision (ratified):** [**template repo**](https://github.com/heybray-labs/bray-platform/blob/main/docs/app-shape-decision.md) (evolve `examples/basic-app` → `bray-app-template`). Single-package layout (`server/` + `src/`, one `package.json`) — not Scenarios' workspace split. `create-bray-app` generator deferred; feature-package bundling remains a Phase 6 question.
 - Platform round-trip: **2 changesets / 4 package publishes** (`@heybray/gamification@0.2.0`, `@heybray/gamification-react@0.2.0`, `@heybray/react@0.1.2`, `@heybray/taxonomy@0.1.2`). One gap deferred (`legacy_id`, FL-005). Effort **well under** the ~1-week platform budget; dominant cost was chassis boilerplate (~39% of app source files near-verbatim from Scenarios).
-- **Done when:** app #2 green suite + friction log + ADR written. ✅ Verified per `bray-flashcards/docs/phase-5-verification.md`. **Owner ratification of ADR still open** before treating the decision as locked.
+- **Done when:** app #2 green suite + friction log + ADR written + owner ratified. ✅ Verified per `bray-flashcards/docs/phase-5-verification.md`; ADR ratified 2026-07-16.
 
 ### Phase 6 — Enterprise packages + premium app *(forces the premium bundling decision)*
 - Mine WebAppTemplate: tenancy (TenantResolver + scoping wrappers), Stripe entitlements (EntitlementProvider + FeatureGate), audit DB sink + UI, SES NotificationTransport, S3 StorageProvider, API keys/rate-limit tiers, global admin console — each a private package implementing a Phase-3 seam.
