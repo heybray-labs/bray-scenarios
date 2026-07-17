@@ -22,7 +22,7 @@ COPY package.json package-lock.json ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY packages/scenarios-client/package.json ./packages/scenarios-client/
-COPY packages/scenarios-server/package.json ./packages/scenarios-server/
+COPY --from=build /app/packages/scenarios-server ./packages/scenarios-server
 RUN npm ci --omit=dev
 
 COPY --from=build /app/client/dist ./client/dist
