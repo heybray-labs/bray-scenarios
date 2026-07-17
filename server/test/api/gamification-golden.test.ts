@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import { api, authHeader } from "../helpers/request.ts";
 import { loginAs } from "../helpers/auth.ts";
@@ -96,7 +99,13 @@ function sortById<T extends { id: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.id - b.id);
 }
 
-describe("Gamification golden output", () => {
+const repoExamplesCover = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../examples/scenario-bad-faith-escalation/media/cover.jpg",
+);
+
+// `examples/` is gitignored (demo scenario bundles); fresh CI clones have no covers.
+describe.skipIf(!fs.existsSync(repoExamplesCover))("Gamification golden output", () => {
   let adminToken: string;
   let learnerToken: string;
   let learnerId: number;
