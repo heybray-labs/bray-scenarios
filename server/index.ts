@@ -7,8 +7,7 @@ import {
   oidcAuthService,
   samlAuthService,
 } from "@heybray/identity";
-import { isCheatModeEnabled } from "./config/cheat-mode.ts";
-import { reconcileGamificationProjection } from "./gamification.ts";
+import { reconcileGamificationProjection, isCheatModeEnabled } from "@heybray/scenarios-server";
 
 const app = createApp();
 const PORT = parseInt(process.env.PORT || "3001", 10);

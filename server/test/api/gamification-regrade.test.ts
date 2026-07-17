@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 import { api, authHeader } from "../helpers/request.ts";
 import { setupAdmin, createLearner, type TestUser } from "../helpers/auth.ts";
 import { configureRoleplayAi, MINIMAL_ROLEPLAY_PAYLOAD } from "../helpers/fixtures.ts";
-import { gradeTranscript } from "../../roleplay/grading.ts";
-import type { GradingContext } from "../../roleplay/grading.ts";
+import { gradeTranscript } from "@heybray/scenarios-server/roleplay/grading";
+import type { GradingContext } from "@heybray/scenarios-server/roleplay/grading";
 
 /**
  * Fix 1 (docs/phase-2-remediation.md): a manual re-grade must flow through to

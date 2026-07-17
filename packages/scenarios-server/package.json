@@ -1,0 +1,64 @@
+{
+  "name": "@heybray/scenarios-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "Scenarios roleplay domain — mountable server feature package (routes, services, schema, seed).",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./roleplay/grading": {
+      "types": "./src/roleplay/grading.ts",
+      "default": "./src/roleplay/grading.ts"
+    },
+    "./roleplay/model-factory": {
+      "types": "./src/roleplay/model-factory.ts",
+      "default": "./src/roleplay/model-factory.ts"
+    },
+    "./services/agent-model-catalog.service": {
+      "types": "./src/services/agent-model-catalog.service.ts",
+      "default": "./src/services/agent-model-catalog.service.ts"
+    },
+    "./schema/*": {
+      "types": "./src/schema/*.ts",
+      "default": "./src/schema/*.ts"
+    },
+    "./seed/*": {
+      "types": "./src/seed/*.ts",
+      "default": "./src/seed/*.ts"
+    },
+    "./config/*": {
+      "types": "./src/config/*.ts",
+      "default": "./src/config/*.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@heybray/gamification": "^1.0.0",
+    "@heybray/identity": "^1.0.0",
+    "@heybray/llm": "^1.0.0",
+    "@heybray/media": "^1.0.0",
+    "@heybray/server-kit": "^1.0.0",
+    "@heybray/taxonomy": "^1.0.0",
+    "@langchain/core": "^1.2.1",
+    "bcrypt": "^6.0.0",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.7.1",
+    "express": "^4.21.2",
+    "openai": "^6.41.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.11",
+    "typescript": "^5.6.3"
+  }
+}

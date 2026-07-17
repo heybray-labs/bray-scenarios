@@ -3,9 +3,8 @@ import { roles, users } from "@heybray/identity/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { createLogger } from "@heybray/server-kit";
-import { seedClassifications } from "./seed-classifications.ts";
+import { seedClassifications, assertDatabaseConnection } from "@heybray/scenarios-server";
 import { runMigrations } from "./run-migrations.ts";
-import { assertDatabaseConnection } from "./assert-db-connection.ts";
 
 const log = createLogger("init-db");
 

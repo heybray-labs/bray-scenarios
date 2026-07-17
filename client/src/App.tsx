@@ -10,16 +10,13 @@ import LoginPage from "@heybray/react/pages/LoginPage";
 import RegisterPage from "@heybray/react/pages/RegisterPage";
 import OidcCallbackPage from "@heybray/react/pages/OidcCallbackPage";
 import SamlCallbackPage from "@heybray/react/pages/SamlCallbackPage";
-import ScenarioSearchPage from "@/pages/ScenarioSearchPage";
-import HomePage from "@/pages/HomePage";
-import RoleplayIntroPage from "@/pages/RoleplayIntroPage";
-import RoleplayTaking from "@/pages/RoleplayTaking";
-import RoleplayResults from "@/pages/RoleplayResults";
-import RoleplayAttemptsPage from "@/pages/RoleplayAttemptsPage";
-import TeamStarMapPage from "@/pages/TeamStarMapPage";
-import "@/admin-panels";
-import logo from "@assets/logo.png";
-import loginHeroImage from "@assets/login-screen-image.png";
+import { scenariosApp } from "@heybray/scenarios-client";
+import logo from "@heybray/scenarios-client/assets/logo.png";
+import loginHeroImage from "@heybray/scenarios-client/assets/login-screen-image.png";
+
+// Register the app's admin settings panels once, before render — same effect as
+// the previous module-level `import "@/admin-panels"` side effect.
+scenariosApp.registerAdminPanels();
 
 const GITHUB_REPO_URL = "https://github.com/heybray-labs/bray-scenarios";
 
@@ -34,7 +31,7 @@ const appConfig: AppConfig = {
     releases: `${GITHUB_REPO_URL}/releases`,
   },
   routes: {
-    contentPath: (_contentType, contentId) => `/roleplays/${contentId}`,
+    contentPath: scenariosApp.contentPath,
   },
 };
 
@@ -54,41 +51,13 @@ export default function App() {
             <Route path="/login/oidc/callback" component={OidcCallbackPage} />
             <Route path="/login/saml/callback" component={SamlCallbackPage} />
             <Route path="/register">{() => <RegisterPage {...authBranding} />}</Route>
-            <Route path="/search">
-              <ProtectedRoute>
-                <ScenarioSearchPage />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/">
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/roleplays/:id">
-              <ProtectedRoute>
-                <RoleplayIntroPage />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/roleplays/:id/take">
-              <ProtectedRoute>
-                <RoleplayTaking />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/roleplays/:id/results/:attemptId">
-              <ProtectedRoute>
-                <RoleplayResults />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/team-star-map">
-              <ProtectedRoute>
-                <TeamStarMapPage />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/roleplays/:id/attempts">
-              <ProtectedRoute permission="roleplay:manage">
-                <RoleplayAttemptsPage />
-              </ProtectedRoute>
-            </Route>
+            {scenariosApp.routes.map(({ path, component: Component, permission }) => (
+              <Route key={path} path={path}>
+                <ProtectedRoute permission={permission}>
+                  <Component />
+                </ProtectedRoute>
+              </Route>
+            ))}
             <Route>
               <PageNotFoundScreen />
             </Route>

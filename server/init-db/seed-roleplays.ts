@@ -5,10 +5,13 @@ import {
   roleplaySettings,
   roleplayPersonas,
   roleplayCriteria,
-} from "../../shared/schemas/roleplay-core.ts";
+} from "@heybray/scenarios-server/schema/roleplay-core";
 import { createLogger } from "@heybray/server-kit";
-import { seedClassifications, categoryLabelToSlug } from "./seed-classifications.ts";
-import * as scenarioClassifications from "../lib/scenario-classifications.ts";
+import {
+  seedClassifications,
+  categoryLabelToSlug,
+  scenarioClassifications,
+} from "@heybray/scenarios-server";
 
 const log = createLogger("seed-roleplays");
 

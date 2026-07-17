@@ -20,6 +20,7 @@
     "@heybray/identity": "^1.0.0",
     "@heybray/llm": "^1.0.0",
     "@heybray/media": "^1.0.0",
+    "@heybray/scenarios-server": "*",
     "@heybray/server-kit": "^1.0.0",
     "@heybray/taxonomy": "^1.0.0",
     "@langchain/core": "^1.2.1",

@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { GradingContext } from "../../roleplay/grading.ts";
+import type { GradingContext } from "@heybray/scenarios-server/roleplay/grading";
 
 const fakeChatModel = {
   invoke: vi.fn().mockResolvedValue({ content: "Hello from the persona." }),
@@ -14,16 +14,16 @@ const fakeChatModel = {
   }),
 };
 
-vi.mock("../../roleplay/model-factory.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../roleplay/model-factory.ts")>();
+vi.mock("@heybray/scenarios-server/roleplay/model-factory", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heybray/scenarios-server/roleplay/model-factory")>();
   return {
     ...actual,
     createRoleplayChatModel: vi.fn().mockResolvedValue(fakeChatModel),
   };
 });
 
-vi.mock("../../roleplay/grading.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../roleplay/grading.ts")>();
+vi.mock("@heybray/scenarios-server/roleplay/grading", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heybray/scenarios-server/roleplay/grading")>();
   return {
     ...actual,
     gradeTranscript: vi.fn().mockImplementation(async (_model: unknown, ctx: GradingContext) => ({
@@ -39,7 +39,7 @@ vi.mock("../../roleplay/grading.ts", async (importOriginal) => {
   };
 });
 
-vi.mock("../../services/agent-model-catalog.service.ts", () => ({
+vi.mock("@heybray/scenarios-server/services/agent-model-catalog.service", () => ({
   agentModelCatalogService: {
     getModelsForProvider: vi.fn().mockResolvedValue({
       models: [
