@@ -13,6 +13,7 @@ import { Button } from "@heybray/ui/components/button";
 import { NoticeBannerButton, noticeLabelClassName } from "@heybray/ui/components/NoticeBanner";
 import { PointsHistoryDialog } from "@heybray/gamification-react/points/PointsHistoryDialog";
 import logo from "../assets/logo.png";
+import { usePackageLayoutEnabled } from "../layout-context";
 
 function AppBrand() {
   const { displayName } = useAppConfig();
@@ -109,6 +110,11 @@ function AppNavActions() {
 const MANAGE_PERMISSION = "roleplay:manage";
 
 export function AppLayout({ children }: { children: ReactNode }) {
+  const usePackageLayout = usePackageLayoutEnabled();
+  if (!usePackageLayout) {
+    return <>{children}</>;
+  }
+
   return (
     <MainLayout
       brand={<AppBrand />}

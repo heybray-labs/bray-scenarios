@@ -1,6 +1,6 @@
 {
   "name": "@heybray/scenarios-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "AGPL-3.0-only",
   "description": "Scenarios roleplay domain — mountable client feature package (routes, pages, components, admin panels).",
@@ -23,7 +23,11 @@
       "types": "./src/index.tsx",
       "default": "./src/index.tsx"
     },
-    "./assets/*": "./src/assets/*"
+    "./assets/*": "./src/assets/*",
+    "./layout": {
+      "types": "./src/layout-context.tsx",
+      "default": "./src/layout-context.tsx"
+    }
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
