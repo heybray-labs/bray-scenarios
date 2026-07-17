@@ -2,27 +2,33 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [main]
 
 permissions:
   contents: write
-  packages: write
+  pull-requests: write
+  id-token: write
 
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Typecheck & build
+  release:
+    name: Version or publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+          registry-url: https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - run: npm ci
 
@@ -30,92 +36,22 @@ jobs:
 
       - run: npm run build --workspace=client
 
-  api-tests:
-    name: API tests
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
+      - name: Verify npm publish credentials
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN secret is empty. Add an npm Automation token for the @heybray scope."
+            exit 1
+          fi
+          npm whoami
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: roleplay_app
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d roleplay_app"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - name: Create release PR or publish to npm
+        uses: changesets/action@v1
         with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-
-      - name: Apply migrations
-        run: npm run db:migrate --workspace=server
+          publish: npx changeset publish
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/roleplay_app
-
-      - name: Run API smoke tests
-        run: npm run test --workspace=server
-        env:
-          CI: true
-          SKIP_TEST_DOCKER: "1"
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/roleplay_app
-          JWT_SECRET: ci-test-secret
-          AUTH_PROTOCOL: local
-          RATE_LIMIT_MAX: "10000"
-          AUTH_RATE_LIMIT_MAX: "10000"
-          MEDIA_DIR: /tmp/bray-test-media
-
-  docker-publish:
-    name: Build & push Docker image
-    needs: [verify, api-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  github-release:
-    name: Create GitHub Release
-    needs: [verify, api-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

@@ -32,6 +32,7 @@
     "quickstart:interactive": "./bin/quickstart.sh --interactive"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.4",
     "concurrently": "^8.2.2",
     "tsx": "^4.20.5",
     "@heybray/gamification": "^1.0.0",
