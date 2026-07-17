@@ -380,11 +380,13 @@ These are the OSS defaults' real, enterprise-grade implementations — all Phase
 - **1.0.0 ratified 2026-07-17:** all 10 `@heybray/*` packages published together via Changesets PR [#8](https://github.com/heybray-labs/bray-platform/pull/8) with npm provenance. Consumer pins bumped to `^1.0.0` in Scenarios, Flashcards, and Template; Scenarios uses root `overrides` + hoisted devDependencies to keep a single `server-kit` instance for `setDatabase` / `GamificationService`.
 - **Done when:** published 1.0.0 with provenance; all three consumers green on `^1.0.0`; architecture §6 records the stability policy. ✅ Verified per `docs/pre-phase-6-cleanup-report.md`.
 
-### Phase 6 — Enterprise packages + premium app *(forces the premium bundling decision)*
-- Mine WebAppTemplate: tenancy (TenantResolver + scoping wrappers), Stripe entitlements (EntitlementProvider + FeatureGate), audit DB sink + UI, SES NotificationTransport, S3 StorageProvider, API keys/rate-limit tiers, global admin console — each a private package implementing a Phase-3 seam.
-- Premium app composes OSS apps + enterprise packages. **Decision forced at phase start:** apps as importable feature packages (premium imports `@heybray/scenarios-server` + `-client`) vs a fork-compose repo. Recommendation on current evidence: **feature packages** — after Phase 3, an "app" is already just `{ serverModule, clientRoutes, adminPanels, migrations }` thanks to the registries.
+### Phase 6 — Premium SaaS: tenancy, spaces, economy *(in progress — design ratified)*
+- **Design of record:** [`docs/phase-6-design.md`](./phase-6-design.md) (supersedes this sketch). Sub-phases 6A–6D; consciously out-of-scope items are listed there so omission is a decision.
+- **6A brief:** [`docs/phase-6a-implementation.md`](./phase-6a-implementation.md) — extract apps to `@heybray/{scenarios,flashcards}-{server,client}`; thin shells; private `bray-premium` mounts both under one login/ledger; multi-dimension mastery platform changeset.
+- **Bundling (ratified):** feature packages (not fork-compose). Enterprise/economy packages land in private `bray-enterprise` under `@heybray-labs/*` (6B+).
+- **6B+:** tenancy spike + enterprise v1; spaces + unified dashboard; economy + notifications — see design doc §4.
 
-**Where the deferred app-shape decision bites:** Phase 1 (cheap optional prep: `packages/scenarios-shared`), ~~Phase 5 (standalone shape)~~ **resolved — template repo**, Phase 6 (premium bundling shape — hard deadline).
+**Where the deferred app-shape decision bites:** Phase 1 (cheap optional prep: `packages/scenarios-shared`), ~~Phase 5 (standalone shape)~~ **resolved — template repo**, ~~Phase 6 (premium bundling)~~ **resolved — feature packages** (design §1).
 
 ---
 
