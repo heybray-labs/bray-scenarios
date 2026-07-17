@@ -22,7 +22,8 @@ import {
   roleplayAllowedPersonaModels,
   roleplayAllowedGraderModels,
 } from "./schema/agent/roleplay-app-config.ts";
-import { registerRoutes, type ScenariosServerDeps } from "./register-routes.ts";
+import { registerRoutes } from "./register-routes.ts";
+import { registerDomainRoutes, type ScenariosServerDeps } from "./register-domain-routes.ts";
 import {
   reconcileGamificationProjection,
   gamification,
@@ -79,6 +80,7 @@ export const scenariosModule = {
 
 export {
   registerRoutes,
+  registerDomainRoutes,
   type ScenariosServerDeps,
   reconcileGamificationProjection,
   gamification,
@@ -95,3 +97,9 @@ export {
   MASTERY_DIMENSION_SLUG,
   MANAGE_PERMISSION,
 };
+export {
+  getScenarioStarMap,
+  getScenarioMemberProgress,
+  getScenarioMemberContentHistory,
+  getScenarioMemberContentAttempts,
+} from "./team-star-map-handlers.ts";

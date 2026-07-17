@@ -1,6 +1,5 @@
 import express, { Router } from "express";
-import roleplayRoutes from "./routes/roleplays.ts";
-import roleplayConfigRoutes from "./routes/roleplay-config.ts";
+import { registerDomainRoutes, type ScenariosServerDeps } from "./register-domain-routes.ts";
 import teamStarMapRoutes from "./routes/team-star-map.ts";
 import {
   MANAGE_PERMISSION,
@@ -19,12 +18,7 @@ import {
   setManagePermission,
 } from "@heybray/identity";
 
-/**
- * Optional dependency bag for the mountable module. The standalone shell needs
- * none of these — the package imports its platform routers directly — but the
- * premium shell may inject shared middleware here in Phase 6A Step 4.
- */
-export type ScenariosServerDeps = Record<string, unknown>;
+export type { ScenariosServerDeps };
 
 /**
  * Mounts every Scenarios-domain route onto the given Express app: the roleplay
@@ -40,8 +34,7 @@ export function registerRoutes(
   // Inject the app's manage-permission string into the identity team controller.
   setManagePermission(MANAGE_PERMISSION);
 
-  app.use("/api/roleplays", roleplayRoutes);
-  app.use("/api/roleplay-config", roleplayConfigRoutes);
+  registerDomainRoutes(app, _deps);
   app.use(
     "/api/media",
     createMediaRouter({
