@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import bcrypt from "bcrypt";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@heybray/server-kit";
@@ -47,15 +46,15 @@ import {
 import type { DemoScenario, ScoreBandId } from "./demo-data/types.ts";
 import { DEMO_COVER_SOURCES } from "./demo-data/cover-sources.ts";
 
+const DEMO_COVER_PREFIX = "demo-cover-";
+
 const log = createLogger("seed-demo");
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// From packages/scenarios-server/src/seed up to the repo root (seed → src →
-// scenarios-server → packages → repo). The demo cover images still live in the
-// repo-root examples/ library while this is an in-repo workspace package.
-const REPO_ROOT = path.resolve(__dirname, "../../../..");
-const EXAMPLES_DIR = path.join(REPO_ROOT, "examples");
-const DEMO_COVER_PREFIX = "demo-cover-";
+/** Paths the shell must supply — packages must not walk above their own directory. */
+export type SeedDemoOptions = {
+  /** Absolute path to the repo's `examples/` directory (cover image library). */
+  examplesDir: string;
+};
 
 /** Deterministic pseudo-random in [0, 1). */
 function seededRandom(seed: number): number {
@@ -144,17 +143,17 @@ async function resolveCoverMediaId(slug: string): Promise<number | null> {
   return exampleRoleplay?.coverImageMediaId ?? null;
 }
 
-async function loadCoverImage(slug: string): Promise<Buffer> {
+async function loadCoverImage(slug: string, examplesDir: string): Promise<Buffer> {
   const source = DEMO_COVER_SOURCES[slug];
   if (!source) {
     throw new Error(`No cover source configured for demo scenario slug: ${slug}`);
   }
 
-  const coverPath = path.join(EXAMPLES_DIR, source.folder, "media/cover.jpg");
+  const coverPath = path.join(examplesDir, source.folder, "media/cover.jpg");
   return fs.readFile(coverPath);
 }
 
-async function seedScenarios(adminUserId: number) {
+async function seedScenarios(adminUserId: number, examplesDir: string) {
   const created: { scenario: DemoScenario; roleplayId: number }[] = [];
 
   for (const scenario of DEMO_SCENARIOS) {
@@ -241,7 +240,7 @@ async function seedScenarios(adminUserId: number) {
     let coverMediaId = existingCoverMediaId;
 
     if (!coverMediaId) {
-      const coverBuffer = await loadCoverImage(scenario.slug);
+      const coverBuffer = await loadCoverImage(scenario.slug, examplesDir);
       const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
         originalFilename: "cover.jpg",
         mimeType: "image/jpeg",
@@ -503,7 +502,8 @@ async function seedAttempts(
   return { attemptCount, completedCount, inProgressCount };
 }
 
-export async function seedDemo() {
+export async function seedDemo(options: SeedDemoOptions) {
+  const { examplesDir } = options;
   await assertDatabaseConnection();
   await ensureRoles();
   await seedClassifications();
@@ -513,7 +513,7 @@ export async function seedDemo() {
   const adminId = userIds.get("admin@demo.local");
   if (!adminId) throw new Error("Failed to create demo admin user");
 
-  const scenarios = await seedScenarios(adminId);
+  const scenarios = await seedScenarios(adminId, examplesDir);
   const learnerProfiles = buildLearnerProfiles(userIds);
   const { attemptCount, completedCount, inProgressCount } = await seedAttempts(
     scenarios,

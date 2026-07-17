@@ -1,17 +1,24 @@
 /**
- * Shell entrypoint for `npm run db:seed-demo`. The seed logic itself moved into
- * @heybray/scenarios-server during the Phase 6A extraction; this thin wrapper
- * re-exports `seedDemo` (so the golden test keeps its historical import path)
- * and owns the CLI direct-run behaviour that closes the shell's pg pool.
+ * Shell entrypoint for `npm run db:seed-demo`. The seed logic lives in
+ * @heybray/scenarios-server; this wrapper supplies repo-root paths the package
+ * cannot resolve once published to node_modules.
  */
-import { pathToFileURL } from "url";
+import path from "path";
+import { pathToFileURL, fileURLToPath } from "url";
 import { createLogger } from "@heybray/server-kit";
-import { seedDemo } from "@heybray/scenarios-server";
+import { seedDemo as seedDemoImpl } from "@heybray/scenarios-server";
 import { pool } from "../db.ts";
 
-export { seedDemo };
-
 const log = createLogger("seed-demo");
+
+const EXAMPLES_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../examples",
+);
+
+export async function seedDemo() {
+  return seedDemoImpl({ examplesDir: EXAMPLES_DIR });
+}
 
 // Only run + close the pool when invoked directly as a script (npm run db:seed-demo).
 // When imported (e.g. by the gamification golden test), callers control the pool.

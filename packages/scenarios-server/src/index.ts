@@ -33,7 +33,7 @@ import {
 } from "./gamification.ts";
 import { roleplayMediaUsage } from "./media-usage.ts";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
-import { seedDemo } from "./seed/seed-demo.ts";
+import { seedDemo, type SeedDemoOptions } from "./seed/seed-demo.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed/seed-classifications.ts";
 import { assertDatabaseConnection } from "./seed/assert-db-connection.ts";
 import * as scenarioClassifications from "./lib/scenario-classifications.ts";
@@ -85,6 +85,7 @@ export {
   teamStarMap,
   roleplayMediaUsage,
   seedDemo,
+  type SeedDemoOptions,
   seedClassifications,
   categoryLabelToSlug,
   assertDatabaseConnection,
