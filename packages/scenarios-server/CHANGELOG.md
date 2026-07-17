@@ -1,5 +1,11 @@
 # @heybray/scenarios-server
 
+## 0.1.2
+
+### Patch Changes
+
+- 217636e: Export `registerDomainRoutes()` for composed shells and star-map drill-in handler functions via `@heybray/scenarios-server/team-star-map`.
+
 ## 0.1.0
 
 ### Minor Changes
