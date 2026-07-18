@@ -1,8 +1,8 @@
+@import "@heybray/ui/theme-default.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "@heybray/ui/theme-default.css";
 
 :root {
   /* Scenarios-only domain tokens (not in shared theme baseline) */
