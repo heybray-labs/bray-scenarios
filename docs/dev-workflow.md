@@ -5,6 +5,33 @@ How changes flow between the app repos (`bray-scenarios`, `bray-flashcards`,
 port the "Platform contributors" section into `bray-platform/CONTRIBUTING.md` (that was
 planned in Phase 4 and never landed — the architecture doc §7 already points there).
 
+## Automated (preferred day-to-day)
+
+From `bray-platform` after editing platform packages:
+
+```bash
+./bin/yalc-sync.sh server-kit          # rebuild server-kit + workspace dependents, publish+push
+./bin/yalc-sync.sh --link premium      # once per machine (or use a path); needs .yalc-targets.local
+./bin/yalc-sync.sh --status premium
+./bin/yalc-sync.sh --unlink premium    # before commit — guards reject yalc in manifests
+```
+
+Feature-package repos use the same flag shape:
+
+```bash
+# bray-scenarios
+./bin/yalc-sync.sh scenarios-server
+./bin/yalc-sync.sh --link premium
+
+# bray-flashcards
+./bin/yalc-sync.sh flashcards-server
+./bin/yalc-sync.sh --link premium
+```
+
+Copy `.yalc-targets.local.example` → `.yalc-targets.local` (gitignored) so shortcuts like
+`premium` resolve to your sibling-repo paths. The manual steps below are unchanged — these
+scripts sequence the same operations.
+
 ## The invariant
 
 **A consumer repo's `main` only ever points at published `@heybray/*` versions.**
