@@ -61,6 +61,21 @@ Why yalc and not the alternatives:
   a shim is being considered, first ask whether the batch should simply publish now —
   "ship what's green" usually wins.
 
+## Enforcement
+
+Workflow rules above are not advisory. Each repo ships `bin/guards.sh` (repo-specific
+sections appended to a shared core) and runs it:
+
+- **Locally:** first line of `bin/test.sh` (or `npm test` on platform) — fails before
+  push if a tripwire trips.
+- **CI:** job **`guards`** calls the org reusable workflow
+  `heybray-labs/.github/.github/workflows/guards.yml@main` (fast; no `npm ci` except
+  platform changeset status). Job **`verify`** runs typecheck/build/tests and depends on
+  `guards`.
+- **Merge:** org branch rulesets (owner-configured) require **`guards`** and **`verify`**
+  to pass on PRs to `main`. A tripwire that has never fired in CI is not done — see
+  `docs/guards-verification.md`.
+
 ## Batched platform work (approved 6A-review policy)
 
 When a review pass produces several related platform changes (e.g. client UI dedupe),
