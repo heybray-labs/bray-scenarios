@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 type LayoutContextValue = {
   /** When false, AppLayout renders children only (composed shells supply outer chrome). */
@@ -14,9 +14,8 @@ export function PackageLayoutProvider({
   usePackageLayout?: boolean;
   children: ReactNode;
 }) {
-  return (
-    <LayoutContext.Provider value={{ usePackageLayout }}>{children}</LayoutContext.Provider>
-  );
+  const value = useMemo(() => ({ usePackageLayout }), [usePackageLayout]);
+  return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>;
 }
 
 export function usePackageLayoutEnabled(): boolean {
