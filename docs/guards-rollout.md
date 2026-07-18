@@ -147,8 +147,12 @@ in `docs/guards-verification.md` (this repo). A tripwire that has never fired is
 2. Org → Settings → Repository → Rulesets → New branch ruleset:
    - Target: all repos matching `bray-*`; branch: default.
    - Require a pull request before merging (0 approvals is fine solo).
-   - Require status checks to pass: **`guards`**, **`verify`** (names standardized in
-     this brief). Require branches up to date: off (solo; merge conflicts self-police).
+   - Require status checks to pass: **`guards / guards`** and **`verify`** — these are
+     the check-run names GitHub records. The PR UI decorates them as
+     `CI / guards / guards (pull_request)` / `CI / verify (pull_request)` (workflow-name
+     prefix + trigger suffix), but rulesets match the undecorated names. The org-level
+     "Add checks" box offers no suggestions; type the names and click "Add".
+     Require branches up to date: off (solo; merge conflicts self-police).
    - Bypass list: empty (or owner-only, for emergencies).
 3. Per repo → Settings → General: enable **Allow auto-merge** (agents open PRs and set
    auto-merge; lands when green).

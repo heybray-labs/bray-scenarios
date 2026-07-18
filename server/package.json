@@ -22,7 +22,7 @@
     "@heybray/llm": "^1.0.0",
     "@heybray/media": "^1.0.0",
     "@heybray/scenarios-server": "^0.1.2",
-    "@heybray/server-kit": "^1.0.0",
+    "@heybray/server-kit": "^1.1.0",
     "@heybray/taxonomy": "^1.0.0",
     "@langchain/core": "^1.2.1",
     "@node-saml/node-saml": "^5.1.0",

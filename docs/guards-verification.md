@@ -29,7 +29,31 @@ Expected log line: `GUARD FAILED: yalc reference in a committed manifest`
 
 Expected log line: `GUARD FAILED: shipped migration modified: server/drizzle/0000_initial.sql`
 
-## Ruleset merge block (owner)
+## Ruleset merge block (confirmed 2026-07-18)
 
-Pending: org rulesets requiring **`guards`** + **`verify`** must demonstrably block merge
-on one plant PR after owner configures rulesets (see `docs/guards-rollout.md` checklist).
+Org branch ruleset requires check contexts **`guards / guards`** + **`verify`** on
+`bray-*` default branches. Confirmed on fresh plant PRs
+[#37](https://github.com/heybray-labs/bray-scenarios/pull/37) and
+[#38](https://github.com/heybray-labs/bray-scenarios/pull/38) (bray-scenarios, yalc
+override plant): `guards / guards` failed in ~5s, merge state **BLOCKED**, auto-merge
+armed but unable to fire while the required check fails.
+
+Configuration gotchas discovered:
+
+- **Ruleset contexts must be the check-run names** (`guards / guards`, `verify`), not
+  the PR-UI display names (`CI / guards / guards (pull_request)`). The UI prepends the
+  workflow name and appends the trigger event for display only; a ruleset entry using
+  the decorated name never matches and sits at "Expected — Waiting for status".
+- Org-level rulesets offer **no autocomplete suggestions** for check names — type them
+  exactly and click "Add".
+- A **skipped** required check counts as satisfied (here `verify` skips when `guards`
+  fails via `needs: guards`); the failed `guards / guards` alone blocks the merge.
+- A run that fails at **0s with "workflow file issue"** is a workflow-file rejection
+  (e.g. the reusable workflow couldn't be resolved while `heybray-labs/.github` was
+  still private), not a guards/test failure — there are no job logs to read. Seen on
+  the first `main` push runs in flashcards/premium/app-template after guards wiring.
+- **Re-running a PR's failed run reuses the original context**; a fix (workflow file,
+  repo visibility, etc.) only takes effect on a **new commit**, not a re-run.
+- **Never add `paths-ignore`/path filters to any `ci.yml`** now that its checks are
+  ruleset-required: a PR that doesn't trigger the workflow never reports the check and
+  blocks forever on "Expected — Waiting for status".
