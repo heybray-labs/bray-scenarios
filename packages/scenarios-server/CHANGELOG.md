@@ -1,5 +1,11 @@
 # @heybray/scenarios-server
 
+## 0.1.4
+
+### Patch Changes
+
+- 8f213fb: Demo seed/wipe tooling: generated Lucide cover images, configurable seed counts, exported `wipeDemo`, `DEMO_TITLE_PREFIX`, and `renderCoverImageFromArt`.
+
 ## 0.1.3
 
 ### Patch Changes
