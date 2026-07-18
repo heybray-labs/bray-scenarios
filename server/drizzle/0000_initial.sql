@@ -266,4 +266,4 @@ CREATE UNIQUE INDEX "roleplay_allowed_grader_models_provider_model_idx" ON "role
 CREATE UNIQUE INDEX "roleplay_allowed_persona_models_provider_model_idx" ON "roleplay_allowed_persona_models" USING btree ("provider","model");--> statement-breakpoint
 CREATE UNIQUE INDEX "classification_options_dimension_slug" ON "classification_options" USING btree ("dimension_id","slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "user_identities_provider_user_idx" ON "user_identities" USING btree ("provider","provider_user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email");
+CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email");-- guards plant
