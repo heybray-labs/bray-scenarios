@@ -1,6 +1,6 @@
 {
   "name": "@heybray/scenarios-server",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "license": "AGPL-3.0-only",
   "description": "Scenarios roleplay domain — mountable server feature package (routes, services, schema, seed).",
