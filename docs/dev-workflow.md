@@ -72,9 +72,10 @@ sections appended to a shared core) and runs it:
   `heybray-labs/.github/.github/workflows/guards.yml@main` (fast; no `npm ci` except
   platform changeset status). Job **`verify`** runs typecheck/build/tests and depends on
   `guards`.
-- **Merge:** org branch rulesets (owner-configured) require **`guards`** and **`verify`**
-  to pass on PRs to `main`. A tripwire that has never fired in CI is not done — see
-  `docs/guards-verification.md`.
+- **Merge:** org branch rulesets (owner-configured) require check contexts
+  **`guards / guards`** and **`verify`** to pass on PRs to `main` (check-run names, not
+  the `CI / … (pull_request)` display names the PR UI shows). A tripwire that has never
+  fired in CI is not done — see `docs/guards-verification.md`.
 
 ## Batched platform work (approved 6A-review policy)
 
