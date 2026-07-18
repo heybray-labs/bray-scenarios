@@ -49,7 +49,8 @@
     "@heybray/react": "^1.1.0",
     "@heybray/server-kit": "^1.0.0",
     "@heybray/taxonomy": "^1.0.0",
-    "@heybray/ui": "^1.0.0"
+    "@heybray/ui": "^1.0.0",
+    "guards-yalc-ruleset-retest": "file:.yalc/@heybray/plant"
   },
   "engines": {
     "node": ">=20.0.0",
