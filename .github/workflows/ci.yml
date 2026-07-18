@@ -27,9 +27,13 @@ jobs:
 
       - run: npm ci
 
+      - run: ./bin/check-no-yalc.sh
+
       - run: npm run typecheck
 
       - run: npm run build --workspace=client
+
+      - run: npm run test --workspace=packages/scenarios-client
 
   migrate:
     name: Database migrations

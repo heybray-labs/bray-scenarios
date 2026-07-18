@@ -34,8 +34,14 @@ export RATE_LIMIT_MAX=10000
 export AUTH_RATE_LIMIT_MAX=10000
 export MEDIA_DIR="${MEDIA_DIR:-/tmp/bray-test-media}"
 
+echo "Checking for committed yalc links..."
+./bin/check-no-yalc.sh
+
 echo "Applying migrations..."
 npm run db:migrate --workspace=server
 
 echo "Running API tests..."
 npm run test --workspace=server
+
+echo "Running client smoke tests..."
+npm run test --workspace=packages/scenarios-client
