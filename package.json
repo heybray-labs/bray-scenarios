@@ -41,6 +41,7 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
+    "guards-yalc-plant-test": "file:.yalc/@heybray/plant",
     "@heybray/gamification": "^1.0.0",
     "@heybray/gamification-react": "^1.2.0",
     "@heybray/identity": "^1.0.0",
