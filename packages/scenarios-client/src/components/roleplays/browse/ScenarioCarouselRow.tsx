@@ -97,6 +97,8 @@ export function ScenarioCarouselRow({
     el.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
   };
 
+  const childCount = Array.isArray(children) ? children.length : children ? 1 : 0;
+
   useEffect(() => {
     updateScrollState();
     const el = scrollRef.current;
@@ -104,7 +106,7 @@ export function ScenarioCarouselRow({
     const observer = new ResizeObserver(updateScrollState);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [children]);
+  }, [childCount, scrollRef]);
 
   return (
     <section
