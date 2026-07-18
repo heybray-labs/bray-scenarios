@@ -30,12 +30,13 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@heybray/gamification": "^1.0.0",
-    "@heybray/gamification-react": "^1.0.0",
-    "@heybray/react": "^1.0.0",
+    "@heybray/gamification-react": "^1.2.0",
+    "@heybray/react": "^1.1.0",
     "@heybray/ui": "^1.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -68,9 +69,12 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "happy-dom": "^17.4.4",
     "typescript": "^5.6.3",
-    "vite": "^6.4.3"
+    "vite": "^6.4.3",
+    "vitest": "^3.2.4"
   }
 }

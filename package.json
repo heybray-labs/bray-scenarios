@@ -33,20 +33,20 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.4",
-    "concurrently": "^8.2.2",
-    "tsx": "^4.20.5",
     "@heybray/gamification": "^1.0.0",
     "@heybray/identity": "^1.0.0",
-    "@heybray/media": "^1.0.0"
+    "@heybray/media": "^1.0.0",
+    "concurrently": "^8.2.2",
+    "tsx": "^4.20.5"
   },
   "overrides": {
     "esbuild": "0.28.1",
     "@heybray/gamification": "^1.0.0",
-    "@heybray/gamification-react": "^1.0.0",
+    "@heybray/gamification-react": "^1.2.0",
     "@heybray/identity": "^1.0.0",
     "@heybray/llm": "^1.0.0",
     "@heybray/media": "^1.0.0",
-    "@heybray/react": "^1.0.0",
+    "@heybray/react": "^1.1.0",
     "@heybray/server-kit": "^1.0.0",
     "@heybray/taxonomy": "^1.0.0",
     "@heybray/ui": "^1.0.0"

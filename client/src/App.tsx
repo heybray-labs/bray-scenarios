@@ -32,6 +32,7 @@ const appConfig: AppConfig = {
   },
   routes: {
     contentPath: scenariosApp.contentPath,
+    teamStarMapPath: "/team-star-map",
   },
 };
 
