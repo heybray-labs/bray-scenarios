@@ -134,11 +134,60 @@ as the normal way to invoke it day-to-day.
 
 ## Acceptance checklist
 
-- [ ] Dev Postgres port audit complete; any collisions resolved
-- [ ] `npm run dev` self-bootstraps (db up + migrate + start) in all five repos
-- [ ] `bin/yalc-sync.sh` in `bray-platform`, `bray-scenarios`, `bray-flashcards` per spec
-- [ ] `.yalc-targets.local` gitignored everywhere it's introduced; `.example` committed
-- [ ] Transitive rebuild verified: a leaf-package (`server-kit`) change correctly
+- [x] Dev Postgres port audit complete; any collisions resolved
+- [x] `npm run dev` self-bootstraps (db up + migrate + start) in all five repos
+- [x] `bin/yalc-sync.sh` in `bray-platform`, `bray-scenarios`, `bray-flashcards` per spec
+- [x] `.yalc-targets.local` gitignored everywhere it's introduced; `.example` committed
+- [x] Transitive rebuild verified: a leaf-package (`server-kit`) change correctly
       triggers rebuild+republish of everything depending on it via one command
-- [ ] `dev-workflow.md` updated with the automated command forms
-- [ ] Full worked-example walkthrough (Verification section) completed once, end to end
+      (`--filter=...@heybray/<pkg>` — turbo's leading `...`, not trailing)
+- [x] `dev-workflow.md` updated with the automated command forms
+- [x] Full worked-example walkthrough completed once, end to end (13 packages linked,
+      both `reconcileProjection` calls pass, `--unlink` + guards clean)
+
+**Status:** brief complete (Jul 2026).
+
+## Findings
+
+### Premium local dev diverged from npm/CI for `@heybray/scenarios-server` (Jul 2026)
+
+**What happened.** `bray-premium/tsconfig.json` contained `compilerOptions.paths` entries
+that aliased `@heybray/scenarios-server` to `../bray-scenarios/packages/scenarios-server/...`
+(the sibling monorepo checkout). `tsx` honors those mappings at runtime, so plain
+`npm run dev` loaded scenarios-server from the sibling repo instead of the npm pin in
+`node_modules`. Docker/CI (no tsconfig path override) exercised the published package.
+
+**When introduced.** Commit `39f376a` (*Add Premium demo seed/wipe Docker tooling*, 18 Jul
+2026) — added while temporarily vendoring `scenarios-server@0.1.3` before npm publish. A
+follow-up commit in the same PR switched to `@heybray/scenarios-server@^0.1.4` on npm and
+removed the vendor tarball, but **left the tsconfig paths in place**. Not a sanctioned
+long-term mechanism; a tarball-workaround leftover that contradicts
+`docs/dev-workflow.md` (same anti-pattern class as `file:../` sibling references and
+`npm link`: bypasses the package boundary and splits module singletons).
+
+**What it caused.**
+
+- **Standing local/CI gap:** from 18 Jul until fix, premium local dev never exercised the
+  npm-pinned scenarios-server; only Docker/CI did.
+- **Part B walkthrough blocker:** with platform packages yalc-linked correctly, tsx still
+  executed scenarios-server from the sibling checkout. `@heybray/server-kit` resolved to
+  `bray-scenarios/node_modules/@heybray/server-kit` (a second physical copy) while
+  premium's `setDatabase()` ran on the yalc-linked copy → `db` undefined in
+  `reconcileGamificationProjection` (`TypeError: Cannot read properties of undefined
+  (reading 'select')`). Initial misdiagnoses (pin mismatch, yalc symlink mode,
+  incomplete platform linking) were ruled out with inode/resolution evidence.
+
+**Fix.** `bray-premium@92fb633` — removed the sibling `paths` entries; resolution goes
+through `node_modules` (npm pin normally, yalc copy during the dev loop).
+
+**Verification (before / after).**
+
+| Check | Before fix | After fix |
+|-------|------------|-----------|
+| tsx resolves `@heybray/scenarios-server` | Sibling `../bray-scenarios/packages/...` | `node_modules/@heybray/scenarios-server/...` |
+| Plain npm init + both reconciles | Seed warning; reconcile threw on `db.select` under yalc | Pass |
+| Full yalc walkthrough (13 packages) | Boot failed at reconcile | Boot OK past both reconciles; guards clean after `--unlink` |
+
+**Prevention.** Guard #3 in `bin/guards.sh` (all five repos):
+`bin/check-no-sibling-tsconfig-paths.sh` rejects `../bray-*` in any `tsconfig*.json` and
+`"../*` path aliases in root `tsconfig.json`.
