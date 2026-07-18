@@ -19,7 +19,11 @@ if grep -rn --include='*.ts' --include='*.tsx' \
   fail "deep import into node_modules/@heybray — use the package's public exports"
 fi
 
-# 3. shipped migrations are immutable (new files fine; edits to pre-existing ones fail)
+# 3. no tsconfig paths into sibling repos (tsx resolves them instead of node_modules/yalc)
+./bin/check-no-sibling-tsconfig-paths.sh || \
+  fail "tsconfig paths reference sibling repo — resolve @heybray/* via node_modules only"
+
+# 4. shipped migrations are immutable (new files fine; edits to pre-existing ones fail)
 BASE_REF="origin/${GITHUB_BASE_REF:-main}"
 git fetch -q origin "${GITHUB_BASE_REF:-main}" 2>/dev/null || true
 BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null || echo "")
@@ -35,7 +39,7 @@ if [ -n "$BASE" ]; then
   done
 fi
 
-# 4. feature packages must not import app shell
+# 5. feature packages must not import app shell
 if grep -rn --include='*.ts' --include='*.tsx' \
      -e '@shared' \
      packages/*/src >/dev/null 2>&1; then

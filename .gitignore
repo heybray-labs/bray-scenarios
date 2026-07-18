@@ -1,4 +1,6 @@
 node_modules/
+.npm-install.stamp
+.yalc-targets.local
 dist/
 examples/
 dist-frontend/
