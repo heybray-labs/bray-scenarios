@@ -22,6 +22,7 @@ set +a
 export VITE_API_PORT="${VITE_API_PORT:-${PORT:-3001}}"
 export VITE_PORT="${VITE_PORT:-5173}"
 
+./bin/check-dev-db-port.sh
 ./bin/compose-env.sh -- docker compose up -d db --wait
 npm run db:init
 
