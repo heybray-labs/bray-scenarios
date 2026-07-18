@@ -67,7 +67,7 @@ Avoid inline JSX blocks longer than ~40 lines. Extract to domain components.
 
 - Merge classes with `cn()` from `@/lib/utils`.
 - Prefer semantic tokens (`text-muted-foreground`, `bg-card`) over raw colors.
-- Domain tokens (`var(--difficulty-easy)`, `var(--rank-gold)`) live in `index.css`; use via `var(--*)` or helpers in `classification-display.ts`.
+- Default palette + gamification tokens ship in `@heybray/ui/theme-default.css` (import in app CSS). App-specific extras stay in local `index.css`; use via `var(--*)` or helpers in `classification-display.ts`.
 
 ### CVA variants
 

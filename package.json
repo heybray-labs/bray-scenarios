@@ -49,7 +49,7 @@
     "@heybray/react": "^1.2.0",
     "@heybray/server-kit": "^1.1.0",
     "@heybray/taxonomy": "^1.0.0",
-    "@heybray/ui": "^1.0.0",
+    "@heybray/ui": "^1.1.0",
     "@types/node": "^20.16.11"
   },
   "engines": {
