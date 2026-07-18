@@ -1,10 +1,9 @@
-import fs from "fs/promises";
-import path from "path";
 import bcrypt from "bcrypt";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@heybray/server-kit";
 import { roles, users } from "@heybray/identity/schema";
 import { mediaAssets } from "@heybray/media/schema";
+import { contentClassificationLinks } from "@heybray/taxonomy/schema";
 import {
   roleplays,
   roleplaySettings,
@@ -19,6 +18,7 @@ import {
   pointTransactions,
   userContentTierAwards,
   activityLog,
+  gamificationContent,
   resolveRewardTierDisplay,
   tierNameFromStarLevel,
 } from "@heybray/gamification/schema";
@@ -30,13 +30,15 @@ import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
 import * as scenarioClassifications from "../lib/scenario-classifications.ts";
 import {
   DEMO_SCENARIOS,
-  DEMO_SCENARIO_TITLES,
+  DEMO_TITLE_PREFIX,
+  buildDemoScenarios,
   getBandForTargetScore,
 } from "./demo-data/scenarios.ts";
 import {
   ALL_DEMO_USERS,
   DEMO_PASSWORD,
-  DEMO_USER_EMAILS,
+  DEMO_EMAIL_DOMAIN,
+  buildDemoUsers,
 } from "./demo-data/users.ts";
 import {
   intendedStarTier,
@@ -44,16 +46,20 @@ import {
   STAR_TIER_SCORE,
 } from "./demo-data/tier-progress.ts";
 import type { DemoScenario, ScoreBandId } from "./demo-data/types.ts";
-import { DEMO_COVER_SOURCES } from "./demo-data/cover-sources.ts";
+import { renderDemoCoverImage } from "./demo-data/demo-cover-images.ts";
 
 const DEMO_COVER_PREFIX = "demo-cover-";
 
 const log = createLogger("seed-demo");
 
-/** Paths the shell must supply — packages must not walk above their own directory. */
+export type SeedDemoCounts = {
+  users?: number;
+  scenarios?: number;
+  attempts?: number;
+};
+
 export type SeedDemoOptions = {
-  /** Absolute path to the repo's `examples/` directory (cover image library). */
-  examplesDir: string;
+  counts?: SeedDemoCounts;
 };
 
 /** Deterministic pseudo-random in [0, 1). */
@@ -90,73 +96,139 @@ async function ensureRoles() {
   }
 }
 
-async function wipeDemoData() {
-  log.info("Wiping previous demo data…");
-
-  const demoRoleplays = await db
-    .select({ id: roleplays.id })
-    .from(roleplays)
-    .where(inArray(roleplays.title, DEMO_SCENARIO_TITLES));
-
-  if (demoRoleplays.length) {
-    await db.delete(roleplays).where(inArray(roleplays.title, DEMO_SCENARIO_TITLES));
-    log.info("Removed demo roleplays", { count: demoRoleplays.length });
+async function wipeDemoGamification(demoRoleplayIds: number[], demoUserIds: number[]) {
+  if (demoRoleplayIds.length) {
+    await db
+      .delete(pointTransactions)
+      .where(
+        and(
+          eq(pointTransactions.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(pointTransactions.contentId, demoRoleplayIds),
+        ),
+      );
+    await db
+      .delete(activityLog)
+      .where(
+        and(
+          eq(activityLog.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(activityLog.contentId, demoRoleplayIds),
+        ),
+      );
+    await db
+      .delete(userContentTierAwards)
+      .where(
+        and(
+          eq(userContentTierAwards.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(userContentTierAwards.contentId, demoRoleplayIds),
+        ),
+      );
+    await db
+      .delete(gamRewardTiers)
+      .where(
+        and(
+          eq(gamRewardTiers.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(gamRewardTiers.contentId, demoRoleplayIds),
+        ),
+      );
+    await db
+      .delete(contentClassificationLinks)
+      .where(
+        and(
+          eq(contentClassificationLinks.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(contentClassificationLinks.contentId, demoRoleplayIds),
+        ),
+      );
+    await db
+      .delete(gamificationContent)
+      .where(
+        and(
+          eq(gamificationContent.contentType, SCENARIO_CONTENT_TYPE),
+          inArray(gamificationContent.contentId, demoRoleplayIds),
+        ),
+      );
   }
 
-  const demoMedia = await db
-    .select()
-    .from(mediaAssets)
-    .where(like(mediaAssets.storageKey, `${DEMO_COVER_PREFIX}%`));
+  if (demoUserIds.length) {
+    await db.delete(pointTransactions).where(inArray(pointTransactions.userId, demoUserIds));
+    await db.delete(activityLog).where(inArray(activityLog.userId, demoUserIds));
+    await db.delete(userContentTierAwards).where(inArray(userContentTierAwards.userId, demoUserIds));
+  }
+}
 
-  for (const asset of demoMedia) {
+async function deleteMediaAssets(assets: { id: number; storageKey: string }[]) {
+  for (const asset of assets) {
     await getStorageProvider()
       .delete(asset.storageKey)
       .catch(() => undefined);
   }
-
-  if (demoMedia.length) {
-    await db.delete(mediaAssets).where(like(mediaAssets.storageKey, `${DEMO_COVER_PREFIX}%`));
-    log.info("Removed demo cover media", { count: demoMedia.length });
+  if (assets.length) {
+    await db.delete(mediaAssets).where(inArray(mediaAssets.id, assets.map((a) => a.id)));
   }
+}
+
+async function wipeDemoMedia(demoUserIds: number[]) {
+  const byPrefix = await db
+    .select({ id: mediaAssets.id, storageKey: mediaAssets.storageKey })
+    .from(mediaAssets)
+    .where(like(mediaAssets.storageKey, `${DEMO_COVER_PREFIX}%`));
+
+  const byCreator = demoUserIds.length
+    ? await db
+        .select({ id: mediaAssets.id, storageKey: mediaAssets.storageKey })
+        .from(mediaAssets)
+        .where(inArray(mediaAssets.createdBy, demoUserIds))
+    : [];
+
+  const seen = new Set<number>();
+  const toDelete = [...byPrefix, ...byCreator].filter((asset) => {
+    if (seen.has(asset.id)) return false;
+    seen.add(asset.id);
+    return true;
+  });
+
+  if (toDelete.length) {
+    await deleteMediaAssets(toDelete);
+    log.info("Removed demo media assets", { count: toDelete.length });
+  }
+}
+
+export async function wipeDemo() {
+  log.info("Wiping demo data…");
+  await assertDatabaseConnection();
+  await initStorage();
+
+  const demoRoleplays = await db
+    .select({ id: roleplays.id })
+    .from(roleplays)
+    .where(like(roleplays.title, `${DEMO_TITLE_PREFIX}%`));
 
   const demoUsers = await db
     .select({ id: users.id })
     .from(users)
-    .where(inArray(users.email, DEMO_USER_EMAILS));
+    .where(like(users.email, `%@${DEMO_EMAIL_DOMAIN}`));
 
-  if (demoUsers.length) {
-    await db.delete(users).where(inArray(users.email, DEMO_USER_EMAILS));
-    log.info("Removed demo users", { count: demoUsers.length });
+  const demoRoleplayIds = demoRoleplays.map((row) => row.id);
+  const demoUserIds = demoUsers.map((row) => row.id);
+
+  await wipeDemoGamification(demoRoleplayIds, demoUserIds);
+
+  if (demoRoleplayIds.length) {
+    await db.delete(roleplays).where(like(roleplays.title, `${DEMO_TITLE_PREFIX}%`));
+    log.info("Removed demo roleplays", { count: demoRoleplayIds.length });
+  }
+
+  await wipeDemoMedia(demoUserIds);
+
+  if (demoUserIds.length) {
+    await db.delete(users).where(like(users.email, `%@${DEMO_EMAIL_DOMAIN}`));
+    log.info("Removed demo users", { count: demoUserIds.length });
   }
 }
 
-async function resolveCoverMediaId(slug: string): Promise<number | null> {
-  const source = DEMO_COVER_SOURCES[slug];
-  if (!source) return null;
-
-  const [exampleRoleplay] = await db
-    .select({ coverImageMediaId: roleplays.coverImageMediaId })
-    .from(roleplays)
-    .where(eq(roleplays.title, source.exampleTitle))
-    .limit(1);
-
-  return exampleRoleplay?.coverImageMediaId ?? null;
-}
-
-async function loadCoverImage(slug: string, examplesDir: string): Promise<Buffer> {
-  const source = DEMO_COVER_SOURCES[slug];
-  if (!source) {
-    throw new Error(`No cover source configured for demo scenario slug: ${slug}`);
-  }
-
-  const coverPath = path.join(examplesDir, source.folder, "media/cover.jpg");
-  return fs.readFile(coverPath);
-}
-
-async function seedScenarios(adminUserId: number, examplesDir: string) {
+async function seedScenarios(adminUserId: number, scenarioDefs: DemoScenario[]) {
   const created: { scenario: DemoScenario; roleplayId: number }[] = [];
 
-  for (const scenario of DEMO_SCENARIOS) {
+  for (const scenario of scenarioDefs) {
     const [roleplay] = await db
       .insert(roleplays)
       .values({
@@ -236,23 +308,17 @@ async function seedScenarios(adminUserId: number, examplesDir: string) {
       },
     ]);
 
-    const existingCoverMediaId = await resolveCoverMediaId(scenario.slug);
-    let coverMediaId = existingCoverMediaId;
-
-    if (!coverMediaId) {
-      const coverBuffer = await loadCoverImage(scenario.slug, examplesDir);
-      const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
-        originalFilename: "cover.jpg",
-        mimeType: "image/jpeg",
-        createdBy: adminUserId,
-        storageKey: `${DEMO_COVER_PREFIX}${scenario.slug}.jpg`,
-      });
-      coverMediaId = coverAsset.id;
-    }
+    const coverBuffer = await renderDemoCoverImage(scenario.slug);
+    const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
+      originalFilename: "cover.png",
+      mimeType: "image/png",
+      createdBy: adminUserId,
+      storageKey: `${DEMO_COVER_PREFIX}${scenario.slug}.png`,
+    });
 
     await db
       .update(roleplays)
-      .set({ coverImageMediaId: coverMediaId, updatedAt: new Date() })
+      .set({ coverImageMediaId: coverAsset.id, updatedAt: new Date() })
       .where(eq(roleplays.id, roleplay.id));
 
     created.push({ scenario, roleplayId: roleplay.id });
@@ -262,7 +328,7 @@ async function seedScenarios(adminUserId: number, examplesDir: string) {
   return created;
 }
 
-async function seedUsers() {
+async function seedUsers(userDefs: typeof ALL_DEMO_USERS) {
   const [adminRole] = await db.select().from(roles).where(eq(roles.name, "admin")).limit(1);
   const [userRole] = await db.select().from(roles).where(eq(roles.name, "user")).limit(1);
 
@@ -273,7 +339,7 @@ async function seedUsers() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const userIds = new Map<string, number>();
 
-  for (const def of ALL_DEMO_USERS) {
+  for (const def of userDefs) {
     const roleId = def.role === "admin" ? adminRole.id : userRole.id;
     const [created] = await db
       .insert(users)
@@ -301,7 +367,10 @@ type LearnerProfile = {
   preferredBand: ScoreBandId;
 };
 
-function buildLearnerProfiles(userIds: Map<string, number>): LearnerProfile[] {
+function buildLearnerProfiles(
+  userIds: Map<string, number>,
+  userDefs: typeof ALL_DEMO_USERS,
+): LearnerProfile[] {
   const bands: ScoreBandId[] = [
     "high",
     "high",
@@ -317,11 +386,11 @@ function buildLearnerProfiles(userIds: Map<string, number>): LearnerProfile[] {
     "low",
   ];
 
-  return ALL_DEMO_USERS.filter((u) => u.role === "user").map((u, i) => ({
+  return userDefs.filter((u) => u.role === "user").map((u, i) => ({
     userId: userIds.get(u.email.toLowerCase())!,
     email: u.email,
     firstName: u.firstName,
-    preferredBand: bands[i] ?? "mid",
+    preferredBand: bands[i % bands.length] ?? "mid",
   }));
 }
 
@@ -502,23 +571,175 @@ async function seedAttempts(
   return { attemptCount, completedCount, inProgressCount };
 }
 
-export async function seedDemo(options: SeedDemoOptions) {
-  const { examplesDir } = options;
+async function seedAttemptsWithTarget(
+  scenarios: { scenario: DemoScenario; roleplayId: number }[],
+  learnerProfiles: LearnerProfile[],
+  targetCount: number,
+) {
+  if (!learnerProfiles.length || !scenarios.length) {
+    throw new Error("Cannot seed attempts without learners and scenarios");
+  }
+
+  await initStorage();
+
+  const criterionMap = new Map<number, { id: number; name: string }[]>();
+  for (const { roleplayId } of scenarios) {
+    const criteria = await db
+      .select({ id: roleplayCriteria.id, name: roleplayCriteria.name })
+      .from(roleplayCriteria)
+      .where(eq(roleplayCriteria.roleplayId, roleplayId));
+    criterionMap.set(roleplayId, criteria);
+  }
+
+  let attemptCount = 0;
+  let seedCounter = 0;
+
+  for (let i = 0; i < targetCount; i++) {
+    const learner = learnerProfiles[i % learnerProfiles.length]!;
+    const scenarioEntry = scenarios[i % scenarios.length]!;
+    const { scenario, roleplayId } = scenarioEntry;
+    const criteria = criterionMap.get(roleplayId) ?? [];
+    const scenarioIndex = i % scenarios.length;
+    const attemptNum = Math.floor(i / scenarios.length) + 1;
+
+    seedCounter++;
+    const daysAgo = seededRandom(seedCounter) < 0.45 ? 25 : 70;
+    const startedAt = randomDateWithinDays(daysAgo, seedCounter);
+    const timeSpent = 480 + Math.floor(seededRandom(seedCounter + 1) * 720);
+
+    const starTier = intendedStarTier(learner.preferredBand, scenarioIndex, attemptNum);
+    const targetScore = STAR_TIER_SCORE[starTier];
+    const bandContent = getBandForTargetScore(scenario, targetScore);
+    const completedAt = new Date(startedAt.getTime() + timeSpent * 1000);
+
+    const [attempt] = await db
+      .insert(roleplayAttempts)
+      .values({
+        roleplayId,
+        userId: learner.userId,
+        attemptNumber: attemptNum,
+        score: targetScore.toFixed(2),
+        turnCount: bandContent.messages.length,
+        startedAt,
+        completedAt,
+        timeSpent,
+        status: "completed",
+        endReason: "manual",
+        isPassed: targetScore >= 70,
+        gradingStatus: "auto_graded",
+        gradedAt: completedAt,
+        overallFeedback: bandContent.overallFeedback,
+        personaProvider: "openai",
+        personaModel: "gpt-4o-mini",
+        graderProvider: "openai",
+        graderModel: "gpt-4o-mini",
+      })
+      .returning();
+
+    let turnNumber = 1;
+    for (const msg of bandContent.messages) {
+      await db.insert(roleplayMessages).values({
+        attemptId: attempt.id,
+        role: msg.role,
+        turnNumber: turnNumber++,
+        content: msg.content,
+      });
+    }
+
+    await db.insert(roleplayMessages).values({
+      attemptId: attempt.id,
+      role: "ended",
+      turnNumber: turnNumber,
+      content: "Session ended",
+    });
+
+    for (const cs of bandContent.criterionScores) {
+      const criterion = criteria.find((c) => c.name === cs.criterionName);
+      if (!criterion) continue;
+      await db.insert(roleplayCriterionScores).values({
+        attemptId: attempt.id,
+        criterionId: criterion.id,
+        score: cs.score.toFixed(2),
+        maxScore: 100,
+        feedback: cs.feedback,
+        strengths: cs.strengths,
+        improvements: cs.improvements,
+        gradedAt: completedAt,
+      });
+    }
+
+    await gamification.recordResult({
+      userId: learner.userId,
+      contentType: SCENARIO_CONTENT_TYPE,
+      contentId: roleplayId,
+      activityId: attempt.id,
+      scorePercent: targetScore,
+      passed: targetScore >= 70,
+      occurredAt: completedAt,
+      eligibleForAward: true,
+    });
+
+    await db
+      .update(pointTransactions)
+      .set({ createdAt: completedAt })
+      .where(
+        and(
+          eq(pointTransactions.activityId, attempt.id),
+          eq(pointTransactions.userId, learner.userId),
+        ),
+      );
+
+    await db
+      .update(userContentTierAwards)
+      .set({ updatedAt: completedAt })
+      .where(
+        and(
+          eq(userContentTierAwards.userId, learner.userId),
+          eq(userContentTierAwards.contentType, SCENARIO_CONTENT_TYPE),
+          eq(userContentTierAwards.contentId, roleplayId),
+        ),
+      );
+
+    await db
+      .update(activityLog)
+      .set({ occurredAt: completedAt })
+      .where(
+        and(
+          eq(activityLog.activityId, attempt.id),
+          eq(activityLog.userId, learner.userId),
+        ),
+      );
+
+    attemptCount++;
+  }
+
+  return { attemptCount, completedCount: attemptCount, inProgressCount: 0 };
+}
+
+export async function seedDemo(options: SeedDemoOptions = {}) {
+  const { counts } = options;
+  const userDefs = buildDemoUsers(counts?.users ?? ALL_DEMO_USERS.length);
+  const scenarioDefs = buildDemoScenarios(counts?.scenarios ?? DEMO_SCENARIOS.length);
+
   await assertDatabaseConnection();
   await ensureRoles();
   await seedClassifications();
-  await wipeDemoData();
+  await wipeDemo();
 
-  const userIds = await seedUsers();
+  const userIds = await seedUsers(userDefs);
   const adminId = userIds.get("admin@demo.local");
   if (!adminId) throw new Error("Failed to create demo admin user");
 
-  const scenarios = await seedScenarios(adminId, examplesDir);
-  const learnerProfiles = buildLearnerProfiles(userIds);
-  const { attemptCount, completedCount, inProgressCount } = await seedAttempts(
-    scenarios,
-    learnerProfiles,
-  );
+  await initStorage();
+  const scenarios = await seedScenarios(adminId, scenarioDefs);
+  const learnerProfiles = buildLearnerProfiles(userIds, userDefs);
+
+  const attemptResult =
+    counts?.attempts != null
+      ? await seedAttemptsWithTarget(scenarios, learnerProfiles, counts.attempts)
+      : await seedAttempts(scenarios, learnerProfiles);
+
+  const { attemptCount, completedCount, inProgressCount } = attemptResult;
 
   const [pointsRow] = await db
     .select({ total: sql<number>`count(*)` })
@@ -528,14 +749,14 @@ export async function seedDemo(options: SeedDemoOptions) {
   console.log("  Demo database seeded successfully");
   console.log("========================================\n");
   console.log(`Scenarios:  ${scenarios.length} published with cover images & reward tiers`);
-  console.log(`Users:      ${ALL_DEMO_USERS.length} (1 admin + ${learnerProfiles.length} learners)`);
+  console.log(`Users:      ${userDefs.length} (1 admin + ${learnerProfiles.length} learners)`);
   console.log(`Attempts:   ${attemptCount} (${completedCount} completed, ${inProgressCount} in progress)`);
   console.log(`Point txns: ${Number(pointsRow?.total ?? 0)}\n`);
   console.log("Login credentials (all accounts):");
   console.log(`  Password: ${DEMO_PASSWORD}\n`);
   console.log("  Admin:  admin@demo.local");
   console.log("  Learners:");
-  for (const u of ALL_DEMO_USERS.filter((x) => x.role === "user")) {
+  for (const u of userDefs.filter((x) => x.role === "user")) {
     console.log(`    ${u.email} (${u.firstName})`);
   }
   console.log("\nRun the app and log in as any learner for leaderboard screenshots.");

@@ -41,10 +41,14 @@ Open-source (AGPL-3.0) gamified role-play training app. npm-workspaces monorepo:
 | Typecheck everything | `npm run typecheck` |
 | Client production build | `npm run build --workspace=client` |
 | Full API test suite | `npm test` (starts disposable Postgres on :5434 via `docker-compose.test.yml`, applies migrations, runs Vitest API tests, tears down) |
-| Keep test DB up between runs | `npm test -- --keep-db`, or `npm run test:db:up` / `test:db:down` |
+| Keep test DB up between runs | `npm test -- --keep-db`, or `npm run db:test:up` / `db:test:down` |
 | Apply migrations | `npm run db:migrate` (needs `DATABASE_URL`) |
 | Dev servers (both) | `npm run dev` (server on :3001, client on :5173) |
-| Seed demo data | `npm run db:seed-demo` |
+| Seed demo data (host) | `npm run db:demo-seed` |
+| Seed demo data (Docker) | `npm run db:docker:demo-seed` |
+| Remove demo data only (host) | `npm run db:demo-wipe` |
+| Remove demo data only (Docker) | `npm run db:docker:demo-wipe` |
+| Wipe Docker dev DB/volumes | `npm run db:docker:wipe` |
 
 **Definition of green** (matches CI in `.github/workflows/ci.yml`): typecheck passes,
 client builds, migrations apply to a fresh Postgres, `npm test` passes. Run all four

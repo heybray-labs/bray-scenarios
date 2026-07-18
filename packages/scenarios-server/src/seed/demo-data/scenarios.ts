@@ -1,5 +1,6 @@
 import { makeScoreBand } from "./score-band-helpers.ts";
 import { SCENARIO_BRIEFS } from "./scenario-briefs.ts";
+import { demoCoverBaseSlug } from "./demo-cover-images.ts";
 import type { DemoScenario, ScoreBandContent, ScoreBandId } from "./types.ts";
 import { DEFAULT_REWARD_TIERS } from "@heybray/gamification/schema";
 
@@ -950,6 +951,7 @@ function enrichScenario(
   }
   return {
     ...scenario,
+    title: `${DEMO_TITLE_PREFIX}${scenario.title}`,
     description: brief.description,
     introduction: brief.introduction,
     situationContext: brief.situationContext,
@@ -960,6 +962,8 @@ function enrichScenario(
     criteria: brief.criteria,
   };
 }
+
+export const DEMO_TITLE_PREFIX = "[Demo] ";
 
 const BASE_SCENARIOS: Omit<DemoScenario, "description" | "playbook" | "rewardTiers">[] = [
   handlingAngryCustomer,
@@ -979,6 +983,32 @@ const BASE_SCENARIOS: Omit<DemoScenario, "description" | "playbook" | "rewardTie
 export const DEMO_SCENARIOS: DemoScenario[] = BASE_SCENARIOS.map(enrichScenario);
 
 export const DEMO_SCENARIO_TITLES = DEMO_SCENARIOS.map((s) => s.title);
+
+/** Build exactly `count` demo scenarios by cycling the library and suffixing variants. */
+export function buildDemoScenarios(count: number): DemoScenario[] {
+  if (count < 1) {
+    throw new Error("Demo scenario count must be at least 1");
+  }
+
+  const result: DemoScenario[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = DEMO_SCENARIOS[i % DEMO_SCENARIOS.length]!;
+    const variant = Math.floor(i / DEMO_SCENARIOS.length);
+
+    if (variant === 0) {
+      result.push(base);
+    } else {
+      result.push({
+        ...base,
+        slug: `${demoCoverBaseSlug(base.slug)}-variant-${variant + 1}`,
+        title: `${base.title} (${variant + 1})`,
+      });
+    }
+  }
+
+  return result;
+}
 
 export function getScoreBandContent(scenario: DemoScenario, band: ScoreBandId): ScoreBandContent | undefined {
   return scenario.scoreBands.find((b) => b.band === band);

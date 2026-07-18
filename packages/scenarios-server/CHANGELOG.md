@@ -1,5 +1,12 @@
 # @heybray/scenarios-server
 
+## 0.1.3
+
+### Patch Changes
+
+- Add demo seed/wipe API: `wipeDemo`, `SeedDemoCounts`, `DEMO_TITLE_PREFIX`, `renderCoverImageFromArt`, and generated Lucide PNG covers (no `examples/` dependency).
+- Rename shell commands to `db:demo-seed`, `db:demo-wipe`, `db:docker:demo-seed`, `db:docker:demo-wipe`, and `db:docker:wipe`.
+
 ## 0.1.2
 
 ### Patch Changes
