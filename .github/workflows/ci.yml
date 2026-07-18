@@ -14,8 +14,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  guards:
+    uses: heybray-labs/.github/.github/workflows/guards.yml@main
+
   verify:
-    name: Typecheck & build
+    name: verify
+    needs: guards
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +30,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      - run: ./bin/check-no-yalc.sh
 
       - run: npm run typecheck
 
