@@ -2,72 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "@heybray/ui/theme-default.css";
+
 :root {
-  /* Bray Pink Design System Colors */
-  --background: hsl(340, 20%, 99%); /* Light pink-tinted background */
-  --foreground: hsl(218, 54%, 20%); /* #172B4D - Dark Text */
-  --muted: hsl(340, 14%, 96%); /* Subtle pink-tinted muted */
-  --muted-foreground: hsl(215, 13%, 44%); /* #5E6C84 - Secondary Text */
-  --popover: hsl(0, 0%, 100%); /* #FFFFFF - White */
-  --popover-foreground: hsl(218, 54%, 20%); /* #172B4D */
-  --card: hsl(0, 0%, 100%); /* #FFFFFF - White Cards */
-  --card-foreground: hsl(218, 54%, 20%); /* #172B4D */
-  --border: hsl(340, 12%, 89%); /* Pink-tinted Border */
-  --input: hsl(340, 12%, 89%); /* Pink-tinted Input */
-  --primary: hsl(330, 65%, 55%); /* #D64D7A - Bray Pink */
-  --primary-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
-  --secondary: hsl(340, 14%, 96%); /* Subtle Pink Background */
-  --secondary-foreground: hsl(218, 54%, 20%); /* #172B4D */
-  --accent: hsl(330, 65%, 93%); /* Subtle Pink Background */
-  --accent-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
-  --destructive: hsl(354, 82%, 56%); /* #DE350B - Red */
-  --destructive-foreground: hsl(0, 0%, 100%); /* #FFFFFF */
-  --ring: hsl(330, 65%, 55%); /* #D64D7A - Pink Focus Ring */
-  --radius: 0.1875rem; /* 3px - Border Radius */
-  --success: hsl(151, 55%, 41%); /* #00875A - Green */
-  --warning: hsl(35, 100%, 58%); /* #FF8B00 - Orange */
-  --info: hsl(330, 65%, 55%); /* #D64D7A - Bray Pink */
-  
-  /* Bray Specific Colors */
-  --bray-pink: hsl(330, 65%, 55%); /* #D64D7A */
-  --bray-pink-light: hsl(330, 65%, 96%); /* Light Pink */
-  --bray-grey-subtle: hsl(340, 14%, 96%); /* Subtle Grey with pink tint */
-  --bray-grey-medium: hsl(215, 13%, 44%); /* #5E6C84 */
-  --bray-elevation-shadow: 0 1px 1px rgba(66, 9, 36, 0.25);
-  --bray-elevation-shadow-raised: 0 4px 8px -2px rgba(66, 9, 36, 0.25), 0 0 1px rgba(66, 9, 36, 0.31);
-
-  /* Navigation chrome */
-  --nav-header-bg: #FFE4F8;
-  --nav-sidebar-bg: #E8E0E3;
-  --nav-bar-bg: #FFD6E7;
-
-  /* Difficulty levels */
-  --difficulty-easy: #059669;
-  --difficulty-medium: #0284c7;
-  --difficulty-hard: #ea580c;
-
-  /* Rank / podium */
-  --rank-gold: #ca8a04;
-  --rank-silver: #64748b;
-  --rank-bronze: #b45309;
-
-  /* Status pills */
-  --status-fail: #e11d48;
-  --status-neutral: #475569;
-
-  /* Featured / points accents */
-  --featured-star: #f59e0b;
-  --featured-star-fill: #fbbf24;
-  --points-value: #d97706;
-
-  /* Rewards points pill */
-  --rewards-banner-bg: #fffbeb;
-  --rewards-banner-border: #fde68a;
-  --rewards-banner-hover: #fef3c7;
-  --rewards-banner-text: #78350f;
-  --rewards-banner-label: #b45309;
-
-  /* Drawer pink tints */
+  /* Scenarios-only domain tokens (not in shared theme baseline) */
   --bray-pink-98: hsl(330, 65%, 98%);
   --bray-pink-97: hsl(330, 65%, 97%);
   --bray-pink-95: hsl(330, 65%, 95%);
