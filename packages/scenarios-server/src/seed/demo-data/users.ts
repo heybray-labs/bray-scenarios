@@ -31,3 +31,29 @@ export const DEMO_LEARNERS: DemoUserDef[] = [
 export const ALL_DEMO_USERS: DemoUserDef[] = [DEMO_ADMIN, ...DEMO_LEARNERS];
 
 export const DEMO_USER_EMAILS = ALL_DEMO_USERS.map((u) => u.email.toLowerCase());
+
+export const DEMO_EMAIL_DOMAIN = "demo.local";
+
+/** Build exactly `count` demo users (1 admin + learners). Reuses named learners first. */
+export function buildDemoUsers(count: number): DemoUserDef[] {
+  if (count < 1) {
+    throw new Error("Demo user count must be at least 1 (admin)");
+  }
+
+  const users: DemoUserDef[] = [DEMO_ADMIN];
+  const learnerCount = count - 1;
+
+  for (let i = 0; i < learnerCount; i++) {
+    if (i < DEMO_LEARNERS.length) {
+      users.push(DEMO_LEARNERS[i]!);
+    } else {
+      users.push({
+        email: `learner${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+        firstName: `Learner ${i + 1}`,
+        role: "user",
+      });
+    }
+  }
+
+  return users;
+}

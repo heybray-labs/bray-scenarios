@@ -34,7 +34,12 @@ import {
 } from "./gamification.ts";
 import { roleplayMediaUsage } from "./media-usage.ts";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
-import { seedDemo, type SeedDemoOptions } from "./seed/seed-demo.ts";
+import { seedDemo, wipeDemo, type SeedDemoCounts, type SeedDemoOptions } from "./seed/seed-demo.ts";
+import { DEMO_TITLE_PREFIX } from "./seed/demo-data/scenarios.ts";
+import {
+  renderCoverImageFromArt,
+  type DemoCoverArt,
+} from "./seed/demo-data/demo-cover-images.ts";
 import { seedClassifications, categoryLabelToSlug } from "./seed/seed-classifications.ts";
 import { assertDatabaseConnection } from "./seed/assert-db-connection.ts";
 import * as scenarioClassifications from "./lib/scenario-classifications.ts";
@@ -75,6 +80,7 @@ export const scenariosModule = {
   managePermission: MANAGE_PERMISSION,
   reconcileProjection: reconcileGamificationProjection,
   seedDemo,
+  wipeDemo,
   seedClassifications,
 };
 
@@ -87,7 +93,9 @@ export {
   teamStarMap,
   roleplayMediaUsage,
   seedDemo,
+  wipeDemo,
   type SeedDemoOptions,
+  type SeedDemoCounts,
   seedClassifications,
   categoryLabelToSlug,
   assertDatabaseConnection,
@@ -96,6 +104,9 @@ export {
   SCENARIO_CONTENT_TYPE,
   MASTERY_DIMENSION_SLUG,
   MANAGE_PERMISSION,
+  DEMO_TITLE_PREFIX,
+  renderCoverImageFromArt,
+  type DemoCoverArt,
 };
 export {
   getScenarioStarMap,

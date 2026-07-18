@@ -24,7 +24,7 @@ export async function assertDatabaseConnection() {
         "Ensure Docker Postgres is running: `docker compose up -d db` (from repo root).",
       );
       hints.push(
-        "Or run the seed inside Docker: `npm run db:seed-demo:docker`",
+        "Or run the seed inside Docker: `npm run db:docker:demo-seed`",
       );
     } else if (databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
       hints.push(

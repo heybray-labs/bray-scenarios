@@ -14,14 +14,15 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:init": "tsx --env-file=../.env init-db/init-db.ts",
-    "db:seed-demo": "tsx --env-file=../.env init-db/seed-demo.ts"
+    "db:demo-seed": "tsx --env-file=../.env init-db/demo-seed.ts",
+    "db:demo-wipe": "tsx --env-file=../.env init-db/demo-wipe.ts"
   },
   "dependencies": {
     "@heybray/gamification": "^1.0.0",
     "@heybray/identity": "^1.0.0",
     "@heybray/llm": "^1.0.0",
     "@heybray/media": "^1.0.0",
-    "@heybray/scenarios-server": "^0.1.2",
+    "@heybray/scenarios-server": "^0.1.3",
     "@heybray/server-kit": "^1.1.0",
     "@heybray/taxonomy": "^1.0.0",
     "@langchain/core": "^1.2.1",

@@ -1,11 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import { api, authHeader } from "../helpers/request.ts";
 import { loginAs } from "../helpers/auth.ts";
-import { seedDemo } from "../../init-db/seed-demo.ts";
+import { demoSeed } from "../../init-db/demo-seed.ts";
 import { DEMO_PASSWORD } from "../../init-db/demo-data/users.ts";
 import { db } from "../../db.ts";
 import { users } from "@heybray/identity/schema";
@@ -99,13 +96,7 @@ function sortById<T extends { id: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.id - b.id);
 }
 
-const repoExamplesCover = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../../examples/scenario-bad-faith-escalation/media/cover.jpg",
-);
-
-// `examples/` is gitignored (demo scenario bundles); fresh CI clones have no covers.
-describe.skipIf(!fs.existsSync(repoExamplesCover))("Gamification golden output", () => {
+describe("Gamification golden output", () => {
   let adminToken: string;
   let learnerToken: string;
   let learnerId: number;
@@ -116,7 +107,7 @@ describe.skipIf(!fs.existsSync(repoExamplesCover))("Gamification golden output",
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(FROZEN_NOW);
 
-    await seedDemo();
+    await demoSeed();
 
     adminToken = await loginAs("admin@demo.local", DEMO_PASSWORD);
     learnerToken = await loginAs("sarah.chen@demo.local", DEMO_PASSWORD);
