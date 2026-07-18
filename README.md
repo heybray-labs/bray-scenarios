@@ -67,7 +67,7 @@ See [docs/DOCKER.md](docs/DOCKER.md) for stop, logs, reset, SSO setup, and [runn
 
 ### Option 2: 💻 Clone from GitHub and run locally (use this if you don't have docker, or you want to extend the codebase) 
 
-This requires Node.js 20+, npm 10+, and a PostgreSQL server in which you need to create a database for the backend
+This requires Node.js 20+, npm 10+, and Docker (Postgres is started automatically by `npm run dev`).
 
 ```bash
 git clone https://github.com/heybray-labs/bray-scenarios.git
@@ -77,17 +77,11 @@ cp .env.example .env
 # Edit DATABASE_URL and JWT_SECRET
 
 npm install
-npm run db:init    # migrate schema + seed roles
+npm run dev        # starts Postgres, migrates, API on :3001, client on :5173
 npm run test       # optional: API smoke tests (requires Docker)
-npm run dev        # API on :3001, client on :5173
 ```
 
-Or use the launch script, which copies `.env.example` if needed, installs dependencies, initializes the database, and starts both services:
-
-```bash
-chmod +x bin/dev.sh
-npm run launch:local
-```
+`npm run launch:local` is a backward-compat alias for the same command.
 
 ### Option 3: Clone from GitHub -> Docker 🐳
 This will download the full codebase to your local machine, builds the docker container locally and then spins up with the same docker compose as #1.  Use this is you want to customize or otherwise extend the application. 

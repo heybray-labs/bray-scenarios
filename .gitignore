@@ -1,4 +1,5 @@
 node_modules/
+.npm-install.stamp
 dist/
 examples/
 dist-frontend/
