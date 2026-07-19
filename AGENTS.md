@@ -1,7 +1,6 @@
 # Agent Guide — bray-scenarios
 
-Read this before making changes. For the platform rework, also read
-`docs/platform-architecture.md` (the approved design) and the current phase brief in `docs/`.
+Read this before making changes.
 **For any work touching `bray-platform` or another app repo (`bray-flashcards`,
 `bray-premium`, `bray-app-template`), `docs/dev-workflow.md` is required reading and its
 "Standing rules" apply by default** — yalc-first cross-repo iteration, never auto-merge a
@@ -61,8 +60,6 @@ before declaring any task done.
 
 ## Platform rework guardrails (hard rules)
 
-- The architecture decisions in `docs/platform-architecture.md` §1 ("Decisions locked in")
-  are settled. Do not relitigate or "improve" them.
 - **Every phase must leave the app shippable**: CI green, zero user-visible behavior change
   unless the phase brief says otherwise, DB upgradeable from any prior release.
 - Phase 1 is **migration-free**: no SQL files added, no table/column changes, `drizzle/meta`
