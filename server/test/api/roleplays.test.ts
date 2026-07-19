@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { eq } from "drizzle-orm";
 import { api, authHeader } from "../helpers/request.ts";
 import { expectNotServerError } from "../helpers/assertions.ts";
 import { setupAdmin, createLearner, type TestUser } from "../helpers/auth.ts";
+import { db } from "../../db.ts";
+import { roleplaySettings, roleplays } from "@heybray/scenarios-server/schema/roleplay-core";
 import {
   seedFixtures,
   MINIMAL_ROLEPLAY_PAYLOAD,
@@ -337,6 +340,95 @@ describe("Roleplays API", () => {
       .set(authHeader(admin.token))
       .expect(200);
     expect(res.body.status).toBe("published");
+  });
+
+  it("POST /api/roleplays/:id/publish rejects when AI models unset", async () => {
+    const created = await api()
+      .post("/api/roleplays")
+      .set(authHeader(admin.token))
+      .send({
+        roleplay: {
+          title: "Draft Without AI",
+          status: "draft",
+          learnerRole: "Learner",
+          situationContext: "Test situation",
+          learnerObjective: "Test objective",
+          introduction: "Test introduction",
+        },
+        persona: MINIMAL_ROLEPLAY_PAYLOAD.persona,
+        criteria: MINIMAL_ROLEPLAY_PAYLOAD.criteria,
+        settings: { maxAttempts: 5 },
+      })
+      .expect(201);
+
+    const res = await api()
+      .post(`/api/roleplays/${created.body.id}/publish`)
+      .set(authHeader(admin.token))
+      .expect(400);
+    expect(res.body.error).toContain("Persona and grader AI must be configured");
+  });
+
+  it("GET /api/roleplays exposes AI readiness flags on browse items", async () => {
+    const created = await api()
+      .post("/api/roleplays")
+      .set(authHeader(admin.token))
+      .send({
+        roleplay: {
+          title: "Draft Without AI Flags",
+          status: "draft",
+          learnerRole: "Learner",
+          situationContext: "Test situation",
+          learnerObjective: "Test objective",
+          introduction: "Test introduction",
+        },
+        persona: MINIMAL_ROLEPLAY_PAYLOAD.persona,
+        criteria: MINIMAL_ROLEPLAY_PAYLOAD.criteria,
+        settings: { maxAttempts: 5 },
+      })
+      .expect(201);
+
+    const list = await api().get("/api/roleplays").set(authHeader(admin.token)).expect(200);
+    const item = list.body.items.find(
+      (row: { id: number }) => row.id === created.body.id,
+    );
+    expect(item).toBeDefined();
+    expect(item.personaAiConfigured).toBe(false);
+    expect(item.graderAiConfigured).toBe(false);
+    expect(item.canPublish).toBe(false);
+  });
+
+  it("GET /api/roleplays marks canPublish false when models are set but not allowlisted", async () => {
+    const roleplayId = await createMinimalRoleplay(admin.token);
+
+    // Simulate legacy/demo rows where settings name models not on the current allowlist.
+    await db
+      .update(roleplaySettings)
+      .set({
+        personaProvider: "openai",
+        personaModel: "gpt-4o-mini",
+        graderProvider: "openai",
+        graderModel: "gpt-4o-mini",
+      })
+      .where(eq(roleplaySettings.roleplayId, roleplayId));
+    await db
+      .update(roleplays)
+      .set({ status: "draft", published: false })
+      .where(eq(roleplays.id, roleplayId));
+
+    const list = await api().get("/api/roleplays").set(authHeader(admin.token)).expect(200);
+    const item = list.body.items.find(
+      (row: { id: number }) => row.id === roleplayId,
+    );
+    expect(item).toBeDefined();
+    expect(item.personaAiConfigured).toBe(true);
+    expect(item.graderAiConfigured).toBe(true);
+    expect(item.canPublish).toBe(false);
+
+    const publishRes = await api()
+      .post(`/api/roleplays/${roleplayId}/publish`)
+      .set(authHeader(admin.token))
+      .expect(400);
+    expect(publishRes.body.error).toContain("admin allowlist");
   });
 
   it("POST /api/roleplays/:id/unpublish", async () => {

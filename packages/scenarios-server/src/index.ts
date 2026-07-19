@@ -35,6 +35,7 @@ import {
 import { roleplayMediaUsage } from "./media-usage.ts";
 import { isCheatModeEnabled } from "./config/cheat-mode.ts";
 import { seedDemo, wipeDemo, type SeedDemoCounts, type SeedDemoOptions } from "./seed/seed-demo.ts";
+import { seedDemoRoleplayAiConfig } from "./seed/seed-roleplay-ai-config.ts";
 import { DEMO_TITLE_PREFIX } from "./seed/demo-data/scenarios.ts";
 import {
   renderCoverImageFromArt,
@@ -94,6 +95,7 @@ export {
   roleplayMediaUsage,
   seedDemo,
   wipeDemo,
+  seedDemoRoleplayAiConfig,
   type SeedDemoOptions,
   type SeedDemoCounts,
   seedClassifications,
@@ -108,9 +110,17 @@ export {
   renderCoverImageFromArt,
   type DemoCoverArt,
 };
+export { DEMO_ROLEPLAY_AI_SETTINGS } from "./seed/demo-data/ai-config.ts";
 export {
   getScenarioStarMap,
   getScenarioMemberProgress,
   getScenarioMemberContentHistory,
   getScenarioMemberContentAttempts,
 } from "./team-star-map-handlers.ts";
+export {
+  ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR,
+  ROLEPLAY_PUBLISH_ALLOWLIST_ERROR,
+  roleplayBrowsePublishFields,
+  roleplaySettingsHaveAllModels,
+  roleplaySettingsAllowlistedForPublish,
+} from "./lib/roleplay-publish-rules.ts";

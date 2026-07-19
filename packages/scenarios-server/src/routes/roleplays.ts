@@ -20,6 +20,10 @@ import {
   transferImportBodySchema,
   transferScenarioSchema,
 } from "../schema/roleplay-transfer.ts";
+import {
+  ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR,
+  ROLEPLAY_PUBLISH_ALLOWLIST_ERROR,
+} from "../lib/roleplay-publish-rules.ts";
 
 const bulkRoleplayPayloadSchema = z.object({
   roleplay: z.object({}).passthrough(),
@@ -489,6 +493,13 @@ router.post("/:id/publish", requirePermission("roleplay:manage"), async (req: Au
     if (!roleplay) return res.status(404).json({ error: "Roleplay not found" });
     res.json(roleplay);
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR ||
+        error.message === ROLEPLAY_PUBLISH_ALLOWLIST_ERROR)
+    ) {
+      return res.status(400).json({ error: error.message });
+    }
     platformLogger.error("publish error", error instanceof Error ? error : undefined);
     res.status(500).json({ error: "Failed to publish" });
   }

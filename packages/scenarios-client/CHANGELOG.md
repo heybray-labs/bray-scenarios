@@ -1,5 +1,11 @@
 # @heybray/scenarios-client
 
+## 0.1.3
+
+### Patch Changes
+
+- Block publishing scenarios without persona and grader AI configured; surface publish failures via client error toasts.
+
 ## 0.1.2
 
 ### Patch Changes

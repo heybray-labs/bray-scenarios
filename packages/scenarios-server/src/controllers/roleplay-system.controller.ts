@@ -81,6 +81,13 @@ import {
 import { gamification, SCENARIO_CONTENT_TYPE } from "../gamification.ts";
 import { scenarioResultsController } from "./scenario-results.controller.ts";
 import * as scenarioClassifications from "../lib/scenario-classifications.ts";
+import {
+  ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR,
+  ROLEPLAY_PUBLISH_ALLOWLIST_ERROR,
+  roleplayBrowsePublishFields,
+  roleplaySettingsHaveAllModels,
+  roleplaySettingsAllowlistedForPublish,
+} from "../lib/roleplay-publish-rules.ts";
 
 const log = createLogger("roleplay");
 
@@ -344,10 +351,26 @@ export class RoleplaySystemController {
       .offset(offset);
 
     const roleplayIds = rows.map(({ roleplay }) => roleplay.id);
-    const [classificationMap, rewardTierMap] = await Promise.all([
+    const [classificationMap, rewardTierMap, settingsRows] = await Promise.all([
       scenarioClassifications.getClassificationsForRoleplays(roleplayIds),
       gamification.getRewardTiersForContents(SCENARIO_CONTENT_TYPE, roleplayIds),
+      roleplayIds.length
+        ? db
+            .select({
+              roleplayId: roleplaySettings.roleplayId,
+              personaProvider: roleplaySettings.personaProvider,
+              personaModel: roleplaySettings.personaModel,
+              graderProvider: roleplaySettings.graderProvider,
+              graderModel: roleplaySettings.graderModel,
+            })
+            .from(roleplaySettings)
+            .where(inArray(roleplaySettings.roleplayId, roleplayIds))
+        : Promise.resolve([]),
     ]);
+    const settingsByRoleplayId = new Map(
+      settingsRows.map((row) => [row.roleplayId, row]),
+    );
+    const allowlist = await roleplayConfigService.getUnifiedAllowlist();
 
     const items = rows.map(({ roleplay, difficulty }) =>
       withCoverImageUrl({
@@ -360,6 +383,10 @@ export class RoleplaySystemController {
           tags: [],
         },
         rewardTiers: rewardTierMap.get(roleplay.id) ?? [],
+        ...roleplayBrowsePublishFields(
+          settingsByRoleplayId.get(roleplay.id),
+          allowlist,
+        ),
       }),
     );
 
@@ -396,7 +423,16 @@ export class RoleplaySystemController {
       .orderBy(roleplayCriteria.orderIndex);
     const rewardTiers = await gamification.getRewardTiers(SCENARIO_CONTENT_TYPE, roleplayId);
     const classifications = await scenarioClassifications.getRoleplayClassifications(roleplayId);
-    return { ...withCoverImageUrl(roleplay), settings, persona, criteria, rewardTiers, classifications };
+    const allowlist = await roleplayConfigService.getUnifiedAllowlist();
+    return {
+      ...withCoverImageUrl(roleplay),
+      settings,
+      persona,
+      criteria,
+      rewardTiers,
+      classifications,
+      ...roleplayBrowsePublishFields(settings, allowlist),
+    };
   }
 
   async bulkSaveRoleplay(
@@ -699,12 +735,7 @@ export class RoleplaySystemController {
   // ===================== Export / Import =====================
 
   private settingsHaveAllModels(settings: Record<string, unknown>): boolean {
-    return Boolean(
-      settings.personaProvider &&
-        settings.personaModel &&
-        settings.graderProvider &&
-        settings.graderModel,
-    );
+    return roleplaySettingsHaveAllModels(settings);
   }
 
   async exportRoleplays(ids: number[]): Promise<TransferEnvelope> {
@@ -1145,10 +1176,29 @@ export class RoleplaySystemController {
 
   async publishRoleplay(roleplayId: number, actorId?: number) {
     const [existing] = await db
-      .select({ publishedAt: roleplays.publishedAt })
+      .select({ id: roleplays.id, publishedAt: roleplays.publishedAt })
       .from(roleplays)
       .where(eq(roleplays.id, roleplayId))
       .limit(1);
+
+    if (!existing) {
+      return null;
+    }
+
+    const [settings] = await db
+      .select()
+      .from(roleplaySettings)
+      .where(eq(roleplaySettings.roleplayId, roleplayId))
+      .limit(1);
+
+    if (!settings || !this.settingsHaveAllModels(settings as Record<string, unknown>)) {
+      throw new Error(ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR);
+    }
+
+    const allowlist = await roleplayConfigService.getUnifiedAllowlist();
+    if (!roleplaySettingsAllowlistedForPublish(settings, allowlist)) {
+      throw new Error(ROLEPLAY_PUBLISH_ALLOWLIST_ERROR);
+    }
 
     const [updated] = await db
       .update(roleplays)
@@ -1156,7 +1206,7 @@ export class RoleplaySystemController {
         status: "published",
         published: true,
         updatedAt: new Date(),
-        ...(existing?.publishedAt ? {} : { publishedAt: new Date() }),
+        ...(existing.publishedAt ? {} : { publishedAt: new Date() }),
       })
       .where(eq(roleplays.id, roleplayId))
       .returning();
@@ -1175,10 +1225,19 @@ export class RoleplaySystemController {
         actorId,
       });
     }
-    return updated ?? null;
+    const publishFields = roleplayBrowsePublishFields(settings, allowlist);
+    return updated
+      ? { ...updated, ...publishFields, canPublish: false }
+      : null;
   }
 
   async unpublishRoleplay(roleplayId: number, actorId?: number) {
+    const [settings] = await db
+      .select()
+      .from(roleplaySettings)
+      .where(eq(roleplaySettings.roleplayId, roleplayId))
+      .limit(1);
+
     const [updated] = await db
       .update(roleplays)
       .set({ status: "draft", published: false, updatedAt: new Date() })
@@ -1199,7 +1258,9 @@ export class RoleplaySystemController {
         actorId,
       });
     }
-    return updated ?? null;
+    const allowlist = await roleplayConfigService.getUnifiedAllowlist();
+    const publishFields = roleplayBrowsePublishFields(settings, allowlist);
+    return updated ? { ...updated, ...publishFields } : null;
   }
 
   async getRoleplayStats(roleplayId: number) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -20,6 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@heybray/ui/components/select";
+import {
+  getEditorPublishValidationErrors,
+  showPublishValidationErrorsToast,
+} from "../../lib/scenario-publish-validation";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "../../hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
@@ -214,6 +218,39 @@ export default function RoleplayBuilderDialog({
     if (idx <= 0) return null;
     return { provider: key.slice(0, idx), model: key.slice(idx + 1) };
   };
+
+  const mergeSelectedModel = (
+    models: { provider: string; model: string }[],
+    selectedKey: string,
+  ) => {
+    const selected = parseModelKey(selectedKey);
+    if (!selected) return models;
+    if (models.some((m) => m.provider === selected.provider && m.model === selected.model)) {
+      return models;
+    }
+    return [selected, ...models];
+  };
+
+  const personaModelOptions = useMemo(
+    () => mergeSelectedModel(personaModels?.models ?? [], personaModelKey),
+    [personaModels?.models, personaModelKey],
+  );
+
+  const graderModelOptions = useMemo(
+    () => mergeSelectedModel(graderModels?.models ?? [], graderModelKey),
+    [graderModels?.models, graderModelKey],
+  );
+
+  const allowedModelRefs = useMemo(() => {
+    const merged = [...(personaModels?.models ?? []), ...(graderModels?.models ?? [])];
+    const seen = new Set<string>();
+    return merged.filter((m) => {
+      const key = `${m.provider}:${m.model}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [personaModels?.models, graderModels?.models]);
 
   useEffect(() => {
     if (!open || isEdit) return;
@@ -425,13 +462,6 @@ export default function RoleplayBuilderDialog({
     },
   });
 
-  const getValidationErrors = (): string[] => {
-    const errors: string[] = [];
-    if (!title.trim()) errors.push("Add a title on the Scenario tab");
-    if (!personaModelKey) errors.push("Select a persona model on the Persona tab");
-    if (!graderModelKey) errors.push("Select an assessor model on the Rubric tab");
-    return errors;
-  };
 
   const handleSave = (nextStatus: string) => {
     if (nextStatus === "draft" && status === "published") {
@@ -442,22 +472,15 @@ export default function RoleplayBuilderDialog({
     }
 
     if (nextStatus !== "draft") {
-      const errors = getValidationErrors();
-      if (errors.length > 0) {
-        toast({
-          title: "Complete required fields to publish",
-          description:
-            errors.length === 1 ? (
-              errors[0]
-            ) : (
-              <ul className="mt-1 list-disc space-y-1 pl-4">
-                {errors.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            ),
-          variant: "destructive",
-        });
+      const errors = getEditorPublishValidationErrors(
+        {
+          title,
+          personaModelKey,
+          graderModelKey,
+        },
+        allowedModelRefs,
+      );
+      if (!showPublishValidationErrorsToast(toast, errors)) {
         return;
       }
     }
@@ -631,12 +654,12 @@ export default function RoleplayBuilderDialog({
                   >
                     <SelectTrigger><SelectValue placeholder="Select a model" /></SelectTrigger>
                     <SelectContent>
-                      {(personaModels?.models ?? []).length === 0 ? (
+                      {personaModelOptions.length === 0 ? (
                         <SelectItem value="__none__" disabled>
                           Configure persona models in Settings first
                         </SelectItem>
                       ) : (
-                        (personaModels?.models ?? []).map((m) => {
+                        personaModelOptions.map((m) => {
                           const key = formatModelKey(m.provider, m.model);
                           return (
                             <SelectItem key={key} value={key}>
@@ -692,12 +715,12 @@ export default function RoleplayBuilderDialog({
                   >
                     <SelectTrigger><SelectValue placeholder="Select a model" /></SelectTrigger>
                     <SelectContent>
-                      {(graderModels?.models ?? []).length === 0 ? (
+                      {graderModelOptions.length === 0 ? (
                         <SelectItem value="__none__" disabled>
                           Configure grader models in Settings first
                         </SelectItem>
                       ) : (
-                        (graderModels?.models ?? []).map((m) => {
+                        graderModelOptions.map((m) => {
                           const key = formatModelKey(m.provider, m.model);
                           return (
                             <SelectItem key={key} value={key}>

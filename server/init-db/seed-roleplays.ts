@@ -11,6 +11,8 @@ import {
   seedClassifications,
   categoryLabelToSlug,
   scenarioClassifications,
+  seedDemoRoleplayAiConfig,
+  DEMO_ROLEPLAY_AI_SETTINGS,
 } from "@heybray/scenarios-server";
 
 const log = createLogger("seed-roleplays");
@@ -300,6 +302,7 @@ const SEED_SCENARIOS = [
 
 async function seedRoleplays() {
   await seedClassifications();
+  await seedDemoRoleplayAiConfig();
 
   const [admin] = await db.select().from(users).limit(1);
   const createdBy = admin?.id ?? null;
@@ -338,10 +341,7 @@ async function seedRoleplays() {
       allowManualEnd: true,
       showTranscript: true,
       showRubricBreakdown: true,
-      personaProvider: "openai",
-      personaModel: "gpt-4o-mini",
-      graderProvider: "openai",
-      graderModel: "gpt-4o-mini",
+      ...DEMO_ROLEPLAY_AI_SETTINGS,
     });
 
     await db.insert(roleplayPersonas).values({
