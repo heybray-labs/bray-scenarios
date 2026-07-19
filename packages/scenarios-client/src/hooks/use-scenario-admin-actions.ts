@@ -1,19 +1,26 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
+import { invalidateRoleplayBrowseQueries, syncRoleplayInBrowseCaches, browsePatchForPublishResponse, browsePatchForUnpublishResponse } from "../lib/invalidate-roleplay-queries";
+import { toggleRoleplayPublishStatus } from "../lib/roleplay-publish-toggle";
+import {
+  canPublishScenario,
+  showPublishValidationToast,
+} from "../lib/scenario-publish-validation";
 import { fetchAndDownloadExport } from "../lib/roleplay-transfer";
-import { useToast } from "@heybray/ui/hooks/use-toast";
+import { toast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "../hooks/use-featured-scenario";
 import type { ScenarioBrowseCardData } from "../components/roleplays/ScenarioBrowseCard";
 
 export function useScenarioAdminActions() {
+  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
   const featured = useFeaturedScenarioManage();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [exporting, setExporting] = useState(false);
   const [bulkPending, setBulkPending] = useState(false);
+  const [publishPendingId, setPublishPendingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     ids: number[];
     title?: string;
@@ -24,19 +31,6 @@ export function useScenarioAdminActions() {
     title: string;
   } | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
-
-  const publishMutation = useMutation({
-    mutationFn: ({ id, publish }: { id: number; publish: boolean }) =>
-      apiRequest("POST", `/api/roleplays/${id}/${publish ? "publish" : "unpublish"}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays/featured"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays/continue"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays/popular"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays/recommended"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays/room-for-improvement"] });
-    },
-  });
 
   const toggleSelected = (id: number) => {
     setSelectedIds((prev) => {
@@ -60,7 +54,7 @@ export function useScenarioAdminActions() {
     setBulkPending(true);
     try {
       await Promise.all(ids.map((id) => apiRequest("DELETE", `/api/roleplays/${id}`)));
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      invalidateRoleplayBrowseQueries(queryClient);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         for (const id of ids) next.delete(id);
@@ -104,7 +98,7 @@ export function useScenarioAdminActions() {
     setDuplicatingId(id);
     try {
       const created = await apiRequest("POST", `/api/roleplays/${id}/duplicate`);
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      invalidateRoleplayBrowseQueries(queryClient);
       setDuplicateResult({
         id: created.id,
         title: created.title ?? "Copy of scenario",
@@ -120,8 +114,93 @@ export function useScenarioAdminActions() {
     }
   };
 
+  const handleBulkPublish = async (
+    roleplays: ScenarioBrowseCardData[],
+    publish: boolean,
+  ) => {
+    const publishable = roleplays.filter(
+      (rp) => rp.status !== "published" && canPublishScenario(rp),
+    );
+    const unpublishable = roleplays.filter((rp) => rp.status === "published");
+    const targets = publish ? publishable : unpublishable;
+
+    if (!targets.length) {
+      if (publish) {
+        const blocked = roleplays.filter(
+          (rp) => rp.status !== "published" && !canPublishScenario(rp),
+        );
+        if (blocked.length) showPublishValidationToast(toast, blocked[0]);
+      }
+      return;
+    }
+
+    setBulkPending(true);
+    try {
+      const results = await Promise.all(
+        targets.map((rp) =>
+          apiRequest(
+            "POST",
+            `/api/roleplays/${rp.id}/${publish ? "publish" : "unpublish"}`,
+          ),
+        ),
+      );
+      for (let i = 0; i < targets.length; i++) {
+        const rp = targets[i]!;
+        const data = results[i] ?? {};
+        syncRoleplayInBrowseCaches(
+          queryClient,
+          rp.id,
+          publish
+            ? browsePatchForPublishResponse(data)
+            : browsePatchForUnpublishResponse(data),
+        );
+      }
+      invalidateRoleplayBrowseQueries(queryClient);
+      toast({
+        title: publish
+          ? targets.length === 1
+            ? "Scenario published"
+            : `${targets.length} scenarios published`
+          : targets.length === 1
+            ? "Scenario unpublished"
+            : `${targets.length} scenarios unpublished`,
+      });
+    } catch (error) {
+      toast({
+        title: publish ? "Publish failed" : "Unpublish failed",
+        description: error instanceof Error ? error.message : "Could not update scenarios",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
   const selectAll = (ids: number[]) => {
     setSelectedIds(new Set(ids));
+  };
+
+  const handleCardPublishToggle = async (rp: ScenarioBrowseCardData) => {
+    const publishing = rp.status !== "published";
+    if (publishing && !canPublishScenario(rp)) {
+      showPublishValidationToast(toast, rp);
+      return;
+    }
+    setPublishPendingId(rp.id);
+    try {
+      await toggleRoleplayPublishStatus(queryClient, rp.id, publishing);
+      toast({
+        title: publishing ? "Scenario published" : "Scenario unpublished",
+      });
+    } catch (error) {
+      toast({
+        title: "Publish update failed",
+        description: error instanceof Error ? error.message : "Could not update publish status",
+        variant: "destructive",
+      });
+    } finally {
+      setPublishPendingId(null);
+    }
   };
 
   const cardPropsFor = (rp: ScenarioBrowseCardData, canManage: boolean) => ({
@@ -134,11 +213,8 @@ export function useScenarioAdminActions() {
     onEdit: () => setEditId(rp.id),
     onDuplicate: () => void handleDuplicate(rp.id),
     onExport: () => void handleExport([rp.id]),
-    onPublishToggle: () =>
-      publishMutation.mutate({
-        id: rp.id,
-        publish: rp.status !== "published",
-      }),
+    publishPending: publishPendingId === rp.id,
+    onPublishToggle: () => void handleCardPublishToggle(rp),
     isFeatured: featured.isFeatured(rp.id),
     featuredPending: featured.pending,
     onFeaturedToggle:
@@ -163,13 +239,13 @@ export function useScenarioAdminActions() {
     setDuplicateResult,
     editId,
     setEditId,
-    publishMutation,
     toggleSelected,
     clearSelection,
     requestDelete,
     executeDelete,
     handleExport,
     handleDuplicate,
+    handleBulkPublish,
     selectAll,
     cardPropsFor,
   };

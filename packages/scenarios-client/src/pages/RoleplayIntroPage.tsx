@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "../components/AppLayout";
 import { NotFoundScreen } from "@heybray/react/errors";
 import { Button } from "@heybray/ui/components/button";
@@ -32,9 +32,16 @@ import EditRoleplayDialog from "../components/roleplays/edit-roleplay-dialog";
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useAuth } from "@heybray/react/hooks/use-auth";
 import { useFeaturedScenarioManage } from "../hooks/use-featured-scenario";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { useRoleplayPublishMutation } from "../hooks/use-roleplay-publish-mutation";
+import {
+  canPublishScenario,
+  type ScenarioPublishReadiness,
+} from "../lib/scenario-publish-validation";
+import { invalidateRoleplayBrowseQueries } from "../lib/invalidate-roleplay-queries";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 
 export default function RoleplayIntroPage() {
+  const queryClient = useQueryClient();
   const params = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -112,17 +119,21 @@ export default function RoleplayIntroPage() {
     }
   };
 
-  const publishMutation = useMutation({
-    mutationFn: async (publish: boolean) =>
-      apiRequest("POST", `/api/roleplays/${roleplayId}/${publish ? "publish" : "unpublish"}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/roleplays/${roleplayId}`] }),
-    onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+  const publishReadiness: ScenarioPublishReadiness = {
+    personaAiConfigured: roleplay?.personaAiConfigured,
+    graderAiConfigured: roleplay?.graderAiConfigured,
+    canPublish: roleplay?.canPublish,
+  };
+  const canPublishFromIntro = canPublishScenario({
+    ...publishReadiness,
+    status: roleplay?.status,
   });
+  const { publishMutation, attemptPublish } = useRoleplayPublishMutation();
 
   const deleteMutation = useMutation({
     mutationFn: async () => apiRequest("DELETE", `/api/roleplays/${roleplayId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      invalidateRoleplayBrowseQueries(queryClient);
       toast({ title: "Roleplay deleted" });
       navigate("/");
     },
@@ -133,7 +144,7 @@ export default function RoleplayIntroPage() {
     setDuplicating(true);
     try {
       const created = await apiRequest("POST", `/api/roleplays/${roleplayId}/duplicate`);
-      queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+      invalidateRoleplayBrowseQueries(queryClient);
       setDuplicateResult({
         id: created.id,
         title: created.title ?? "Copy of scenario",
@@ -250,6 +261,7 @@ export default function RoleplayIntroPage() {
           canManage={canManage}
           isPublished={isPublished}
           publishPending={publishMutation.isPending}
+          publishDisabled={!isPublished && !canPublishFromIntro}
           duplicating={duplicating}
           isFeatured={roleplayId != null && featured.isFeatured(roleplayId)}
           featuredPending={featured.pending}
@@ -259,7 +271,17 @@ export default function RoleplayIntroPage() {
               ? (next) => void featured.setFeatured(roleplayId, next)
               : undefined
           }
-          onPublishChange={(c) => publishMutation.mutate(c)}
+          onPublishChange={(next) => {
+            if (!roleplayId || !roleplay) return;
+            attemptPublish(
+              {
+                id: roleplayId,
+                status: roleplay.status,
+                ...publishReadiness,
+              },
+              next,
+            );
+          }}
           onEdit={() => setEditId(roleplayId)}
           onDuplicate={() => void handleDuplicate()}
           onDelete={() => deleteMutation.mutate()}

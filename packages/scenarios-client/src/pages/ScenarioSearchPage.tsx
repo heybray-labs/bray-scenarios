@@ -32,7 +32,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "@heybray/react/hooks/use-auth";
-import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { apiRequest } from "@heybray/react/lib/queryClient";
 import CreateRoleplayDialog from "../components/roleplays/create-roleplay-dialog";
 import EditRoleplayDialog from "../components/roleplays/edit-roleplay-dialog";
 import ImportRoleplaysDialog from "../components/roleplays/import-roleplays-dialog";
@@ -42,6 +42,7 @@ import { useDebouncedValue } from "@heybray/ui/hooks/use-debounced-value";
 import { cn } from "@heybray/ui/utils";
 import { ScenarioBrowseCard } from "../components/roleplays/ScenarioBrowseCard";
 import { useScenarioAdminActions } from "../hooks/use-scenario-admin-actions";
+import { canPublishScenario } from "../lib/scenario-publish-validation";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 12;
@@ -191,21 +192,17 @@ export default function ScenarioSearchPage() {
     admin.selectedIds.has(rp.id),
   );
   const publishableIds = selectedRoleplays
-    .filter((rp: { status: string }) => rp.status !== "published")
+    .filter(
+      (rp: { status: string; personaAiConfigured?: boolean; graderAiConfigured?: boolean }) =>
+        rp.status !== "published" && canPublishScenario(rp),
+    )
     .map((rp: { id: number }) => rp.id);
   const unpublishableIds = selectedRoleplays
     .filter((rp: { status: string }) => rp.status === "published")
     .map((rp: { id: number }) => rp.id);
 
-  const handleBulkPublish = async (publish: boolean) => {
-    const ids = publish ? publishableIds : unpublishableIds;
-    if (!ids.length) return;
-    await Promise.all(
-      ids.map((id) =>
-        apiRequest("POST", `/api/roleplays/${id}/${publish ? "publish" : "unpublish"}`),
-      ),
-    );
-    queryClient.invalidateQueries({ queryKey: ["/api/roleplays"] });
+  const handleBulkPublish = (publish: boolean) => {
+    void admin.handleBulkPublish(selectedRoleplays, publish);
   };
 
   const selectAllLoaded = () => {

@@ -31,6 +31,7 @@ type ScenarioHeroBannerProps = {
   canManage: boolean;
   isPublished: boolean;
   publishPending: boolean;
+  publishDisabled?: boolean;
   duplicating: boolean;
   isFeatured?: boolean;
   featuredPending?: boolean;
@@ -54,6 +55,7 @@ export function ScenarioHeroBanner({
   canManage,
   isPublished,
   publishPending,
+  publishDisabled = false,
   duplicating,
   isFeatured = false,
   featuredPending = false,
@@ -112,10 +114,15 @@ export function ScenarioHeroBanner({
                 <Switch
                   checked={isPublished}
                   onCheckedChange={onPublishChange}
-                  disabled={publishPending}
+                  disabled={publishPending || publishDisabled}
                 />
                 <span className="text-sm">Published</span>
               </div>
+              {!isPublished && publishDisabled && (
+                <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+                  Configure persona and assessor models in the editor before publishing.
+                </p>
+              )}
               <div className="px-2 py-1.5 flex items-center gap-2">
                 <Switch
                   checked={isFeatured}

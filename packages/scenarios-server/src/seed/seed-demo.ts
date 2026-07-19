@@ -47,6 +47,10 @@ import {
 } from "./demo-data/tier-progress.ts";
 import type { DemoScenario, ScoreBandId } from "./demo-data/types.ts";
 import { renderDemoCoverImage } from "./demo-data/demo-cover-images.ts";
+import {
+  DEMO_ROLEPLAY_AI_SETTINGS,
+} from "./demo-data/ai-config.ts";
+import { seedDemoRoleplayAiConfig } from "./seed-roleplay-ai-config.ts";
 
 const DEMO_COVER_PREFIX = "demo-cover-";
 
@@ -260,10 +264,7 @@ async function seedScenarios(adminUserId: number, scenarioDefs: DemoScenario[]) 
       allowManualEnd: true,
       showTranscript: true,
       showRubricBreakdown: true,
-      personaProvider: "openai",
-      personaModel: "gpt-4o-mini",
-      graderProvider: "openai",
-      graderModel: "gpt-4o-mini",
+      ...DEMO_ROLEPLAY_AI_SETTINGS,
     });
 
     await db.insert(roleplayPersonas).values({
@@ -450,8 +451,8 @@ async function seedAttempts(
             gradingStatus: "pending",
             turnCount: 3 + Math.floor(seededRandom(seedCounter) * 5),
             startedAt,
-            personaProvider: "openai",
-            personaModel: "gpt-4o-mini",
+            personaProvider: DEMO_ROLEPLAY_AI_SETTINGS.personaProvider,
+            personaModel: DEMO_ROLEPLAY_AI_SETTINGS.personaModel,
           });
           attemptCount++;
           inProgressCount++;
@@ -481,10 +482,10 @@ async function seedAttempts(
             gradingStatus: "auto_graded",
             gradedAt: completedAt,
             overallFeedback: bandContent.overallFeedback,
-            personaProvider: "openai",
-            personaModel: "gpt-4o-mini",
-            graderProvider: "openai",
-            graderModel: "gpt-4o-mini",
+            personaProvider: DEMO_ROLEPLAY_AI_SETTINGS.personaProvider,
+            personaModel: DEMO_ROLEPLAY_AI_SETTINGS.personaModel,
+            graderProvider: DEMO_ROLEPLAY_AI_SETTINGS.graderProvider,
+            graderModel: DEMO_ROLEPLAY_AI_SETTINGS.graderModel,
           })
           .returning();
 
@@ -629,10 +630,10 @@ async function seedAttemptsWithTarget(
         gradingStatus: "auto_graded",
         gradedAt: completedAt,
         overallFeedback: bandContent.overallFeedback,
-        personaProvider: "openai",
-        personaModel: "gpt-4o-mini",
-        graderProvider: "openai",
-        graderModel: "gpt-4o-mini",
+        personaProvider: DEMO_ROLEPLAY_AI_SETTINGS.personaProvider,
+        personaModel: DEMO_ROLEPLAY_AI_SETTINGS.personaModel,
+        graderProvider: DEMO_ROLEPLAY_AI_SETTINGS.graderProvider,
+        graderModel: DEMO_ROLEPLAY_AI_SETTINGS.graderModel,
       })
       .returning();
 
@@ -725,6 +726,7 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
   await ensureRoles();
   await seedClassifications();
   await wipeDemo();
+  await seedDemoRoleplayAiConfig();
 
   const userIds = await seedUsers(userDefs);
   const adminId = userIds.get("admin@demo.local");
@@ -749,6 +751,7 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
   console.log("  Demo database seeded successfully");
   console.log("========================================\n");
   console.log(`Scenarios:  ${scenarios.length} published with cover images & reward tiers`);
+  console.log(`AI config:  ${DEMO_ROLEPLAY_AI_SETTINGS.personaProvider}/${DEMO_ROLEPLAY_AI_SETTINGS.personaModel} on allowlist & defaults`);
   console.log(`Users:      ${userDefs.length} (1 admin + ${learnerProfiles.length} learners)`);
   console.log(`Attempts:   ${attemptCount} (${completedCount} completed, ${inProgressCount} in progress)`);
   console.log(`Point txns: ${Number(pointsRow?.total ?? 0)}\n`);

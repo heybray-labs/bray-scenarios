@@ -18,8 +18,9 @@ import {
   computeStarLevel,
   pointsLineStyle,
 } from "@heybray/gamification-react/lib/reward-tier-utils";
+import { canPublishScenario, type ScenarioPublishReadiness } from "../../lib/scenario-publish-validation";
 
-export type ScenarioBrowseCardData = {
+export type ScenarioBrowseCardData = ScenarioPublishReadiness & {
   id: number;
   title: string;
   description?: string | null;
@@ -61,6 +62,7 @@ type ScenarioBrowseCardProps = {
   onEdit?: () => void;
   onDuplicate?: () => void;
   onExport?: () => void;
+  publishPending?: boolean;
   onPublishToggle?: () => void;
   isFeatured?: boolean;
   featuredPending?: boolean;
@@ -90,6 +92,7 @@ export function ScenarioBrowseCard({
   onEdit,
   onDuplicate,
   onExport,
+  publishPending,
   onPublishToggle,
   isFeatured = false,
   featuredPending = false,
@@ -115,6 +118,8 @@ export function ScenarioBrowseCard({
     pointsAvailable > 0 ? Math.min(100, (pointsEarned / pointsAvailable) * 100) : 0;
   const isCarousel = layout === "carousel";
   const tags = rp.classifications?.tags ?? [];
+  const showPublishAction =
+    rp.status === "published" || canPublishScenario(rp);
 
   return (
     <Card
@@ -174,9 +179,20 @@ export function ScenarioBrowseCard({
                 <DropdownMenuItem disabled={exporting} onClick={onExport}>
                   <Download className="h-4 w-4 mr-2" /> Export
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onPublishToggle}>
-                  {rp.status === "published" ? "Unpublish" : "Publish"}
-                </DropdownMenuItem>
+                {showPublishAction && (
+                  <DropdownMenuItem
+                    disabled={publishPending}
+                    onClick={onPublishToggle}
+                  >
+                    {publishPending
+                      ? rp.status === "published"
+                        ? "Unpublishing…"
+                        : "Publishing…"
+                      : rp.status === "published"
+                        ? "Unpublish"
+                        : "Publish"}
+                  </DropdownMenuItem>
+                )}
                 {rp.status === "published" ? (
                   <DropdownMenuItem
                     disabled={featuredPending}

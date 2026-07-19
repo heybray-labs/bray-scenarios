@@ -1,5 +1,12 @@
 # @heybray/scenarios-server
 
+## 0.1.5
+
+### Patch Changes
+
+- feb67d2: Demo seed/wipe tooling: generated Lucide cover images, configurable seed counts, exported `wipeDemo`, `DEMO_TITLE_PREFIX`, and `renderCoverImageFromArt`.
+- Block publishing scenarios without persona and grader AI configured; surface publish failures via client error toasts.
+
 ## 0.1.4
 
 ### Patch Changes
