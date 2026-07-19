@@ -5,6 +5,7 @@ dist/
 examples/
 dist-frontend/
 .env
+.vite-yalc-sig
 *.log
 .DS_Store
 server/data/saml/

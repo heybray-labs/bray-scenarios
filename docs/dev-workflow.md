@@ -2,9 +2,10 @@
 
 How changes flow between the app repos (`bray-scenarios`, `bray-flashcards`,
 `bray-premium`) and `bray-platform`. This is the canonical statement of the workflow;
-a mirrored copy lives in `bray-platform/CONTRIBUTING.md` under "Cross-repo development
-workflow" — keep the two in sync when either changes (the "Standing rules" section
-below and the workflow mechanics that follow it are duplicated there verbatim).
+mirrored copies live in each app's `docs/dev-workflow.md` and in
+`bray-platform/CONTRIBUTING.md` under "Cross-repo development workflow" — keep them in
+sync when this file changes (the "Standing rules" section below and the workflow
+mechanics that follow it are duplicated there).
 
 ## Standing rules (default behavior — not restated per task)
 
@@ -51,7 +52,8 @@ From `bray-platform` after editing platform packages:
 ./bin/yalc-sync.sh --unlink premium    # before commit — guards reject yalc in manifests
 ```
 
-Feature-package repos use the same flag shape:
+Feature-package repos use the same flag shape, and both may need linking into premium
+at once (e.g. a `server-kit` change that `scenarios-server` also depends on):
 
 ```bash
 # bray-scenarios
@@ -75,7 +77,7 @@ the enforcement: it can only resolve what npm can resolve.
 
 ## The two loops
 
-**Inner loop (minutes, local only)** — while platform code is in flux:
+**Inner loop (minutes, local only)** — while platform or feature-package code is in flux:
 
 ```bash
 # in bray-platform, after editing a package:
@@ -87,13 +89,25 @@ yalc add @heybray/<pkg> && npm install
 # iterate: edit → build → yalc push → consumer picks up the copy in place
 ```
 
+Each consumer app's `bin/dev.sh` runs `bin/yalc-cache-bust.sh` automatically so Vite's
+`optimizeDeps` cache invalidates when yalc swaps `@heybray/*` content under an unchanged
+version string — without that, "picks up the copy in place" was not reliably true after
+a restart.
+
+**Yalc doesn't understand transitive dependencies** — if a change to `server-kit`
+matters to `gamification`, and `gamification` is what `scenarios-server` depends on, the
+consumer needs `server-kit` **and** `gamification` **and** `scenarios-server` all
+yalc-linked together, not just the outermost one. This is the failure mode traced during
+the Phase 6A premium walkthrough.
+
 **Outer loop (when the change is right)**:
 
-1. PR into `bray-platform` — **every change carries its own changeset** in the same PR.
+1. PR into `bray-platform` (or the relevant feature-package repo) — **every change
+   carries its own changeset** in the same PR.
 2. Merge → changesets opens/updates the "Version Packages" PR → merging that publishes
    to npm via CI (provenance attested). No manual publishes.
-3. Consumer branch: `yalc remove @heybray/<pkg> && npm install`, bump the pin to the
-   published version, land the consumer PR.
+3. Consumer branch: `yalc remove @heybray/<pkg> && npm install` for every linked
+   package, bump the pins to the published versions, land the consumer PR.
 
 Why yalc and not the alternatives:
 
@@ -101,7 +115,7 @@ Why yalc and not the alternatives:
 |---|---|
 | **yalc** | ✅ Copies built output the way npm would — same layout, no symlinks. |
 | `npm link` | ❌ Symlinks can load two instances of one package; `server-kit` holds module-level singletons (db handle, seam registries) that silently split. React duplicates the same way. |
-| `file:../bray-platform/...` | ❌ Rewrites package.json/lockfile with paths that must never merge. |
+| `file:../bray-platform/...` / sibling `tsconfig` paths | ❌ Rewrites package.json/lockfile with paths that must never merge, or (the tsconfig-paths form) silently bypasses yalc/npm resolution entirely under `tsx` — this exact bug broke `reconcileGamificationProjection` during the Phase 6A walkthrough. |
 | Deep imports (`node_modules/@heybray/*/src/...`) | ❌ Bypasses the exports contract entirely. Already bitten once (6A Step 4). |
 | Copying into `node_modules` | ❌ Obviously. Also already attempted once. |
 
@@ -111,13 +125,18 @@ Why yalc and not the alternatives:
   also rewrites `package.json`** with a `file:.yalc/...` dependency, and package.json is
   tracked. Therefore every consumer's CI (and its local test script) greps `package.json`
   + lockfile for the string `.yalc` and **fails on any hit**.
+- **No sibling-repo `tsconfig.json` path aliases for `@heybray/*` feature packages** —
+  resolution must go through `node_modules` (npm pin or yalc copy) exactly like the
+  platform packages already do. A sibling-path alias silently bypasses yalc under `tsx`
+  and creates a duplicate `server-kit` module instance (see the alternatives table
+  above).
 - After `yalc remove`, always `npm install` to restore the lockfile before committing —
   `yalc remove` alone leaves lockfile entries and broken symlinks behind (proven in the
   6A navbar incident: a Docker build failed on lockfile `.yalc` paths days later).
-- **Consumer commits that adopt an unpublished platform API never merge to `main`** —
-  they wait on the adoption branch until the batch publishes, then land with the pin
-  bump in one commit. Merging early breaks fresh clones even with clean manifests
-  (the import target doesn't exist on npm).
+- **Consumer commits that adopt an unpublished platform or feature-package API never
+  merge to `main`** — they wait on the adoption branch until the batch publishes, then
+  land with the pin bump in one commit. Merging early breaks fresh clones even with
+  clean manifests (the import target doesn't exist on npm).
 - A consumer **shim duplicating an unpublished platform component** is an exception
   with a hard expiry (deleted the same day the batch publishes), never a pattern. If
   a shim is being considered, first ask whether the batch should simply publish now —
