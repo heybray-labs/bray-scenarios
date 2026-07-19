@@ -149,15 +149,16 @@ When changing tables in `shared/schemas/`:
 
 **Production and Docker** apply migrations automatically on startup via [`server/init-db/run-migrations.ts`](../server/init-db/run-migrations.ts). **Local dev** uses `db:generate` + `db:migrate`, or `db:init` (same programmatic migrator plus seed). `npm run db:push` is a dev-only escape hatch for quick schema experiments — do not use it for releases.
 
-**Platform package updates:** since Phase 4, generic platform code lives in published `@heybray/*` npm packages (see `heybray-labs/bray-platform`), not in this repo. A platform-only bugfix arrives here as a version-bump PR — update the pinned ranges in `client/package.json` and/or `server/package.json`, run `npm install`, and restart. No Scenarios source edit is required unless the app wires new APIs.
+**Platform package updates:** generic platform code lives in published `@heybray/*` npm
+packages (`heybray-labs/bray-platform`), not in this repo. A platform-only bugfix arrives
+here as a version-bump PR — update the pinned ranges in `client/package.json` and/or
+`server/package.json`, run `npm install`, and restart. No Scenarios source edit is
+required unless the app wires new APIs.
 
 For destructive changes (column renames, data moves), write a multi-step migration in one PR: add new column → backfill data → drop old column.
 
-## Upgrading from pre-migration releases
+## Legacy databases without migration history
 
-Releases before versioned migrations used `drizzle-kit push` on startup. The first upgrade to a migration-based release:
-
-- Detects an existing database and stamps the baseline migration as already applied
-- Runs only incremental migrations (e.g. legacy column cleanup)
-
-No manual steps are required for typical installs.
+If the database predates versioned SQL migrations, the migration runner detects an
+existing schema and **stamps the baseline migration as already applied**, then runs only
+later incremental migrations. No manual step is required for typical upgrades.

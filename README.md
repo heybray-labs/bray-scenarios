@@ -118,6 +118,11 @@ For authentication setup (IdP configuration, redirect URIs, Google Workspace SAM
 
 See [docs/UPGRADING.md](docs/UPGRADING.md).
 
+## Operations
+
+See [docs/OPERATIONS.md](docs/OPERATIONS.md) for rate limiting, React Query defaults, and
+session-expiry behavior.
+
 ## Testing
 
 See [docs/TESTING.md](docs/TESTING.md) for running API smoke tests locally and in CI.
