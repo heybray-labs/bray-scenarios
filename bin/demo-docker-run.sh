@@ -21,6 +21,10 @@ else
   SETUP=""
 fi
 
+# Local dev server cwd is server/ → default MEDIA_DIR is server/data/media on the host.
+mkdir -p "$ROOT/server/data/media"
+MOUNTS+=(-v "$ROOT/server/data/media:/app/data/media")
+
 exec ./bin/compose-env.sh -- docker compose run --rm --no-deps \
   --entrypoint sh \
   "${MOUNTS[@]}" \

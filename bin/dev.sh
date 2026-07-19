@@ -19,6 +19,8 @@ set -a
 source .env
 set +a
 
+export MEDIA_DIR="${MEDIA_DIR:-data/media}"
+
 export VITE_API_PORT="${VITE_API_PORT:-${PORT:-3001}}"
 export VITE_PORT="${VITE_PORT:-5173}"
 

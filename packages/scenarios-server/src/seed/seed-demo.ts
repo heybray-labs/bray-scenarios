@@ -311,7 +311,7 @@ async function seedScenarios(adminUserId: number, scenarioDefs: DemoScenario[]) 
 
     const coverBuffer = await renderDemoCoverImage(scenario.slug);
     const coverAsset = await mediaService.createFromBuffer(coverBuffer, {
-      originalFilename: "cover.png",
+      originalFilename: `${scenario.slug}-cover.png`,
       mimeType: "image/png",
       createdBy: adminUserId,
       storageKey: `${DEMO_COVER_PREFIX}${scenario.slug}.png`,
