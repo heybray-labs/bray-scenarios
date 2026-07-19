@@ -51,9 +51,9 @@ npm run test --workspace=server
 - **LLM calls are mocked** — no real OpenAI/Anthropic/Google API keys needed
 - **OIDC/SAML routes are excluded** — they require external identity providers and are marked `it.skip` in `auth.test.ts`
 
-## Coverage inventory (v1)
+## Coverage inventory
 
-This first iteration establishes infrastructure and smoke hits — not exhaustive edge-case coverage.
+Smoke coverage across route modules — not exhaustive edge-case coverage.
 
 | Category | Detail |
 |----------|--------|
@@ -63,7 +63,8 @@ This first iteration establishes infrastructure and smoke hits — not exhaustiv
 | **Light coverage** | `GET /api/roleplays/:id/stream/:runId` — SSE headers/connection only |
 | **Light coverage** | Auth-negative `401`/`403` — spot-checked per module, not every endpoint × role |
 
-Future iterations can add deeper contract tests, zip import fixtures, OIDC/SAML mock IdP flows, and a real LLM integration suite.
+Deeper contract tests, zip import fixtures, OIDC/SAML mock IdP flows, and LLM integration
+suites can be added incrementally.
 
 ## Test layout
 

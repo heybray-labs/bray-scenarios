@@ -1,11 +1,10 @@
-# Cross-Repo Development Workflow (blessed)
+# Development workflow
 
 How changes flow between the app repos (`bray-scenarios`, `bray-flashcards`,
 `bray-premium`) and `bray-platform`. This is the canonical statement of the workflow;
-mirrored copies live in each app's `docs/dev-workflow.md` and in
+mirrored copies live in each app's `docs/DEVELOPMENT.md` and in
 `bray-platform/CONTRIBUTING.md` under "Cross-repo development workflow" — keep them in
-sync when this file changes (the "Standing rules" section below and the workflow
-mechanics that follow it are duplicated there).
+sync when this file changes.
 
 ## Standing rules (default behavior — not restated per task)
 
@@ -31,15 +30,11 @@ says so:
 - **Don't idle-block waiting on a CI run** if there's independent work to do — open the
   PR, arm auto-merge (except the publish PR, per above), move on, and check back when
   the next step actually depends on that PR being merged.
-- **Never bypass `guards`/`verify` "because the change is small."** Both real incidents
-  in this project (yalc-polluted manifests reaching `main`; unpublished-API imports
-  reaching `main`) happened on changes that felt small enough to skip the gate. The fix
-  for CI being slow is making the gate cheaper and less frequent — caching
-  (`actions/cache` keyed on the lockfile hash, or a Turborepo remote cache in
-  `bray-platform`) and a docs-only fast path *inside* the job (detect "only `.md` files
-  changed" and exit quickly — never via `paths-ignore`, which stops the check from
-  reporting at all and leaves a required-check PR stuck on "Expected" forever) — never
-  making the gate optional.
+- **Never bypass `guards`/`verify` "because the change is small."** Yalc-polluted
+  manifests and unpublished-API imports have both reached `main` on changes that felt too
+  small to matter. Improve CI speed with caching or a docs-only fast path *inside* the
+  job — never via `paths-ignore`, which stops the check from reporting and leaves PRs
+  stuck on "Expected" forever — never by skipping the gate.
 
 ## Automated (preferred day-to-day)
 
@@ -97,8 +92,7 @@ a restart.
 **Yalc doesn't understand transitive dependencies** — if a change to `server-kit`
 matters to `gamification`, and `gamification` is what `scenarios-server` depends on, the
 consumer needs `server-kit` **and** `gamification` **and** `scenarios-server` all
-yalc-linked together, not just the outermost one. This is the failure mode traced during
-the Phase 6A premium walkthrough.
+yalc-linked together, not just the outermost one.
 
 **Outer loop (when the change is right)**:
 
@@ -115,9 +109,9 @@ Why yalc and not the alternatives:
 |---|---|
 | **yalc** | ✅ Copies built output the way npm would — same layout, no symlinks. |
 | `npm link` | ❌ Symlinks can load two instances of one package; `server-kit` holds module-level singletons (db handle, seam registries) that silently split. React duplicates the same way. |
-| `file:../bray-platform/...` / sibling `tsconfig` paths | ❌ Rewrites package.json/lockfile with paths that must never merge, or (the tsconfig-paths form) silently bypasses yalc/npm resolution entirely under `tsx` — this exact bug broke `reconcileGamificationProjection` during the Phase 6A walkthrough. |
-| Deep imports (`node_modules/@heybray/*/src/...`) | ❌ Bypasses the exports contract entirely. Already bitten once (6A Step 4). |
-| Copying into `node_modules` | ❌ Obviously. Also already attempted once. |
+| `file:../bray-platform/...` / sibling `tsconfig` paths | ❌ Rewrites package.json/lockfile with paths that must never merge, or silently bypasses yalc/npm resolution entirely under `tsx`. |
+| Deep imports (`node_modules/@heybray/*/src/...`) | ❌ Bypasses the package exports contract. |
+| Copying into `node_modules` | ❌ Bypasses npm resolution entirely. |
 
 ## Guard rails (mechanical, not aspirational)
 
@@ -125,14 +119,12 @@ Why yalc and not the alternatives:
   also rewrites `package.json`** with a `file:.yalc/...` dependency, and package.json is
   tracked. Therefore every consumer's CI (and its local test script) greps `package.json`
   + lockfile for the string `.yalc` and **fails on any hit**.
-- **No sibling-repo `tsconfig.json` path aliases for `@heybray/*` feature packages** —
-  resolution must go through `node_modules` (npm pin or yalc copy) exactly like the
-  platform packages already do. A sibling-path alias silently bypasses yalc under `tsx`
-  and creates a duplicate `server-kit` module instance (see the alternatives table
-  above).
+- **No sibling-repo `tsconfig.json` path aliases for `@heybray/*` packages** — resolution
+  must go through `node_modules` (npm pin or yalc copy). Sibling-path aliases silently
+  bypass yalc under `tsx` and can load a second copy of module singletons (e.g.
+  `@heybray/server-kit`'s database handle).
 - After `yalc remove`, always `npm install` to restore the lockfile before committing —
-  `yalc remove` alone leaves lockfile entries and broken symlinks behind (proven in the
-  6A navbar incident: a Docker build failed on lockfile `.yalc` paths days later).
+  `yalc remove` alone leaves lockfile entries and broken symlinks behind.
 - **Consumer commits that adopt an unpublished platform or feature-package API never
   merge to `main`** — they wait on the adoption branch until the batch publishes, then
   land with the pin bump in one commit. Merging early breaks fresh clones even with
@@ -145,20 +137,57 @@ Why yalc and not the alternatives:
 ## Enforcement
 
 Workflow rules above are not advisory. Each repo ships `bin/guards.sh` (repo-specific
-sections appended to a shared core) and runs it:
+sections appended to a shared core) and runs it locally and in CI.
 
-- **Locally:** first line of `bin/test.sh` (or `npm test` on platform) — fails before
-  push if a tripwire trips.
+### What `bin/guards.sh` checks
+
+**Core (every repo):**
+
+1. **Yalc manifest tripwire** — no `.yalc` references in committed `package.json` or
+   `package-lock.json`.
+2. **Deep-import tripwire** — no imports of `node_modules/@heybray/...` paths in
+   application or package source; use each package's public `exports`.
+3. **Sibling tsconfig paths** — no `../bray-*` (or similar sibling-repo) path aliases in
+   any `tsconfig*.json`; `@heybray/*` must resolve through `node_modules`.
+
+**App repos** (`bray-scenarios`, `bray-flashcards`, `bray-premium`, `bray-app-template`)
+also check:
+
+4. **Migration immutability** — edits to SQL migration files that already existed on
+   `main` fail; new migration files are allowed (append-only).
+5. **Package boundary** (repos with `packages/*/src`) — feature-package source must not
+   import app-shell paths (`server/`, `src/`, `client/`, `@shared`).
+
+**`bray-platform` only** also runs the Scenarios vocabulary gate and package-boundary
+grep from `CONTRIBUTING.md`, and (in CI only) `npx changeset status --since=origin/main`
+when the reusable workflow is invoked with `changesets: true`.
+
+### Local and CI wiring
+
+- **Locally:** `./bin/guards.sh` runs as the first step of `bin/test.sh` (or `npm test`
+  on `bray-platform`) — fails before tests if a tripwire trips.
 - **CI:** job **`guards`** calls the org reusable workflow
-  `heybray-labs/.github/.github/workflows/guards.yml@main` (fast; no `npm ci` except
-  platform changeset status). Job **`verify`** runs typecheck/build/tests and depends on
+  `heybray-labs/.github/.github/workflows/guards.yml@main` (fast; no full `npm ci` except
+  the platform changeset check). Job **`verify`** runs typecheck/build/tests and depends on
   `guards`.
-- **Merge:** org branch rulesets (owner-configured) require check contexts
-  **`guards / guards`** and **`verify`** to pass on PRs to `main` (check-run names, not
-  the `CI / … (pull_request)` display names the PR UI shows). A tripwire that has never
-  fired in CI is not done — see `docs/guards-verification.md`.
+- **Merge:** org branch rulesets require check contexts **`guards / guards`** and
+  **`verify`** to pass on PRs to `main`. These are **check-run names** — not the decorated
+  names the PR UI shows (e.g. `CI / guards / guards (pull_request)`).
 
-## Batched platform work (approved 6A-review policy)
+### Ruleset and workflow gotchas
+
+- Ruleset "required checks" must list **`guards / guards`** and **`verify`** exactly — the
+  PR UI's decorated workflow names do not match; mistyped names sit at "Expected — Waiting
+  for status" forever.
+- Org-level rulesets offer no autocomplete for check names — type them manually.
+- When `guards` fails, `verify` is skipped (`needs: guards`) and counts as satisfied; the
+  failed **`guards / guards`** alone blocks merge.
+- Re-running a failed workflow run does **not** pick up a fixed workflow file — push a new
+  commit.
+- **Never add `paths-ignore` or path filters to `ci.yml`** for jobs that rulesets require:
+  a PR that never triggers the workflow never reports the check and blocks forever.
+
+## Batched platform work
 
 When a review pass produces several related platform changes (e.g. client UI dedupe),
 don't publish per tweak:
@@ -175,11 +204,10 @@ don't publish per tweak:
   or an RC), not yalc — yalc green is necessary, not sufficient.
 - Batch ends with coordinated consumer pin bumps landing promptly in all three apps.
 
-## Versioning reminders (1.0.0 policy, architecture doc §6)
+## Versioning (platform packages)
 
 Breaking DB schema change or runtime API in a platform package = **major** + migration
 notes. Additive = minor. Fixes = patch. Deprecated aliases survive until the next major.
 Feature packages (`@heybray/scenarios-*`, `@heybray/flashcards-*`) are 0.x while the
 premium composition is stabilizing — same changeset discipline, looser semver latitude.
-Feature packages ship raw `.ts` source (consumable by tsx/vite apps only) — a recorded
-convention, not an accident (friction log FL-6A4-007).
+Feature packages ship raw `.ts` source (consumable by tsx/vite shells only).

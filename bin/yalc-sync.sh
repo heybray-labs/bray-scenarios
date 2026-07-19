@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# yalc publish @heybray/scenarios-* feature packages. See docs/dev-workflow.md.
+# yalc publish @heybray/scenarios-* feature packages. See docs/DEVELOPMENT.md.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
