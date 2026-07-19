@@ -2,8 +2,43 @@
 
 How changes flow between the app repos (`bray-scenarios`, `bray-flashcards`,
 `bray-premium`) and `bray-platform`. This is the canonical statement of the workflow;
-port the "Platform contributors" section into `bray-platform/CONTRIBUTING.md` (that was
-planned in Phase 4 and never landed — the architecture doc §7 already points there).
+a mirrored copy lives in `bray-platform/CONTRIBUTING.md` under "Cross-repo development
+workflow" — keep the two in sync when either changes (the "Standing rules" section
+below and the workflow mechanics that follow it are duplicated there verbatim).
+
+## Standing rules (default behavior — not restated per task)
+
+These apply to every session working across these repos, not just when a specific brief
+says so:
+
+- **Default to the yalc loop for any cross-repo work.** Don't hand-edit or test across a
+  repo boundary without it — see "Automated" below for the one-liners.
+- **Never merge a Version Packages PR, or otherwise trigger an actual npm publish,
+  without stopping and asking the owner first** — even when all checks are green and
+  auto-merge would otherwise apply. This is the one PR in the whole workflow that always
+  gets an explicit human go-ahead; ordinary consumer/config PRs still auto-merge as
+  designed. Confirm auto-merge is not armed automatically on `changeset-release/main`
+  PRs specifically — if the changesets action or any workflow step ever enables it
+  there, disable it; this is a mechanical check, not just a documented intention.
+- **Don't burn a CI round-trip per tiny edit.** Iterate locally — commit locally,
+  don't push — until a change is complete and locally yalc-verified; push once. Every
+  push to an open PR branch re-triggers `guards`+`verify`, so five WIP pushes cost five
+  full CI runs for no reason.
+- **Batch related small fixes into one PR** rather than opening a new PR per one-line
+  change — same principle as the batched-platform-work policy below, generalized to any
+  small related work, not just changeset batches.
+- **Don't idle-block waiting on a CI run** if there's independent work to do — open the
+  PR, arm auto-merge (except the publish PR, per above), move on, and check back when
+  the next step actually depends on that PR being merged.
+- **Never bypass `guards`/`verify` "because the change is small."** Both real incidents
+  in this project (yalc-polluted manifests reaching `main`; unpublished-API imports
+  reaching `main`) happened on changes that felt small enough to skip the gate. The fix
+  for CI being slow is making the gate cheaper and less frequent — caching
+  (`actions/cache` keyed on the lockfile hash, or a Turborepo remote cache in
+  `bray-platform`) and a docs-only fast path *inside* the job (detect "only `.md` files
+  changed" and exit quickly — never via `paths-ignore`, which stops the check from
+  reporting at all and leaves a required-check PR stuck on "Expected" forever) — never
+  making the gate optional.
 
 ## Automated (preferred day-to-day)
 

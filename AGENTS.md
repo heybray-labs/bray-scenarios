@@ -2,6 +2,11 @@
 
 Read this before making changes. For the platform rework, also read
 `docs/platform-architecture.md` (the approved design) and the current phase brief in `docs/`.
+**For any work touching `bray-platform` or another app repo (`bray-flashcards`,
+`bray-premium`, `bray-app-template`), `docs/dev-workflow.md` is required reading and its
+"Standing rules" apply by default** — yalc-first cross-repo iteration, never auto-merge a
+Version Packages/publish PR, and the CI-round-trip discipline (iterate locally, batch
+small fixes, don't idle-wait on CI). These are permanent defaults, not per-task instructions.
 **Implement one phase at a time — never blend phases.**
 
 ## What this repo is
