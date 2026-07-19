@@ -32,9 +32,8 @@ services:
       MEDIA_DIR: /app/data/media
     volumes:
       - saml_certs:/app/data/saml
-      - media_data:/app/data/media
+      - ./server/data/media:/app/data/media
 
 volumes:
   pgdata:
   saml_certs:
-  media_data:

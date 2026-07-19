@@ -23,9 +23,17 @@ export default defineConfig({
     },
   },
   // esbuild 0.28+ treats Safari <14.1 as lacking destructuring support.
-  // Vite 6's default target includes safari14, which fails the build.
+  // Vite 6's default target includes safari14, which fails dev pre-bundling and production builds.
+  esbuild: {
+    target: "es2022",
+  },
   build: {
     target: "es2022",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2022",
+    },
   },
   server: {
     port: devPort,
