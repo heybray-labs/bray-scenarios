@@ -1,5 +1,11 @@
 # @heybray/scenarios-server
 
+## 0.1.7
+
+### Patch Changes
+
+- 7ff97b3: Publish demo seed cover image generation: pastel Lucide PNG covers at seed time, distinct `originalFilename` per scenario, and stable `demo-cover-{slug}.png` storage keys.
+
 ## 0.1.6
 
 ### Patch Changes
