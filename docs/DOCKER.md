@@ -75,7 +75,7 @@ APP_INSTANCE_PREFIX=demo2 PORT=3002 curl -fsSL https://raw.githubusercontent.com
 # In .env:
 # APP_INSTANCE_PREFIX=dev2
 # PORT=3011
-# POSTGRES_PORT=5434
+# POSTGRES_PORT=5441
 # APP_URL=http://localhost:3011
 
 npm run docker:up

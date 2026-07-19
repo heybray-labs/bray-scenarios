@@ -37,7 +37,7 @@ export async function assertDatabaseConnection() {
       causeMessage.includes("password authentication failed")
     ) {
       hints.push(
-        "Port 5432 may be used by a local Postgres instance instead of Docker. Set POSTGRES_PORT=5433 in .env, run `docker compose up -d db`, or stop local Postgres (e.g. `brew services stop postgresql@16`).",
+        "Port may be used by a local Postgres instance instead of Docker. Ensure DATABASE_URL matches compose (default host port 5440), set POSTGRES_PORT in .env, run `docker compose up -d db`, or stop local Postgres (e.g. `brew services stop postgresql@16`).",
       );
     }
 
