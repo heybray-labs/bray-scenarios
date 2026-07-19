@@ -1,5 +1,11 @@
 # @heybray/scenarios-server
 
+## 0.1.6
+
+### Patch Changes
+
+- eb617dc: Enforce publish eligibility against the admin model allowlist; seed demo AI allowlist defaults; fix card publish/unpublish UX and browse cache updates; add API coverage for configured-but-unallowlisted drafts.
+
 ## 0.1.5
 
 ### Patch Changes
