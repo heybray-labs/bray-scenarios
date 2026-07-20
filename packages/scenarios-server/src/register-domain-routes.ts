@@ -1,9 +1,10 @@
 import express from "express";
 import roleplayRoutes from "./routes/roleplays.ts";
 import roleplayConfigRoutes from "./routes/roleplay-config.ts";
+import { configureRoleplayStrategies } from "./roleplay/strategies.ts";
+import type { ScenariosServerDeps } from "./scenarios-server-deps.ts";
 
-/** Optional dependency bag for the mountable module. */
-export type ScenariosServerDeps = Record<string, unknown>;
+export type { ScenariosServerDeps };
 
 /**
  * Mounts Scenarios domain routers only (no platform surfaces). Composed shells
@@ -12,8 +13,9 @@ export type ScenariosServerDeps = Record<string, unknown>;
  */
 export function registerDomainRoutes(
   app: express.Application,
-  _deps: ScenariosServerDeps = {},
+  deps: ScenariosServerDeps = {},
 ): void {
+  configureRoleplayStrategies(deps);
   app.use("/api/roleplays", roleplayRoutes);
   app.use("/api/roleplay-config", roleplayConfigRoutes);
 }
