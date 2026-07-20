@@ -1,5 +1,11 @@
 # @heybray/scenarios-server
 
+## 0.2.0
+
+### Minor Changes
+
+- b50d162: Add typed `ScenariosServerDeps` strategy injection for grader, coach, and scorer with byte-identical defaults when deps are omitted.
+
 ## 0.1.7
 
 ### Patch Changes
