@@ -18,19 +18,21 @@ function messageText(content: unknown): string {
   return String(content ?? "");
 }
 
+export type LiveHintOptions = {
+  learnerObjective?: string | null;
+  playbook?: string | null;
+  transcript: TranscriptTurn[];
+  personaName?: string | null;
+  learnerRole?: string | null;
+};
+
 /**
  * Generate a short, in-the-moment coaching hint for the learner based on the
  * conversation so far and the scenario playbook. Returns a single concise tip.
  */
 export async function generateLiveHint(
   model: BaseChatModel,
-  opts: {
-    learnerObjective?: string | null;
-    playbook?: string | null;
-    transcript: TranscriptTurn[];
-    personaName?: string | null;
-    learnerRole?: string | null;
-  },
+  opts: LiveHintOptions,
 ): Promise<string> {
   const system = [
     "You are a real-time conversation coach for a learner practising a role-play.",

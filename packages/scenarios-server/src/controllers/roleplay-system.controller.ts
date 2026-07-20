@@ -50,12 +50,14 @@ import {
   type TranscriptTurn,
 } from "../roleplay/persona-prompt.ts";
 import {
-  gradeTranscript,
-  computeWeightedPercent,
   type GradingCriterionInput,
 } from "../roleplay/grading.ts";
+import {
+  gradeTranscript,
+  computeWeightedPercent,
+  generateLiveHint,
+} from "../roleplay/strategies.ts";
 import { findCheatDirectiveInMessages, isCheatModeEnabled, extractCheatDirective } from "../config/cheat-mode.ts";
-import { generateLiveHint } from "../roleplay/coaching.ts";
 import { emitRoleplayEvent } from "../roleplay/roleplay-events.ts";
 import type {
   MissingImportClassificationOption,

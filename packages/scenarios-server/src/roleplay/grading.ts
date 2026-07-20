@@ -43,6 +43,11 @@ export const GradingResultSchema = z.object({
 
 export type GradingResult = z.infer<typeof GradingResultSchema>;
 
+export interface CriterionScoreInput {
+  criterionId: number;
+  score: number;
+}
+
 function buildCheatGradingSystemPrompt(ctx: GradingContext, directive: string): string {
   const lines: string[] = [];
   lines.push(
@@ -293,7 +298,7 @@ export async function gradeTranscript(
  */
 export function computeWeightedPercent(
   criteria: GradingCriterionInput[],
-  scores: { criterionId: number; score: number }[],
+  scores: CriterionScoreInput[],
 ): number {
   let weightedSum = 0;
   let totalWeight = 0;
