@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Response, type RequestHandler } from "express";
 import { isCheatModeEnabled } from "../config/cheat-mode.ts";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -14,7 +14,7 @@ import {
   subscribeToRoleplayRun,
   setupRoleplaySse,
 } from "../roleplay/roleplay-events.ts";
-import { platformLogger } from "@heybray/server-kit";
+import { platformLogger, requireFeature } from "@heybray/server-kit";
 import { requirePermission, authenticateToken, requirePasswordChanged, type AuthRequest } from "@heybray/identity";
 import {
   transferImportBodySchema,
@@ -24,6 +24,20 @@ import {
   ROLEPLAY_PUBLISH_AI_REQUIRED_ERROR,
   ROLEPLAY_PUBLISH_ALLOWLIST_ERROR,
 } from "../lib/roleplay-publish-rules.ts";
+
+const LIVE_COACHING_FEATURE_KEY = "scenarios.coaching.live";
+
+/** Gates settings writes that enable live coaching; inert when OSS allow-all provider is installed. */
+function requireLiveCoachingFeatureWhenEnabled(): RequestHandler {
+  return (req, res, next) => {
+    const settings = (req.body as { settings?: { liveCoaching?: boolean } } | undefined)?.settings;
+    if (settings?.liveCoaching !== true) {
+      next();
+      return;
+    }
+    requireFeature(LIVE_COACHING_FEATURE_KEY)(req, res, next);
+  };
+}
 
 const bulkRoleplayPayloadSchema = z.object({
   roleplay: z.object({}).passthrough(),
@@ -276,7 +290,11 @@ router.post("/import", requirePermission("roleplay:manage"), async (req: AuthReq
   }
 });
 
-router.post("/", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
+router.post(
+  "/",
+  requirePermission("roleplay:manage"),
+  requireLiveCoachingFeatureWhenEnabled(),
+  async (req: AuthRequest, res: Response) => {
   try {
     const parsed = bulkRoleplayPayloadSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -431,7 +449,11 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.put("/:id", requirePermission("roleplay:manage"), async (req: AuthRequest, res: Response) => {
+router.put(
+  "/:id",
+  requirePermission("roleplay:manage"),
+  requireLiveCoachingFeatureWhenEnabled(),
+  async (req: AuthRequest, res: Response) => {
   try {
     const roleplayId = parseInt(req.params.id);
     const parsed = bulkRoleplayPayloadSchema.safeParse(req.body);
