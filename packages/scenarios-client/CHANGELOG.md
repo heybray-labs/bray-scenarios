@@ -1,5 +1,11 @@
 # @heybray/scenarios-client
 
+## 0.1.5
+
+### Patch Changes
+
+- f7b48cd: Gate live coaching settings writes behind `scenarios.coaching.live` (inert under OSS allow-all) and wrap the builder toggle in `FeatureGate`; pass optional `contentType` on star-map attempt drill-in paths.
+
 ## 0.1.4
 
 ### Patch Changes
