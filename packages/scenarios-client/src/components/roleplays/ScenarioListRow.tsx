@@ -7,10 +7,11 @@ import { useAppConfig } from "@heybray/react/config";
 import { TierStars } from "@heybray/gamification-react/points/TierStars";
 import { drawerPink } from "@heybray/gamification-react/teams/drawer-pink-styles";
 import type { ContentHistoryItem } from "@heybray/gamification-react/teams/star-map-types";
+import { memberContentAttemptsPath } from "@heybray/gamification-react/teams/star-map-paths";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { cn } from "@heybray/ui/utils";
 
-export type ScenarioListRowItem = ContentHistoryItem;
+export type ScenarioListRowItem = ContentHistoryItem & { contentType?: string };
 
 type ScenarioAttempt = {
   id: number;
@@ -75,7 +76,13 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
   const starLevel = (item.starLevel ?? 0) as 0 | 1 | 2 | 3;
   const attempted = (item.attemptCount ?? 0) > 0;
 
-  const attemptsPath = `/api/teams/${teamId}/members/${memberUserId}/contents/${item.contentId}/attempts`;
+  const contentType = item.contentType ?? "scenario";
+  const attemptsPath = memberContentAttemptsPath(
+    teamId,
+    memberUserId,
+    item.contentId,
+    item.contentType,
+  );
 
   const { data, isLoading } = useQuery<{ attempts: ScenarioAttempt[] }>({
     queryKey: [attemptsPath],
@@ -157,7 +164,7 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
                 type="button"
                 onClick={() =>
                   navigate(
-                    `${routes.contentPath("scenario", item.contentId)}/results/${attempt.id}`,
+                    `${routes.contentPath(contentType, item.contentId)}/results/${attempt.id}`,
                   )
                 }
                 className={cn(

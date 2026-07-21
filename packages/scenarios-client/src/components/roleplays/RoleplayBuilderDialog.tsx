@@ -27,6 +27,7 @@ import {
 import { useToast } from "@heybray/ui/hooks/use-toast";
 import { useFeaturedScenarioManage } from "../../hooks/use-featured-scenario";
 import { apiRequest, queryClient } from "@heybray/react/lib/queryClient";
+import { FeatureGate } from "@heybray/react/extensions/use-feature";
 import { fetchAndDownloadExport } from "../../lib/roleplay-transfer";
 import { CoverImagePicker } from "../../components/roleplays/CoverImagePicker";
 import { ClassificationOptionLabel } from "@heybray/react/classifications/ClassificationOptionLabel";
@@ -856,7 +857,23 @@ export default function RoleplayBuilderDialog({
 
                 <div className="rounded-md border p-3 space-y-3">
                   <p className="text-sm font-medium">Coaching & timing</p>
-                  <ToggleRow label="Live in-conversation coaching hints" checked={liveCoaching} onChange={setLiveCoaching} />
+                  <FeatureGate
+                    featureKey="scenarios.coaching.live"
+                    fallback={
+                      <ToggleRow
+                        label="Live in-conversation coaching hints"
+                        checked={false}
+                        onChange={() => {}}
+                        disabled
+                      />
+                    }
+                  >
+                    <ToggleRow
+                      label="Live in-conversation coaching hints"
+                      checked={liveCoaching}
+                      onChange={setLiveCoaching}
+                    />
+                  </FeatureGate>
                   <Field label="Time limit (minutes, blank = none)">
                     <Input type="number" min={1} value={timeLimitMinutes}
                       onChange={(e) => setTimeLimitMinutes(e.target.value === "" ? "" : parseInt(e.target.value))} />
