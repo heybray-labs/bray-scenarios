@@ -7,7 +7,6 @@ import { useAppConfig } from "@heybray/react/config";
 import { TierStars } from "@heybray/gamification-react/points/TierStars";
 import { drawerPink } from "@heybray/gamification-react/teams/drawer-pink-styles";
 import type { ContentHistoryItem } from "@heybray/gamification-react/teams/star-map-types";
-import { memberContentAttemptsPath } from "@heybray/gamification-react/teams/star-map-paths";
 import { apiRequest } from "@heybray/react/lib/queryClient";
 import { cn } from "@heybray/ui/utils";
 
@@ -77,12 +76,10 @@ export function ScenarioListRow({ item, teamId, memberUserId }: ScenarioListRowP
   const attempted = (item.attemptCount ?? 0) > 0;
 
   const contentType = item.contentType ?? "scenario";
-  const attemptsPath = memberContentAttemptsPath(
-    teamId,
-    memberUserId,
-    item.contentId,
-    item.contentType,
-  );
+  const attemptsPath =
+    item.contentType != null
+      ? `/api/teams/${teamId}/members/${memberUserId}/contents/${item.contentId}/attempts?contentType=${encodeURIComponent(item.contentType)}`
+      : `/api/teams/${teamId}/members/${memberUserId}/contents/${item.contentId}/attempts`;
 
   const { data, isLoading } = useQuery<{ attempts: ScenarioAttempt[] }>({
     queryKey: [attemptsPath],
