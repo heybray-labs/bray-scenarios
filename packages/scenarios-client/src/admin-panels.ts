@@ -19,6 +19,8 @@ import logo from "./assets/logo.png";
 
 let registered = false;
 
+const SCENARIOS_MANAGE = "roleplay:manage";
+
 export function registerAdminPanels(): void {
   if (registered) return;
   registered = true;
@@ -26,6 +28,8 @@ export function registerAdminPanels(): void {
   registerAdminPanel({
     value: "ai",
     label: "AI",
+    requiresManage: true,
+    managePermission: SCENARIOS_MANAGE,
     render: ({ open, onDirtyChange }) =>
       createElement(RoleplayConfigPanel, { key: open ? "open" : "closed", onDirtyChange }),
   });
@@ -33,12 +37,14 @@ export function registerAdminPanels(): void {
   registerAdminPanel({
     value: "users",
     label: "Users",
+    requiresRole: "admin",
     render: () => createElement(UsersManagementPanel),
   });
 
   registerAdminPanel({
     value: "teams",
     label: "Teams",
+    requiresRole: "admin",
     render: () => createElement(TeamsManagementPanel),
   });
 
@@ -46,6 +52,7 @@ export function registerAdminPanels(): void {
     value: "media",
     label: "Media",
     requiresManage: true,
+    managePermission: SCENARIOS_MANAGE,
     render: () =>
       createElement(MediaManagementPanel, {
         contentNoun: "scenario",
@@ -58,6 +65,7 @@ export function registerAdminPanels(): void {
     value: "classifications",
     label: "Classifications",
     requiresManage: true,
+    managePermission: SCENARIOS_MANAGE,
     render: () =>
       createElement(ClassificationManagementPanel, {
         contentNoun: "scenario",
@@ -69,6 +77,7 @@ export function registerAdminPanels(): void {
     value: "homepage",
     label: "Homepage",
     requiresManage: true,
+    managePermission: SCENARIOS_MANAGE,
     render: () => createElement(FeaturedScenariosPanel),
   });
 
