@@ -1,5 +1,11 @@
 # @heybray/scenarios-client
 
+## 0.1.6
+
+### Patch Changes
+
+- 2eefffb: Declare `managePermission` / `requiresRole` on settings admin panels so composed shells only mount tabs the signed-in user can access.
+
 ## 0.1.5
 
 ### Patch Changes
