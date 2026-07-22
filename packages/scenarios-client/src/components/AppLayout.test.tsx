@@ -47,6 +47,7 @@ vi.mock("@heybray/react/hooks/use-auth", () => ({
   useAuth: () => ({
     user: { id: 1, email: "learner@test.local", profile: { firstName: "Test" } },
     hasRole: () => true,
+    hasPermission: () => true,
     logout: vi.fn(),
   }),
 }));
